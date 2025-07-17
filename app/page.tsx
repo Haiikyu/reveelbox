@@ -38,7 +38,7 @@ export default function HomePage() {
             <h1 className="text-5xl md:text-7xl font-bold text-white mb-4">
               Bienvenue au
               <span className="block text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
-                LootBox Paradise
+                ReveelBox
               </span>
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto">
@@ -71,19 +71,19 @@ export default function HomePage() {
           </motion.div>
         </div>
 
-        {/* Animation de particules flottantes */}
+        {/* Animation de particules flottantes - VERSION CORRIGÉE */}
         <div className="absolute inset-0 pointer-events-none">
           {[...Array(20)].map((_, i) => (
             <motion.div
               key={i}
               className="absolute w-2 h-2 bg-purple-400 rounded-full opacity-30"
               initial={{ 
-                x: Math.random() * 100 + '%',
-                y: window.innerHeight + 50
+                x: `${Math.random() * 100}%`,
+                y: '100%'
               }}
               animate={{ 
-                y: -50,
-                x: Math.random() * 1000,
+                y: '-10%',
+                x: `${Math.random() * 100}%`
               }}
               transition={{ 
                 duration: Math.random() * 10 + 10,
@@ -104,7 +104,7 @@ export default function HomePage() {
           className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-purple-500/20 hover:border-purple-500/40 transition-colors"
         >
           <Trophy className="w-12 h-12 text-yellow-500 mb-4" />
-          <h3 className="text-xl font-bold text-white mb-2">Objets Rares</h3>
+          <h3 className="text-xl font-bold text-white mb-2">Objets Réels</h3>
           <p className="text-gray-400">
             Collectionnez des objets uniques allant du commun au légendaire
           </p>
