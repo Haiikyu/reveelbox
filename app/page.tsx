@@ -83,7 +83,7 @@ export default function HomePage() {
               }}
               animate={{ 
                 y: -50,
-                x: Math.random() * window.innerWidth
+                x: Math.random() * 1000,
               }}
               transition={{ 
                 duration: Math.random() * 10 + 10,
