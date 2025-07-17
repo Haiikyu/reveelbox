@@ -78,7 +78,7 @@ export default function HomePage() {
               key={i}
               className="absolute w-2 h-2 bg-purple-400 rounded-full opacity-30"
               initial={{ 
-                x: Math.random() * window.innerWidth,
+                x: Math.random() * 100 + '%',
                 y: window.innerHeight + 50
               }}
               animate={{ 
