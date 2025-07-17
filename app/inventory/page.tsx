@@ -325,4 +325,5 @@ export default function InventoryPage() {
         </div>
       </motion.div>
     </div>
-  )
+  ); // ← parenthèse de fermeture ici
+} // ← accolade de fermeture ici
