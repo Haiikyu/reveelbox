@@ -3,45 +3,71 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase, getProfile } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { AuthContextType } from '@/app/types/auth'
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  profile: null,
-  loading: true,
-  refreshProfile: async () => {},
-  signOut: async () => {}
-})
+const AuthContext = createContext<any>({})
 
 export const useAuth = () => useContext(AuthContext)
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const user = useUser()
+export default function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
-
-  const refreshProfile = async () => {
-    if (!user) return
-    const newProfile = await getProfile(user.id)
-    setProfile(newProfile)
-  }
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
-    if (user) {
-      refreshProfile()
+    // Vérifier la session actuelle
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      if (session?.user) {
+        loadProfile(session.user.id)
+      }
+      setLoading(false)
+    })
+
+    // Écouter les changements d'authentification
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setUser(session?.user ?? null)
+      
+      if (session?.user) {
+        await loadProfile(session.user.id)
+      } else {
+        setProfile(null)
+      }
+      
+      if (event === 'SIGNED_IN') {
+        router.refresh()
+      } else if (event === 'SIGNED_OUT') {
+        router.push('/')
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [router])
+
+  const loadProfile = async (userId: string) => {
+    const { data, error } = await getProfile(userId)
+    if (data) {
+      setProfile(data)
     }
-  }, [user])
+  }
+
+  const refreshProfile = async () => {
+    if (user) {
+      await loadProfile(user.id)
+    }
+  }
+
+  const value = {
+    user,
+    profile,
+    loading,
+    refreshProfile,
+    signOut: () => supabase.auth.signOut()
+  }
 
   return (
-    <AuthContext.Provider value={{ user, profile, refreshProfile }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   )
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
-  return context
 }
