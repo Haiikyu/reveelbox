@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
-import { supabase, getProfile } from '@/lib/supabase'
+import { supabase, getProfile } from '@/lib/supabase.js'
 import { useRouter } from 'next/navigation'
 
 const AuthContext = createContext<any>({})
