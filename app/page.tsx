@@ -193,97 +193,177 @@ export default function HomePage() {
             {/* Hero Image/Animation */}
             <motion.div
               variants={itemVariants}
-              className="relative max-w-4xl mx-auto"
+              className="relative max-w-5xl mx-auto"
             >
-              <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl p-8 shadow-2xl">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                  {/* Boîte Sneakers */}
+              <div className="relative bg-white rounded-3xl p-8 shadow-2xl border border-gray-100">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                  {/* Sneaker Box */}
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.1, duration: 0.5 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1, duration: 0.6 }}
                     className="group cursor-pointer"
                   >
-                    <div className="aspect-square bg-white rounded-2xl shadow-lg p-4 hover:shadow-xl transition-all duration-300 group-hover:scale-105">
-                      <div className="w-full h-24 bg-gradient-to-br from-red-400 to-red-600 rounded-xl mb-3 flex items-center justify-center">
-                        <span className="text-white font-bold text-xs">SNEAKERS</span>
+                    <div className="relative bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 shadow-xl overflow-hidden group-hover:shadow-2xl transition-all duration-300 group-hover:scale-105">
+                      {/* Badge populaire */}
+                      <div className="absolute top-3 left-3 bg-green-100 text-green-700 text-xs font-medium px-2 py-1 rounded-full">
+                        % POPULAIRE
                       </div>
-                      <div className="text-center">
-                        <h4 className="font-semibold text-gray-900 text-sm mb-1">Sneaker Box</h4>
-                        <p className="text-xs text-gray-600">150 coins</p>
-                        <div className="flex justify-center mt-2">
-                          <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full">Rare</span>
+                      
+                      {/* Contenu de la boîte */}
+                      <div className="relative z-10 mt-8">
+                        <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 mb-4">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="aspect-square bg-white/30 rounded-lg flex items-center justify-center">
+                              <div className="w-8 h-8 bg-red-500 rounded transform rotate-12"></div>
+                            </div>
+                            <div className="aspect-square bg-white/30 rounded-lg flex items-center justify-center">
+                              <div className="w-8 h-8 bg-white rounded transform -rotate-12"></div>
+                            </div>
+                            <div className="aspect-square bg-white/30 rounded-lg flex items-center justify-center">
+                              <div className="w-8 h-8 bg-gray-300 rounded transform rotate-45"></div>
+                            </div>
+                            <div className="aspect-square bg-white/30 rounded-lg flex items-center justify-center">
+                              <div className="w-8 h-8 bg-blue-400 rounded transform -rotate-45"></div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="text-center text-white">
+                          <h3 className="font-bold text-lg mb-1">SNEAKER BOX</h3>
+                          <p className="text-blue-100 text-sm mb-3">Premium Sneakers Collection</p>
+                          <div className="bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 inline-block">
+                            <span className="font-bold">150</span>
+                            <span className="text-blue-100 ml-1">coins</span>
+                          </div>
                         </div>
                       </div>
+                      
+                      {/* Effet de brillance au hover */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 transform translate-x-full group-hover:translate-x-[-200%] transition-transform duration-700"></div>
                     </div>
                   </motion.div>
 
-                  {/* Boîte Tech */}
+                  {/* Tech Box */}
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.2, duration: 0.5 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2, duration: 0.6 }}
                     className="group cursor-pointer"
                   >
-                    <div className="aspect-square bg-white rounded-2xl shadow-lg p-4 hover:shadow-xl transition-all duration-300 group-hover:scale-105">
-                      <div className="w-full h-24 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl mb-3 flex items-center justify-center">
-                        <span className="text-white font-bold text-xs">TECH</span>
-                      </div>
-                      <div className="text-center">
-                        <h4 className="font-semibold text-gray-900 text-sm mb-1">Tech Box</h4>
-                        <p className="text-xs text-gray-600">200 coins</p>
-                        <div className="flex justify-center mt-2">
-                          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">Epic</span>
+                    <div className="relative bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 shadow-xl overflow-hidden group-hover:shadow-2xl transition-all duration-300 group-hover:scale-105">
+                      <div className="relative z-10 mt-4">
+                        <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 mb-4">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="aspect-square bg-white/30 rounded-lg flex items-center justify-center">
+                              <div className="w-6 h-6 bg-gray-800 rounded-sm"></div>
+                            </div>
+                            <div className="aspect-square bg-white/30 rounded-lg flex items-center justify-center">
+                              <div className="w-8 h-4 bg-white rounded-full"></div>
+                            </div>
+                            <div className="aspect-square bg-white/30 rounded-lg flex items-center justify-center">
+                              <div className="w-6 h-6 bg-blue-400 rounded"></div>
+                            </div>
+                            <div className="aspect-square bg-white/30 rounded-lg flex items-center justify-center">
+                              <div className="w-8 h-2 bg-green-400 rounded-full"></div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="text-center text-white">
+                          <h3 className="font-bold text-lg mb-1">TECH BOX</h3>
+                          <p className="text-purple-100 text-sm mb-3">Latest Gadgets & Electronics</p>
+                          <div className="bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 inline-block">
+                            <span className="font-bold">200</span>
+                            <span className="text-purple-100 ml-1">coins</span>
+                          </div>
                         </div>
                       </div>
+                      
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 transform translate-x-full group-hover:translate-x-[-200%] transition-transform duration-700"></div>
                     </div>
                   </motion.div>
 
-                  {/* Boîte Fashion */}
+                  {/* Fashion Box */}
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.3, duration: 0.5 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3, duration: 0.6 }}
                     className="group cursor-pointer"
                   >
-                    <div className="aspect-square bg-white rounded-2xl shadow-lg p-4 hover:shadow-xl transition-all duration-300 group-hover:scale-105">
-                      <div className="w-full h-24 bg-gradient-to-br from-pink-400 to-pink-600 rounded-xl mb-3 flex items-center justify-center">
-                        <span className="text-white font-bold text-xs">FASHION</span>
-                      </div>
-                      <div className="text-center">
-                        <h4 className="font-semibold text-gray-900 text-sm mb-1">Fashion Box</h4>
-                        <p className="text-xs text-gray-600">120 coins</p>
-                        <div className="flex justify-center mt-2">
-                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Common</span>
+                    <div className="relative bg-gradient-to-br from-pink-500 to-pink-600 rounded-2xl p-6 shadow-xl overflow-hidden group-hover:shadow-2xl transition-all duration-300 group-hover:scale-105">
+                      <div className="relative z-10 mt-4">
+                        <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 mb-4">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="aspect-square bg-white/30 rounded-lg flex items-center justify-center">
+                              <div className="w-6 h-8 bg-black rounded-t-full"></div>
+                            </div>
+                            <div className="aspect-square bg-white/30 rounded-lg flex items-center justify-center">
+                              <div className="w-8 h-6 bg-white rounded-full"></div>
+                            </div>
+                            <div className="aspect-square bg-white/30 rounded-lg flex items-center justify-center">
+                              <div className="w-6 h-6 bg-red-400 rounded-full"></div>
+                            </div>
+                            <div className="aspect-square bg-white/30 rounded-lg flex items-center justify-center">
+                              <div className="w-4 h-8 bg-yellow-400 rounded-full"></div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="text-center text-white">
+                          <h3 className="font-bold text-lg mb-1">FASHION BOX</h3>
+                          <p className="text-pink-100 text-sm mb-3">Trendy Accessories & Style</p>
+                          <div className="bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 inline-block">
+                            <span className="font-bold">120</span>
+                            <span className="text-pink-100 ml-1">coins</span>
+                          </div>
                         </div>
                       </div>
+                      
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 transform translate-x-full group-hover:translate-x-[-200%] transition-transform duration-700"></div>
                     </div>
                   </motion.div>
 
-                  {/* Boîte Luxury */}
+                  {/* Luxury Box */}
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.4, duration: 0.5 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4, duration: 0.6 }}
                     className="group cursor-pointer"
                   >
-                    <div className="aspect-square bg-white rounded-2xl shadow-lg p-4 hover:shadow-xl transition-all duration-300 group-hover:scale-105">
-                      <div className="w-full h-24 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-xl mb-3 flex items-center justify-center">
-                        <span className="text-white font-bold text-xs">LUXURY</span>
-                      </div>
-                      <div className="text-center">
-                        <h4 className="font-semibold text-gray-900 text-sm mb-1">Luxury Box</h4>
-                        <p className="text-xs text-gray-600">500 coins</p>
-                        <div className="flex justify-center mt-2">
-                          <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full">Legendary</span>
+                    <div className="relative bg-gradient-to-br from-yellow-500 to-orange-500 rounded-2xl p-6 shadow-xl overflow-hidden group-hover:shadow-2xl transition-all duration-300 group-hover:scale-105">
+                      <div className="relative z-10 mt-4">
+                        <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 mb-4">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="aspect-square bg-white/30 rounded-lg flex items-center justify-center">
+                              <div className="w-6 h-6 bg-yellow-300 rounded-full"></div>
+                            </div>
+                            <div className="aspect-square bg-white/30 rounded-lg flex items-center justify-center">
+                              <div className="w-8 h-4 bg-white rounded-full"></div>
+                            </div>
+                            <div className="aspect-square bg-white/30 rounded-lg flex items-center justify-center">
+                              <div className="w-6 h-6 bg-orange-400 rounded"></div>
+                            </div>
+                            <div className="aspect-square bg-white/30 rounded-lg flex items-center justify-center">
+                              <div className="w-4 h-8 bg-red-400 rounded-full"></div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="text-center text-white">
+                          <h3 className="font-bold text-lg mb-1">LUXURY BOX</h3>
+                          <p className="text-yellow-100 text-sm mb-3">Exclusive Premium Items</p>
+                          <div className="bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 inline-block">
+                            <span className="font-bold">500</span>
+                            <span className="text-yellow-100 ml-1">coins</span>
+                          </div>
                         </div>
                       </div>
+                      
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 transform translate-x-full group-hover:translate-x-[-200%] transition-transform duration-700"></div>
                     </div>
                   </motion.div>
                 </div>
-                
-                {/* Effet de brillance */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 transform translate-x-full group-hover:translate-x-[-200%] transition-transform duration-1000"></div>
               </div>
             </motion.div>
           </motion.div>
