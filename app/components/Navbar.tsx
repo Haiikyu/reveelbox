@@ -36,7 +36,7 @@ export default function Navbar() {
   // Navigation items
   const navItems = [
     { href: '/boxes', label: 'Unboxing', icon: Package },
-    { href: '/battles', label: 'Battles', icon: Sword },
+    { href: '/battle', label: 'Battles', icon: Sword },
     { href: '/affiliates', label: 'Affiliés', icon: Users },
     { href: '/contact', label: 'Contact', icon: Mail },
     { href: '/free-drop', label: 'Free Drop', icon: Gift, highlight: true }
