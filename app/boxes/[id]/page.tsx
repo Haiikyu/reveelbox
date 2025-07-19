@@ -95,7 +95,109 @@ export default function BoxPage({ params }: BoxPageParams) {
         const { data: { user: currentUser } } = await supabase.auth.getUser()
         setUser(currentUser)
 
-        // Charger la boîte
+        // Pour debug : vérifier s'il y a des boîtes
+        const { data: allBoxes } = await supabase
+          .from('loot_boxes')
+          .select('*')
+        
+        console.log('Toutes les boîtes:', allBoxes)
+
+        // Si aucune boîte n'existe, utiliser des données de test
+        if (!allBoxes || allBoxes.length === 0) {
+          console.log('Aucune boîte trouvée, utilisation des données de test')
+          
+          // Données de test
+          const testBox = {
+            id: params.id,
+            name: 'BLINDSHOT',
+            description: 'Une sélection exclusive des sneakers les plus recherchées du marché. Chaque ouverture garantit une surprise !',
+            price_virtual: 150,
+            price_real: 6.84,
+            image_url: 'https://imgix.hypedrop.com/images/HypeDrop_70%25%20sneaker_Box_Design_Export.png?auto=format&w=500',
+            is_active: true
+          }
+          
+          const testItems = [
+            {
+              id: '1',
+              name: 'Air Jordan 1 Chicago',
+              rarity: 'legendary' as const,
+              probability: 5,
+              image_url: 'https://www.pngarts.com/files/4/Sneaker-PNG-Image.png',
+              market_value: 500,
+              description: 'Le graal absolu des sneakers'
+            },
+            {
+              id: '2',
+              name: 'Nike Dunk Low Panda',
+              rarity: 'rare' as const,
+              probability: 15,
+              image_url: 'https://www.pngarts.com/files/4/Sneaker-PNG-Image.png',
+              market_value: 250,
+              description: 'Coloris iconique noir et blanc'
+            },
+            {
+              id: '3',
+              name: 'Yeezy Boost 350 V2',
+              rarity: 'epic' as const,
+              probability: 20,
+              image_url: 'https://www.pngarts.com/files/4/Sneaker-PNG-Image.png',
+              market_value: 300,
+              description: 'Design futuriste de Kanye'
+            },
+            {
+              id: '4',
+              name: 'New Balance 550',
+              rarity: 'common' as const,
+              probability: 35,
+              image_url: 'https://www.pngarts.com/files/4/Sneaker-PNG-Image.png',
+              market_value: 120,
+              description: 'Style vintage premium'
+            },
+            {
+              id: '5',
+              name: 'Nike SB Dunk High',
+              rarity: 'epic' as const,
+              probability: 15,
+              image_url: 'https://www.pngarts.com/files/4/Sneaker-PNG-Image.png',
+              market_value: 280,
+              description: 'Culture skateboard authentique'
+            },
+            {
+              id: '6',
+              name: 'Air Force 1 Triple White',
+              rarity: 'common' as const,
+              probability: 10,
+              image_url: 'https://www.pngarts.com/files/4/Sneaker-PNG-Image.png',
+              market_value: 90,
+              description: 'Le classique intemporel'
+            }
+          ]
+          
+          setBox(testBox)
+          setItems(testItems)
+          createWheelItems(testItems)
+          
+          // Charger les coins de l'utilisateur si connecté
+          if (currentUser) {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('virtual_currency')
+              .eq('id', currentUser.id)
+              .single()
+
+            if (profileData) {
+              setUserCoins(profileData.virtual_currency)
+            } else {
+              setUserCoins(100) // Coins par défaut
+            }
+          }
+          
+          setLoading(false)
+          return
+        }
+
+        // Charger la boîte normalement
         const { data: boxData, error: boxError } = await supabase
           .from('loot_boxes')
           .select(`
@@ -108,7 +210,20 @@ export default function BoxPage({ params }: BoxPageParams) {
           .eq('is_active', true)
           .single()
 
+        console.log('Box query result:', { boxData, boxError })
 
+        if (boxError) {
+          console.error('Erreur lors du chargement de la boîte:', boxError)
+          showMessage('Boîte introuvable', 'error')
+          router.push('/boxes')
+          return
+        }
+
+        if (!boxData) {
+          showMessage('Boîte introuvable', 'error')
+          router.push('/boxes')
+          return
+        }
 
         setBox(boxData)
 

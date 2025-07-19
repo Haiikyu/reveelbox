@@ -11,6 +11,8 @@ import { Badge } from '../components/ui/Badge'
 import { LoadingState } from '../components/ui/LoadingState'
 import { EmptyState } from '../components/ui/EmptyState'
 import { CurrencyDisplay } from '../components/ui/CurrencyDisplay'
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
 
 // Interface pour les types
 interface LootBox {
@@ -21,9 +23,8 @@ interface LootBox {
   price_real: number
   image_url: string
   is_active: boolean
-  rarity: 'common' | 'rare' | 'epic' | 'legendary'
-  total_items: number
-  most_valuable_item: string
+  created_at?: string
+  animation_url?: string
 }
 
 export default function BoxesPage() {
@@ -31,112 +32,114 @@ export default function BoxesPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
-  const [userCoins, setUserCoins] = useState(1250) // Récupérer depuis Supabase
+  const [userCoins, setUserCoins] = useState(0)
+  const [user, setUser] = useState<any>(null)
+  const router = useRouter()
 
-  // Simulation de données - Remplace par tes vraies données Supabase
+  // Charger les boîtes depuis Supabase
   useEffect(() => {
-    const fetchBoxes = async () => {
-      // Simulation du chargement
-      setTimeout(() => {
-        setBoxes([
-          {
-            id: '1',
-            name: 'MYSTERY SNEAKER BOX',
-            description: 'Une sélection de sneakers exclusives des plus grandes marques',
-            price_virtual: 150,
-            price_real: 49.99,
-            image_url: 'https://imgix.hypedrop.com/images/HypeDrop_70%25%20sneaker_Box_Design_Export.png?auto=format&w=500',
-            is_active: true,
-            rarity: 'epic',
-            total_items: 12,
-            most_valuable_item: 'Air Jordan 1 Chicago'
-          },
-          {
-            id: '2',
-            name: 'LEGENDARY DROPS',
-            description: 'Les sneakers les plus rares et recherchées du marché',
-            price_virtual: 300,
-            price_real: 99.99,
-            image_url: 'https://imgix.hypedrop.com/images/HypeDrop_70%25%20sneaker_Box_Design_Export.png?auto=format&w=500',
-            is_active: true,
-            rarity: 'legendary',
-            total_items: 8,
-            most_valuable_item: 'Off-White x Nike'
-          },
-          {
-            id: '3',
-            name: 'STARTER PACK',
-            description: 'Parfait pour commencer votre collection',
-            price_virtual: 75,
-            price_real: 24.99,
-            image_url: 'https://imgix.hypedrop.com/images/HypeDrop_70%25%20sneaker_Box_Design_Export.png?auto=format&w=500',
-            is_active: true,
-            rarity: 'common',
-            total_items: 15,
-            most_valuable_item: 'Nike Air Force 1'
-          },
-          {
-            id: '4',
-            name: 'LIMITED EDITION',
-            description: 'Éditions limitées et collaborations exclusives',
-            price_virtual: 500,
-            price_real: 149.99,
-            image_url: 'https://imgix.hypedrop.com/images/HypeDrop_70%25%20sneaker_Box_Design_Export.png?auto=format&w=500',
-            is_active: true,
-            rarity: 'legendary',
-            total_items: 6,
-            most_valuable_item: 'Travis Scott x Jordan'
-          },
-          {
-            id: '5',
-            name: 'RETRO CLASSICS',
-            description: 'Les classiques intemporels revisités',
-            price_virtual: 200,
-            price_real: 69.99,
-            image_url: 'https://imgix.hypedrop.com/images/HypeDrop_70%25%20sneaker_Box_Design_Export.png?auto=format&w=500',
-            is_active: true,
-            rarity: 'rare',
-            total_items: 10,
-            most_valuable_item: 'Jordan 4 Bred'
-          },
-          {
-            id: '6',
-            name: 'STREET STYLE',
-            description: 'Le style urbain à son apogée',
-            price_virtual: 120,
-            price_real: 39.99,
-            image_url: 'https://imgix.hypedrop.com/images/HypeDrop_70%25%20sneaker_Box_Design_Export.png?auto=format&w=500',
-            is_active: true,
-            rarity: 'rare',
-            total_items: 14,
-            most_valuable_item: 'Yeezy Boost 350'
+    const fetchBoxesAndUser = async () => {
+      try {
+        // Récupérer l'utilisateur actuel
+        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        setUser(currentUser)
+
+        // Charger les coins de l'utilisateur si connecté
+        if (currentUser) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('virtual_currency')
+            .eq('id', currentUser.id)
+            .single()
+
+          if (profileData) {
+            setUserCoins(profileData.virtual_currency)
           }
-        ])
+        }
+
+        // Charger les boîtes
+        const { data: boxesData, error: boxesError } = await supabase
+          .from('loot_boxes')
+          .select('*')
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+
+        if (boxesError) {
+          console.error('Erreur lors du chargement des boîtes:', boxesError)
+        } else if (!boxesData || boxesData.length === 0) {
+          console.log('Aucune boîte trouvée dans la base de données')
+          
+          // Données de test si aucune boîte n'existe
+          const testBoxes = [
+            {
+              id: '1',
+              name: 'MYSTERY SNEAKER BOX',
+              description: 'Une sélection de sneakers exclusives des plus grandes marques',
+              price_virtual: 150,
+              price_real: 49.99,
+              image_url: 'https://imgix.hypedrop.com/images/HypeDrop_70%25%20sneaker_Box_Design_Export.png?auto=format&w=500',
+              is_active: true
+            },
+            {
+              id: '2',
+              name: 'LEGENDARY DROPS',
+              description: 'Les sneakers les plus rares et recherchées du marché',
+              price_virtual: 300,
+              price_real: 99.99,
+              image_url: 'https://imgix.hypedrop.com/images/HypeDrop_70%25%20sneaker_Box_Design_Export.png?auto=format&w=500',
+              is_active: true
+            },
+            {
+              id: '3',
+              name: 'STARTER PACK',
+              description: 'Parfait pour commencer votre collection',
+              price_virtual: 75,
+              price_real: 24.99,
+              image_url: 'https://imgix.hypedrop.com/images/HypeDrop_70%25%20sneaker_Box_Design_Export.png?auto=format&w=500',
+              is_active: true
+            }
+          ]
+          setBoxes(testBoxes)
+        } else {
+          setBoxes(boxesData)
+        }
+
         setLoading(false)
-      }, 1500)
+      } catch (error) {
+        console.error('Erreur:', error)
+        setLoading(false)
+      }
     }
 
-    fetchBoxes()
+    fetchBoxesAndUser()
   }, [])
+
+  // Déterminer la rareté en fonction du prix
+  const getRarity = (price_virtual: number) => {
+    if (price_virtual >= 400) return 'legendary'
+    if (price_virtual >= 200) return 'epic'
+    if (price_virtual >= 100) return 'rare'
+    return 'common'
+  }
 
   const categories = [
     { value: 'all', label: 'Toutes les boîtes', count: boxes.length },
-    { value: 'legendary', label: 'Légendaires', count: boxes.filter(b => b.rarity === 'legendary').length },
-    { value: 'epic', label: 'Épiques', count: boxes.filter(b => b.rarity === 'epic').length },
-    { value: 'rare', label: 'Rares', count: boxes.filter(b => b.rarity === 'rare').length },
-    { value: 'common', label: 'Communes', count: boxes.filter(b => b.rarity === 'common').length }
+    { value: 'legendary', label: 'Légendaires', count: boxes.filter(b => getRarity(b.price_virtual) === 'legendary').length },
+    { value: 'epic', label: 'Épiques', count: boxes.filter(b => getRarity(b.price_virtual) === 'epic').length },
+    { value: 'rare', label: 'Rares', count: boxes.filter(b => getRarity(b.price_virtual) === 'rare').length },
+    { value: 'common', label: 'Communes', count: boxes.filter(b => getRarity(b.price_virtual) === 'common').length }
   ]
 
   const filteredBoxes = boxes.filter(box => {
     const matchesSearch = box.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          box.description.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesCategory = selectedCategory === 'all' || box.rarity === selectedCategory
+    const boxRarity = getRarity(box.price_virtual)
+    const matchesCategory = selectedCategory === 'all' || boxRarity === selectedCategory
     return matchesSearch && matchesCategory && box.is_active
   })
 
   const handleOpenBox = (boxId: string) => {
-    // Logique d'ouverture - redirection vers la page de la boîte
-    window.location.href = `/boxes/${boxId}`
+    router.push(`/boxes/${boxId}`)
   }
 
   const getRarityColor = (rarity: string) => {
@@ -196,7 +199,9 @@ export default function BoxesPage() {
                 size="lg" 
               />
             </div>
-            <div className="text-primary-100">Vos Coins</div>
+            <div className="text-primary-100">
+              {user ? 'Vos Coins' : 'Connectez-vous'}
+            </div>
           </div>
         </div>
       </motion.div>
@@ -265,111 +270,104 @@ export default function BoxesPage() {
           transition={{ delay: 0.4 }}
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
         >
-          {filteredBoxes.map((box, index) => (
-            <motion.div
-              key={box.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 * index }}
-            >
-              <Card hover className="overflow-hidden group relative">
-                {/* Badge de rareté */}
-                <div className="absolute top-4 right-4 z-10">
-                  <Badge variant={getRarityBadgeVariant(box.rarity)}>
-                    {box.rarity.toUpperCase()}
-                  </Badge>
-                </div>
+          {filteredBoxes.map((box, index) => {
+            const boxRarity = getRarity(box.price_virtual)
+            
+            return (
+              <motion.div
+                key={box.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 * index }}
+              >
+                <Card hover className="overflow-hidden group relative">
+                  {/* Badge de rareté */}
+                  <div className="absolute top-4 right-4 z-10">
+                    <Badge variant={getRarityBadgeVariant(boxRarity)}>
+                      {boxRarity.toUpperCase()}
+                    </Badge>
+                  </div>
 
-                {/* Image avec overlay gradient */}
-                <div className="relative">
-                  <img
-                    src={box.image_url}
-                    alt={box.name}
-                    className="w-full h-64 object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className={`absolute inset-0 bg-gradient-to-t ${getRarityColor(box.rarity)} opacity-20`} />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-                  
-                  {/* Nombre d'items */}
-                  <div className="absolute bottom-4 left-4 text-white">
-                    <div className="flex items-center gap-2">
-                      <Package size={16} />
-                      <span className="text-sm font-medium">{box.total_items} items</span>
+                  {/* Image avec overlay gradient */}
+                  <div className="relative">
+                    <img
+                      src={box.image_url}
+                      alt={box.name}
+                      className="w-full h-64 object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <div className={`absolute inset-0 bg-gradient-to-t ${getRarityColor(boxRarity)} opacity-20`} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                  </div>
+
+                  <div className="p-6">
+                    {/* Titre et description */}
+                    <div className="mb-4">
+                      <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors">
+                        {box.name}
+                      </h3>
+                      <p className="text-gray-600 text-sm line-clamp-2">
+                        {box.description}
+                      </p>
                     </div>
-                  </div>
-                </div>
 
-                <div className="p-6">
-                  {/* Titre et description */}
-                  <div className="mb-4">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors">
-                      {box.name}
-                    </h3>
-                    <p className="text-gray-600 text-sm line-clamp-2">
-                      {box.description}
-                    </p>
-                  </div>
-
-                  {/* Item le plus précieux */}
-                  <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Star size={14} className="text-yellow-500" />
-                      <span className="text-xs font-medium text-gray-600">ITEM LE PLUS PRÉCIEUX</span>
-                    </div>
-                    <p className="text-sm font-semibold text-gray-900">{box.most_valuable_item}</p>
-                  </div>
-
-                  {/* Prix */}
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center space-x-3">
-                      <div className="flex items-center gap-1">
-                        <Coins size={20} className="text-primary-600" />
-                        <span className="text-2xl font-bold text-primary-600">
-                          {box.price_virtual}
-                        </span>
+                    {/* Prix */}
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center space-x-3">
+                        <div className="flex items-center gap-1">
+                          <Coins size={20} className="text-primary-600" />
+                          <span className="text-2xl font-bold text-primary-600">
+                            {box.price_virtual}
+                          </span>
+                        </div>
+                        <div className="text-gray-400 text-sm">
+                          ou {box.price_real}€
+                        </div>
                       </div>
-                      <div className="text-gray-400 text-sm">
-                        ou {box.price_real}€
-                      </div>
+                      
+                      {/* Indicateur d'affordabilité */}
+                      {user ? (
+                        userCoins >= box.price_virtual ? (
+                          <Badge variant="success" size="sm">
+                            Disponible
+                          </Badge>
+                        ) : (
+                          <Badge variant="error" size="sm">
+                            Coins insuffisants
+                          </Badge>
+                        )
+                      ) : (
+                        <Badge variant="gray" size="sm">
+                          Connexion requise
+                        </Badge>
+                      )}
                     </div>
-                    
-                    {/* Indicateur d'affordabilité */}
-                    {userCoins >= box.price_virtual ? (
-                      <Badge variant="success" size="sm">
-                        Disponible
-                      </Badge>
-                    ) : (
-                      <Badge variant="error" size="sm">
-                        Coins insuffisants
-                      </Badge>
-                    )}
-                  </div>
 
-                  {/* Boutons d'action */}
-                  <div className="space-y-3">
-                    <Button
-                      fullWidth
-                      disabled={userCoins < box.price_virtual}
-                      onClick={() => handleOpenBox(box.id)}
-                      className="group-hover:scale-105 transition-transform"
-                    >
-                      <ShoppingCart size={16} className="mr-2" />
-                      Ouvrir cette boîte
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      fullWidth
-                      onClick={() => window.location.href = `/boxes/${box.id}`}
-                    >
-                      Voir les détails
-                    </Button>
+                    {/* Boutons d'action */}
+                    <div className="space-y-3">
+                      <Button
+                        fullWidth
+                        disabled={!user || userCoins < box.price_virtual}
+                        onClick={() => handleOpenBox(box.id)}
+                        className="group-hover:scale-105 transition-transform"
+                      >
+                        <ShoppingCart size={16} className="mr-2" />
+                        Ouvrir cette boîte
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        fullWidth
+                        onClick={() => router.push(`/boxes/${box.id}`)}
+                      >
+                        Voir les détails
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </Card>
-            </motion.div>
-          ))}
+                </Card>
+              </motion.div>
+            )
+          })}
         </motion.div>
       )}
 
@@ -382,14 +380,20 @@ export default function BoxesPage() {
       >
         <Card className="p-8 text-center bg-gradient-to-r from-primary-50 to-primary-100 border-primary-200">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            Pas assez de coins ?
+            {user ? 'Pas assez de coins ?' : 'Prêt à commencer ?'}
           </h2>
           <p className="text-gray-600 mb-6 max-w-md mx-auto">
-            Rechargez votre portefeuille pour découvrir toutes nos boîtes mystères et leurs trésors cachés.
+            {user 
+              ? 'Rechargez votre portefeuille pour découvrir toutes nos boîtes mystères et leurs trésors cachés.'
+              : 'Connectez-vous pour ouvrir des boîtes et découvrir des sneakers exclusives.'
+            }
           </p>
-          <Button size="lg">
+          <Button 
+            size="lg"
+            onClick={() => router.push(user ? '/shop' : '/login')}
+          >
             <Coins size={20} className="mr-2" />
-            Acheter des coins
+            {user ? 'Acheter des coins' : 'Se connecter'}
           </Button>
         </Card>
       </motion.div>
