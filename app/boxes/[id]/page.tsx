@@ -9,9 +9,7 @@ import { LoadingState } from '../../components/ui/LoadingState'
 import { CurrencyDisplay } from '../../components/ui/CurrencyDisplay'
 import { Modal } from '../../components/ui/Modal'
 import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
-import { toast } from 'react-hot-toast'
 
 // Interfaces
 interface LootBoxItem {
@@ -50,6 +48,9 @@ export default function BoxPage({ params }: BoxPageParams) {
   const [items, setItems] = useState<LootBoxItem[]>([])
   const [loading, setLoading] = useState(true)
   const [userCoins, setUserCoins] = useState(0)
+  const [user, setUser] = useState<any>(null)
+  const [error, setError] = useState<string>('')
+  const [success, setSuccess] = useState<string>('')
   
   // États roulette
   const [isSpinning, setIsSpinning] = useState(false)
@@ -68,8 +69,18 @@ export default function BoxPage({ params }: BoxPageParams) {
   const animationRef = useRef<number | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   
-  const { user, profile } = useAuth()
   const router = useRouter()
+
+  // Fonction pour afficher les messages
+  const showMessage = (message: string, type: 'success' | 'error') => {
+    if (type === 'error') {
+      setError(message)
+      setTimeout(() => setError(''), 3000)
+    } else {
+      setSuccess(message)
+      setTimeout(() => setSuccess(''), 3000)
+    }
+  }
 
   // Sons (simulation)
   const playSound = useCallback((type: 'spin' | 'win' | 'tick') => {
@@ -80,6 +91,10 @@ export default function BoxPage({ params }: BoxPageParams) {
   useEffect(() => {
     const fetchBoxAndItems = async () => {
       try {
+        // Récupérer l'utilisateur actuel
+        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        setUser(currentUser)
+
         // Charger la boîte
         const { data: boxData, error: boxError } = await supabase
           .from('loot_boxes')
@@ -93,11 +108,7 @@ export default function BoxPage({ params }: BoxPageParams) {
           .eq('is_active', true)
           .single()
 
-        if (boxError || !boxData) {
-          toast.error('Boîte introuvable')
-          router.push('/boxes')
-          return
-        }
+
 
         setBox(boxData)
 
@@ -109,11 +120,11 @@ export default function BoxPage({ params }: BoxPageParams) {
         }
 
         // Charger les coins de l'utilisateur
-        if (user) {
+        if (currentUser) {
           const { data: profileData } = await supabase
             .from('profiles')
             .select('virtual_currency')
-            .eq('id', user.id)
+            .eq('id', currentUser.id)
             .single()
 
           if (profileData) {
@@ -124,13 +135,13 @@ export default function BoxPage({ params }: BoxPageParams) {
         setLoading(false)
       } catch (error) {
         console.error('Erreur:', error)
-        toast.error('Erreur lors du chargement')
+        showMessage('Erreur lors du chargement', 'error')
         setLoading(false)
       }
     }
 
     fetchBoxAndItems()
-  }, [params.id, user, router])
+  }, [params.id, router])
 
   // Créer les items de la roue
   const createWheelItems = (baseItems: LootBoxItem[]) => {
@@ -195,7 +206,8 @@ export default function BoxPage({ params }: BoxPageParams) {
       const elapsed = currentTime - start
       const progress = Math.min(elapsed / duration, 1)
       
-      const easeOut = 1 - Math.pow(1 - progress, 4)
+      // Easing plus fluide sans rebond ni secousse
+      const easeOut = 1 - Math.pow(1 - progress, 3)
       
       const currentPosition = startPosition - (distance * easeOut)
       
@@ -239,7 +251,7 @@ export default function BoxPage({ params }: BoxPageParams) {
   // Fonction pour acheter et ouvrir la boîte
   const purchaseAndOpenBox = async () => {
     if (!user || !box) {
-      toast.error('Vous devez être connecté')
+      showMessage('Vous devez être connecté', 'error')
       router.push('/login')
       return
     }
@@ -254,9 +266,9 @@ export default function BoxPage({ params }: BoxPageParams) {
 
       if (error) {
         if (error.message.includes('Insufficient')) {
-          toast.error('Coins insuffisants')
+          showMessage('Coins insuffisants', 'error')
         } else {
-          toast.error('Erreur lors de l\'achat')
+          showMessage('Erreur lors de l\'achat', 'error')
         }
         return
       }
@@ -269,7 +281,7 @@ export default function BoxPage({ params }: BoxPageParams) {
 
     } catch (error) {
       console.error('Erreur:', error)
-      toast.error('Une erreur est survenue')
+      showMessage('Une erreur est survenue', 'error')
     }
   }
 
@@ -319,7 +331,7 @@ export default function BoxPage({ params }: BoxPageParams) {
               .single()
 
             if (updatedProfile) {
-              toast.success('+10 points de fidélité !')
+              showMessage('+10 points de fidélité !', 'success')
             }
           }
         } catch (error) {
@@ -349,13 +361,13 @@ export default function BoxPage({ params }: BoxPageParams) {
 
     if (openMode === 'single') {
       if (!user) {
-        toast.error('Connectez-vous pour jouer')
+        showMessage('Connectez-vous pour jouer', 'error')
         setIsSpinning(false)
         return
       }
       
       if (userCoins < box!.price_virtual) {
-        toast.error('Coins insuffisants')
+        showMessage('Coins insuffisants', 'error')
         setIsSpinning(false)
         return
       }
@@ -387,12 +399,12 @@ export default function BoxPage({ params }: BoxPageParams) {
   // Ajouter aux favoris
   const toggleFavorite = async () => {
     if (!user || !box) {
-      toast.error('Connectez-vous pour ajouter aux favoris')
+      showMessage('Connectez-vous pour ajouter aux favoris', 'error')
       return
     }
 
     // Implémenter la logique des favoris si nécessaire
-    toast.success('Ajouté aux favoris !')
+    showMessage('Ajouté aux favoris !', 'success')
   }
 
   // Styles selon rareté
@@ -450,6 +462,18 @@ export default function BoxPage({ params }: BoxPageParams) {
 
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
+      
+      {/* Messages de notification */}
+      {error && (
+        <div className="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-pulse">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-pulse">
+          {success}
+        </div>
+      )}
       
       {/* Particules de fond */}
       {particles.map((particle) => (
@@ -826,4 +850,219 @@ export default function BoxPage({ params }: BoxPageParams) {
                 </div>
 
                 <div className="px-8 pb-8">
-                  <div className="bg-gradient-to-br from-primary-50 to-white rounded-2xl p-8 border border-primary
+                  <div className="bg-gradient-to-br from-primary-50 to-white rounded-2xl p-8 border border-primary-100">
+                    
+                    <div className="text-center mb-8">
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ 
+                          type: "spring", 
+                          stiffness: 200, 
+                          delay: 0.2 
+                        }}
+                        className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full mb-4 shadow-lg"
+                      >
+                        <Trophy className="w-10 h-10 text-white" />
+                      </motion.div>
+                      
+                      <motion.h2 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                        className="text-3xl font-bold text-gray-900 mb-2"
+                      >
+                        Félicitations !
+                      </motion.h2>
+                      
+                      <motion.p 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.4 }}
+                        className="text-lg text-gray-600"
+                      >
+                        Vous avez remporté un objet {wonItem.rarity === 'legendary' ? 'LÉGENDAIRE' : wonItem.rarity.toUpperCase()}
+                      </motion.p>
+                    </div>
+
+                    <div className="flex flex-col lg:flex-row items-center gap-8">
+                      
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ 
+                          type: "spring", 
+                          stiffness: 150, 
+                          delay: 0.5 
+                        }}
+                        className="relative"
+                      >
+                        <div className={`
+                          w-64 h-64 rounded-2xl p-6 border-2 shadow-xl relative overflow-hidden
+                          ${getRarityStyles(wonItem.rarity).bg}
+                          ${getRarityStyles(wonItem.rarity).border}
+                        `}>
+                          <img 
+                            src={wonItem.image_url} 
+                            alt={wonItem.name}
+                            className="w-full h-full object-contain relative z-10"
+                          />
+                          
+                          <motion.div
+                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-0"
+                            animate={{ opacity: [0, 1, 0], x: ['-100%', '100%'] }}
+                            transition={{ 
+                              duration: 3, 
+                              repeat: Infinity, 
+                              repeatDelay: 2 
+                            }}
+                          />
+                        </div>
+
+                        <motion.div
+                          initial={{ y: 20, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          transition={{ delay: 0.7 }}
+                          className="absolute -top-3 -right-3"
+                        >
+                          <Badge 
+                            className={`${getRarityStyles(wonItem.rarity).badge} text-white px-4 py-2 text-sm font-bold shadow-lg transform rotate-3`}
+                          >
+                            {wonItem.rarity === 'legendary' && <Crown size={14} className="mr-1" />}
+                            {wonItem.rarity.toUpperCase()}
+                          </Badge>
+                        </motion.div>
+                      </motion.div>
+
+                      <motion.div 
+                        initial={{ opacity: 0, x: 30 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.6 }}
+                        className="flex-1 text-center lg:text-left space-y-4"
+                      >
+                        <div>
+                          <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                            {wonItem.name}
+                          </h3>
+                          
+                          <p className="text-gray-600 leading-relaxed">
+                            {wonItem.description}
+                          </p>
+                        </div>
+                        
+                        <div className="bg-white rounded-xl p-4 border border-gray-200 inline-block">
+                          <div className="flex items-center gap-3">
+                            <Coins className="text-primary-500" size={24} />
+                            <div>
+                              <span className="text-2xl font-bold text-gray-900">
+                                {wonItem.market_value}
+                              </span>
+                              <span className="text-sm text-gray-600 ml-2">coins</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {wonItem.rarity === 'legendary' && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.8 }}
+                            className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800"
+                          >
+                            🏆 Incroyable ! Vous aviez seulement {wonItem.probability}% de chance !
+                          </motion.div>
+                        )}
+
+                        <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start pt-4">
+                          <Button 
+                            onClick={() => {
+                              router.push('/inventory')
+                            }}
+                            className="flex items-center gap-2"
+                          >
+                            <Gift size={18} />
+                            Voir l'inventaire
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            onClick={() => {
+                              setShowResult(false)
+                              resetWheel()
+                            }}
+                            className="flex items-center gap-2"
+                          >
+                            <Sparkles size={18} />
+                            Rejouer
+                          </Button>
+                        </div>
+                      </motion.div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      </div>
+
+      {/* Modal des items */}
+      <Modal 
+        isOpen={showItemsModal} 
+        onClose={() => setShowItemsModal(false)}
+        title="Contenu de la boîte"
+        size="lg"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {items.map((item) => {
+            const rarityStyles = getRarityStyles(item.rarity)
+            
+            return (
+              <motion.div 
+                key={item.id} 
+                className={`p-5 rounded-xl border ${rarityStyles.bg} ${rarityStyles.border} hover:shadow-lg transition-shadow`}
+                whileHover={{ y: -2 }}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <img 
+                      src={item.image_url} 
+                      alt={item.name}
+                      className="w-16 h-16 object-contain"
+                    />
+                  </div>
+                  
+                  <div className="flex-1">
+                    <h4 className="font-bold text-gray-900 mb-1">{item.name}</h4>
+                    <p className="text-xs text-gray-600 mb-2">{item.description}</p>
+                    
+                    <div className="flex items-center justify-between">
+                      <Badge className={`${rarityStyles.badge} text-white text-xs px-2 py-1`}>
+                        {item.rarity}
+                      </Badge>
+                      
+                      <div className="flex items-center gap-1 text-xs">
+                        <Star size={12} className="text-yellow-500" />
+                        <span className="font-semibold">{item.probability}%</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-1">
+                        <Coins size={12} className="text-primary-500" />
+                        <span className="font-bold text-sm">{item.market_value}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
+        
+        <div className="mt-6 p-4 bg-gray-50 rounded-xl text-center">
+          <p className="text-sm text-gray-600">
+            Les probabilités affichées déterminent vos chances d'obtenir chaque item
+          </p>
+        </div>
+      </Modal>
+    </div>
+  )
+}
