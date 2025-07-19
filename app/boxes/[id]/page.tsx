@@ -1,10 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Star, Package, Coins, ShoppingCart, Eye, Users, Gift, Info, Sparkles } from 'lucide-react'
-import { PageLayout } from '../../components/layouts/PageLayout'
-import { Card } from '../../components/ui/Card'
+import { ArrowLeft, Star, Coins, Heart, Eye, Gift, Play, Trophy, Zap, Sparkles, Crown } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
 import { LoadingState } from '../../components/ui/LoadingState'
@@ -30,11 +28,9 @@ interface LootBox {
   price_real: number
   image_url: string
   is_active: boolean
-  rarity: 'common' | 'rare' | 'epic' | 'legendary'
   total_items: number
   most_valuable_item: string
   times_opened: number
-  created_at: string
 }
 
 interface BoxPageParams {
@@ -48,478 +44,1126 @@ export default function BoxPage({ params }: BoxPageParams) {
   const [items, setItems] = useState<LootBoxItem[]>([])
   const [loading, setLoading] = useState(true)
   const [userCoins, setUserCoins] = useState(1250)
-  const [isOpening, setIsOpening] = useState(false)
-  const [showOpeningModal, setShowOpeningModal] = useState(false)
+  
+  // États roulette améliorés
+  const [isSpinning, setIsSpinning] = useState(false)
   const [wonItem, setWonItem] = useState<LootBoxItem | null>(null)
+  const [showResult, setShowResult] = useState(false)
+  const [wheelItems, setWheelItems] = useState<LootBoxItem[]>([])
+  const [centralItemIndex, setCentralItemIndex] = useState(-1)
+  const [spinSpeed, setSpinSpeed] = useState(0)
+  const [particles, setParticles] = useState<Array<{id: number, x: number, y: number}>>([])
+  
+  // États modals
   const [showItemsModal, setShowItemsModal] = useState(false)
+  const [openMode, setOpenMode] = useState<'single' | 'demo'>('single')
 
-  // Simulation de données - Remplace par tes vraies données Supabase
+  const wheelRef = useRef<HTMLDivElement>(null)
+  const animationRef = useRef<number | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Sons (simulation)
+  const playSound = useCallback((type: 'spin' | 'win' | 'tick') => {
+    // Simulation de sons - remplace par de vrais sons plus tard
+    console.log(`🔊 Son: ${type}`)
+  }, [])
+
+  // Données de test
   useEffect(() => {
-    const fetchBoxData = async () => {
-      // Simulation du chargement
-      setTimeout(() => {
-        // Données de la boîte
-        setBox({
-          id: params.id,
-          name: 'MYSTERY SNEAKER BOX',
-          description: 'Une sélection exclusive des sneakers les plus recherchées du marché. Chaque boîte contient une surprise garantie avec des chances d\'obtenir des modèles légendaires.',
-          price_virtual: 150,
-          price_real: 49.99,
-          image_url: 'https://imgix.hypedrop.com/images/HypeDrop_70%25%20sneaker_Box_Design_Export.png?auto=format&w=500',
-          is_active: true,
-          rarity: 'epic',
-          total_items: 12,
-          most_valuable_item: 'Air Jordan 1 Chicago',
-          times_opened: 1247,
-          created_at: '2024-01-15'
-        })
+    setTimeout(() => {
+      setBox({
+        id: params.id,
+        name: 'BLINDSHOT',
+        description: 'Une sélection exclusive des sneakers les plus recherchées du marché. Chaque ouverture garantit une surprise !',
+        price_virtual: 150,
+        price_real: 6.84,
+        image_url: 'https://imgix.hypedrop.com/images/HypeDrop_70%25%20sneaker_Box_Design_Export.png?auto=format&w=500',
+        is_active: true,
+        total_items: 6,
+        most_valuable_item: 'Air Jordan 1 Chicago',
+        times_opened: 1247
+      })
 
-        // Items possibles dans la boîte
-        setItems([
-          {
-            id: '1',
-            name: 'Air Jordan 1 Chicago',
-            rarity: 'legendary',
-            probability: 5,
-            image_url: 'https://www.pngarts.com/files/4/Sneaker-PNG-Image.png',
-            market_value: 500,
-            description: 'Le graal des sneakers, coloris mythique'
-          },
-          {
-            id: '2',
-            name: 'Nike Dunk Low Panda',
-            rarity: 'epic',
-            probability: 15,
-            image_url: 'https://www.pngarts.com/files/4/Sneaker-PNG-Image.png',
-            market_value: 250,
-            description: 'Coloris iconique noir et blanc'
-          },
-          {
-            id: '3',
-            name: 'Yeezy Boost 350 V2',
-            rarity: 'rare',
-            probability: 25,
-            image_url: 'https://www.pngarts.com/files/4/Sneaker-PNG-Image.png',
-            market_value: 180,
-            description: 'Design futuriste signé Kanye West'
-          },
-          {
-            id: '4',
-            name: 'Nike Air Force 1',
-            rarity: 'common',
-            probability: 55,
-            image_url: 'https://www.pngarts.com/files/4/Sneaker-PNG-Image.png',
-            market_value: 80,
-            description: 'Le classique intemporel'
-          }
-        ])
+      const boxItems = [
+        {
+          id: '1',
+          name: 'Air Jordan 1 Chicago',
+          rarity: 'legendary' as const,
+          probability: 5,
+          image_url: 'https://www.pngarts.com/files/4/Sneaker-PNG-Image.png',
+          market_value: 500,
+          description: 'Le graal absolu des sneakers'
+        },
+        {
+          id: '2',
+          name: 'Nike Dunk Low Panda',
+          rarity: 'rare' as const,
+          probability: 15,
+          image_url: 'https://www.pngarts.com/files/4/Sneaker-PNG-Image.png',
+          market_value: 250,
+          description: 'Coloris iconique noir et blanc'
+        },
+        {
+          id: '3',
+          name: 'Yeezy Boost 350 V2',
+          rarity: 'epic' as const,
+          probability: 20,
+          image_url: 'https://www.pngarts.com/files/4/Sneaker-PNG-Image.png',
+          market_value: 300,
+          description: 'Design futuriste de Kanye'
+        },
+        {
+          id: '4',
+          name: 'New Balance 550',
+          rarity: 'common' as const,
+          probability: 35,
+          image_url: 'https://www.pngarts.com/files/4/Sneaker-PNG-Image.png',
+          market_value: 120,
+          description: 'Style vintage premium'
+        },
+        {
+          id: '5',
+          name: 'Nike SB Dunk High',
+          rarity: 'epic' as const,
+          probability: 15,
+          image_url: 'https://www.pngarts.com/files/4/Sneaker-PNG-Image.png',
+          market_value: 280,
+          description: 'Culture skateboard authentique'
+        },
+        {
+          id: '6',
+          name: 'Air Force 1 Triple White',
+          rarity: 'common' as const,
+          probability: 10,
+          image_url: 'https://www.pngarts.com/files/4/Sneaker-PNG-Image.png',
+          market_value: 90,
+          description: 'Le classique intemporel'
+        }
+      ]
 
-        setLoading(false)
-      }, 1500)
-    }
-
-    fetchBoxData()
+      setItems(boxItems)
+      createWheelItems(boxItems)
+      setLoading(false)
+    }, 1000)
   }, [params.id])
 
-  const handleOpenBox = async () => {
-    if (userCoins < (box?.price_virtual || 0)) return
+  // Créer les items avec distribution intelligente
+  const createWheelItems = (baseItems: LootBoxItem[]) => {
+    const wheelArray: LootBoxItem[] = []
+    
+    // Créer 60 items avec distribution réaliste
+    for (let i = 0; i < 60; i++) {
+      const randomItem = selectRandomItemByProbability(baseItems)
+      wheelArray.push({
+        ...randomItem,
+        id: `wheel-${i}-${randomItem.id}-${Date.now()}`
+      })
+    }
+    
+    setWheelItems(wheelArray)
+    setCentralItemIndex(-1)
+    
+    // Reset position
+    if (wheelRef.current) {
+      wheelRef.current.style.transform = 'translateX(0px)'
+    }
+  }
 
-    setIsOpening(true)
-    setShowOpeningModal(true)
+  // Sélection selon probabilités
+  const selectRandomItemByProbability = (baseItems: LootBoxItem[]): LootBoxItem => {
+    const random = Math.random() * 100
+    let cumulative = 0
+    
+    for (const item of baseItems) {
+      cumulative += item.probability
+      if (random <= cumulative) {
+        return item
+      }
+    }
+    
+    return baseItems[baseItems.length - 1]
+  }
 
-    // Simulation de l'ouverture avec probabilités
+  // Calculer l'item au centre pendant l'animation
+  const updateCentralItem = useCallback((currentPosition: number) => {
+    if (!containerRef.current || wheelItems.length === 0) return
+
+    const containerWidth = containerRef.current.offsetWidth
+    const containerCenter = containerWidth / 2
+    const itemWidth = 240 // 224px + margin
+    
+    // Calculer quel item est au centre
+    const visibleOffset = Math.abs(currentPosition)
+    const centerItemIndex = Math.round(visibleOffset / itemWidth)
+    
+    if (centerItemIndex >= 0 && centerItemIndex < wheelItems.length) {
+      setCentralItemIndex(centerItemIndex)
+    }
+  }, [wheelItems])
+
+  // Animation améliorée avec easing et son
+  const animateWheel = (duration: number, distance: number, finalItem: LootBoxItem) => {
+    if (!wheelRef.current) return
+
+    const start = performance.now()
+    const startPosition = 0
+    playSound('spin')
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - start
+      const progress = Math.min(elapsed / duration, 1)
+      
+      // Easing sophistiqué (ease-out avec bounce)
+      const easeOut = progress < 0.8 
+        ? 1 - Math.pow(1 - progress / 0.8, 3)
+        : 1 - 0.1 * Math.sin((progress - 0.8) * 50)
+      
+      const currentPosition = startPosition - (distance * easeOut)
+      
+      // Vitesse pour les effets
+      const speed = Math.abs(distance * (1 - progress) / duration) * 1000
+      setSpinSpeed(speed)
+      
+      if (wheelRef.current) {
+        wheelRef.current.style.transform = `translateX(${currentPosition}px)`
+        updateCentralItem(currentPosition)
+      }
+      
+      // Son de tick périodique
+      if (Math.floor(elapsed / 100) !== Math.floor((elapsed - 16) / 100) && progress < 0.9) {
+        playSound('tick')
+      }
+      
+      if (progress < 1) {
+        animationRef.current = requestAnimationFrame(animate)
+      } else {
+        setSpinSpeed(0)
+      }
+    }
+    
+    animationRef.current = requestAnimationFrame(animate)
+  }
+
+  // Générer des particules de célébration
+  const generateParticles = () => {
+    const newParticles = []
+    for (let i = 0; i < 15; i++) {
+      newParticles.push({
+        id: i,
+        x: Math.random() * 100,
+        y: Math.random() * 100
+      })
+    }
+    setParticles(newParticles)
+    
+    // Nettoyer après 3 secondes
+    setTimeout(() => setParticles([]), 3000)
+  }
+
+  // Fonction de spin spectaculaire
+  const spinWheel = () => {
+    if (isSpinning || (openMode === 'single' && userCoins < box!.price_virtual)) return
+
+    setIsSpinning(true)
+    setShowResult(false)
+    setWonItem(null)
+    setCentralItemIndex(-1)
+
+    // Annuler animation précédente
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current)
+    }
+
+    // Déterminer l'item gagnant
+    const winningItem = selectRandomItemByProbability(items)
+
+    // Distance variable selon la rareté (plus rare = plus de suspense)
+    const baseDistance = 3500
+    const rarityMultiplier = {
+      common: 1,
+      rare: 1.2,
+      epic: 1.5,
+      legendary: 2
+    }[winningItem.rarity]
+    
+    const finalDistance = baseDistance + (Math.random() * 1500 * rarityMultiplier)
+    
+    // Duration variable selon rareté
+    const baseDuration = 4000
+    const finalDuration = baseDuration + (rarityMultiplier - 1) * 1000
+
+    // Lancer l'animation
+    animateWheel(finalDuration, finalDistance, winningItem)
+
+    // Fin de l'animation
     setTimeout(() => {
-      const random = Math.random() * 100
-      let cumulativeProbability = 0
-      let selectedItem: LootBoxItem | null = null
-
-      for (const item of items) {
-        cumulativeProbability += item.probability
-        if (random <= cumulativeProbability) {
-          selectedItem = item
-          break
-        }
+      setWonItem(winningItem)
+      setIsSpinning(false)
+      playSound('win')
+      
+      // Particules si rare+
+      if (['epic', 'legendary'].includes(winningItem.rarity)) {
+        generateParticles()
       }
-
-      if (selectedItem) {
-        setWonItem(selectedItem)
-        setUserCoins(prev => prev - (box?.price_virtual || 0))
+      
+      setTimeout(() => {
+        setShowResult(true)
+      }, 800)
+      
+      if (openMode === 'single') {
+        setUserCoins(prev => prev - box!.price_virtual)
       }
-
-      setIsOpening(false)
-    }, 3000)
+    }, finalDuration + 300)
   }
 
-  const getRarityColor = (rarity: string) => {
-    const colors = {
-      common: 'from-gray-400 to-gray-600',
-      rare: 'from-blue-400 to-blue-600',
-      epic: 'from-purple-400 to-purple-600',
-      legendary: 'from-yellow-400 to-yellow-600'
+  // Reset amélioré
+  const resetWheel = () => {
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current)
     }
-    return colors[rarity as keyof typeof colors] || colors.common
+    
+    if (wheelRef.current) {
+      wheelRef.current.style.transform = 'translateX(0px)'
+    }
+    
+    setIsSpinning(false)
+    setSpinSpeed(0)
+    setCentralItemIndex(-1)
+    setParticles([])
+    createWheelItems(items)
   }
 
-  const getRarityBgColor = (rarity: string) => {
-    const colors = {
-      common: 'bg-gray-100 border-gray-300',
-      rare: 'bg-blue-100 border-blue-300',
-      epic: 'bg-purple-100 border-purple-300',
-      legendary: 'bg-yellow-100 border-yellow-300'
+  // Styles améliorés selon rareté
+  const getRarityStyles = (rarity: string) => {
+    const styles = {
+      common: {
+        bg: 'bg-gradient-to-br from-gray-50 via-gray-100 to-gray-150',
+        border: 'border-gray-400',
+        text: 'text-gray-800',
+        badge: 'bg-gray-500',
+        glow: 'shadow-lg shadow-gray-300/50',
+        particle: '#9ca3af'
+      },
+      rare: {
+        bg: 'bg-gradient-to-br from-blue-50 via-blue-100 to-blue-150',
+        border: 'border-blue-400',
+        text: 'text-blue-800',
+        badge: 'bg-blue-500',
+        glow: 'shadow-lg shadow-blue-400/50',
+        particle: '#3b82f6'
+      },
+      epic: {
+        bg: 'bg-gradient-to-br from-purple-50 via-purple-100 to-purple-150',
+        border: 'border-purple-400',
+        text: 'text-purple-800',
+        badge: 'bg-purple-500',
+        glow: 'shadow-lg shadow-purple-400/50',
+        particle: '#8b5cf6'
+      },
+      legendary: {
+        bg: 'bg-gradient-to-br from-yellow-50 via-yellow-100 to-yellow-150',
+        border: 'border-yellow-400',
+        text: 'text-yellow-800',
+        badge: 'bg-gradient-to-r from-yellow-500 to-orange-500',
+        glow: 'shadow-lg shadow-yellow-400/60',
+        particle: '#f59e0b'
+      }
     }
-    return colors[rarity as keyof typeof colors] || colors.common
-  }
-
-  const getRarityBadgeVariant = (rarity: string) => {
-    const variants = {
-      common: 'gray' as const,
-      rare: 'primary' as const,
-      epic: 'primary' as const,
-      legendary: 'warning' as const
-    }
-    return variants[rarity as keyof typeof variants] || 'gray'
+    return styles[rarity as keyof typeof styles] || styles.common
   }
 
   if (loading || !box) {
     return (
-      <PageLayout title="Chargement...">
-        <LoadingState size="lg" text="Chargement de la boîte mystère..." />
-      </PageLayout>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+        <LoadingState size="lg" text="Préparation de l'expérience..." />
+      </div>
     )
   }
 
   return (
-    <PageLayout
-      title={box.name}
-      subtitle={box.description}
-      breadcrumb={[
-        { label: 'Accueil', href: '/' },
-        { label: 'Boîtes Mystères', href: '/boxes' },
-        { label: box.name }
-      ]}
-    >
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Colonne principale */}
-        <div className="lg:col-span-2 space-y-8">
-          {/* Retour */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
+      
+      {/* Particules de fond */}
+      {particles.map((particle) => (
+        <motion.div
+          key={particle.id}
+          className="absolute w-2 h-2 bg-primary-400 rounded-full pointer-events-none z-0"
+          initial={{ 
+            x: `${particle.x}%`, 
+            y: `${particle.y}%`,
+            scale: 0,
+            opacity: 1
+          }}
+          animate={{ 
+            y: `${particle.y + 100}%`,
+            scale: [0, 1, 0],
+            opacity: [1, 1, 0],
+            rotate: 360
+          }}
+          transition={{ duration: 3, ease: "easeOut" }}
+        />
+      ))}
+
+      {/* Header amélioré */}
+      <div className="bg-white/90 backdrop-blur-sm border-b border-gray-200 shadow-sm relative z-10">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <Button
+            variant="ghost"
+            onClick={() => window.history.back()}
+            className="hover:bg-gray-100/80"
           >
-            <Button
-              variant="ghost"
-              onClick={() => window.history.back()}
-              className="mb-4"
-            >
-              <ArrowLeft size={16} className="mr-2" />
-              Retour aux boîtes
-            </Button>
-          </motion.div>
-
-          {/* Image principale et informations */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <Card className="overflow-hidden">
-              <div className="grid grid-cols-1 md:grid-cols-2">
-                {/* Image */}
-                <div className="relative">
-                  <img
-                    src={box.image_url}
-                    alt={box.name}
-                    className="w-full h-80 md:h-full object-cover"
-                  />
-                  <div className={`absolute inset-0 bg-gradient-to-br ${getRarityColor(box.rarity)} opacity-20`} />
-                  
-                  {/* Badge rareté */}
-                  <div className="absolute top-4 right-4">
-                    <Badge variant={getRarityBadgeVariant(box.rarity)} size="md">
-                      {box.rarity.toUpperCase()}
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Informations */}
-                <div className="p-8">
-                  <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-4">{box.name}</h1>
-                    <p className="text-gray-600">{box.description}</p>
-                  </div>
-
-                  {/* Stats rapides */}
-                  <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div className="text-center p-4 bg-gray-50 rounded-xl">
-                      <Package className="mx-auto mb-2 text-gray-600" size={24} />
-                      <div className="text-lg font-bold text-gray-900">{box.total_items}</div>
-                      <div className="text-sm text-gray-600">Items possibles</div>
-                    </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-xl">
-                      <Users className="mx-auto mb-2 text-gray-600" size={24} />
-                      <div className="text-lg font-bold text-gray-900">{box.times_opened.toLocaleString()}</div>
-                      <div className="text-sm text-gray-600">Fois ouverte</div>
-                    </div>
-                  </div>
-
-                  {/* Item le plus précieux */}
-                  <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Star className="text-yellow-600" size={16} />
-                      <span className="text-sm font-semibold text-yellow-800">ITEM LE PLUS PRÉCIEUX</span>
-                    </div>
-                    <p className="text-yellow-900 font-medium">{box.most_valuable_item}</p>
-                  </div>
-
-                  {/* Prix */}
-                  <div className="flex items-center justify-between mb-6 p-4 bg-primary-50 rounded-xl">
-                    <div>
-                      <div className="text-sm text-gray-600 mb-1">Prix</div>
-                      <div className="flex items-center gap-3">
-                        <CurrencyDisplay 
-                          amount={box.price_virtual} 
-                          type="coins" 
-                          size="lg"
-                        />
-                        <span className="text-gray-400">ou {box.price_real}€</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm text-gray-600 mb-1">Vos coins</div>
-                      <CurrencyDisplay 
-                        amount={userCoins} 
-                        type="coins" 
-                        size="md"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </motion.div>
-
-          {/* Actions */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <Card className="p-6">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button
-                  size="lg"
-                  fullWidth
-                  disabled={userCoins < box.price_virtual || !box.is_active}
-                  onClick={handleOpenBox}
-                  className="flex-1"
-                >
-                  <ShoppingCart size={20} className="mr-2" />
-                  {userCoins < box.price_virtual ? 'Coins insuffisants' : 'Ouvrir cette boîte'}
-                </Button>
-                
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => setShowItemsModal(true)}
-                  className="flex-1"
-                >
-                  <Eye size={20} className="mr-2" />
-                  Voir tous les items
-                </Button>
-              </div>
-
-              {userCoins < box.price_virtual && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
-                  <div className="flex items-center gap-2 text-red-800">
-                    <Info size={16} />
-                    <span className="text-sm font-medium">
-                      Il vous manque {box.price_virtual - userCoins} coins pour ouvrir cette boîte.
-                    </span>
-                  </div>
-                </div>
-              )}
-            </Card>
-          </motion.div>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Probabilités */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Probabilités</h3>
-              <div className="space-y-3">
-                {items.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${getRarityColor(item.rarity)}`} />
-                      <span className="text-sm font-medium text-gray-700 capitalize">
-                        {item.rarity}
-                      </span>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-900">
-                      {item.probability}%
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </motion.div>
-
-          {/* Items récents gagnés */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Derniers items gagnés</h3>
-              <div className="space-y-3">
-                {items.slice(0, 3).map((item, index) => (
-                  <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <img 
-                      src={item.image_url} 
-                      alt={item.name}
-                      className="w-10 h-10 object-contain"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {item.name}
-                      </p>
-                      <Badge variant={getRarityBadgeVariant(item.rarity)} size="sm">
-                        {item.rarity}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </motion.div>
+            <ArrowLeft size={16} className="mr-2" />
+            Retour aux boîtes
+          </Button>
         </div>
       </div>
 
-      {/* Modal d'ouverture */}
-      <Modal isOpen={showOpeningModal} onClose={() => {}}>
-        <div className="text-center py-8">
-          {isOpening ? (
-            <div className="space-y-6">
-              <motion.div
-                animate={{ rotate: 360, scale: [1, 1.2, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="mx-auto w-32 h-32"
-              >
-                <img src={box.image_url} alt="Opening box" className="w-full h-full object-contain" />
-              </motion.div>
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Ouverture en cours...</h3>
-                <p className="text-gray-600">La magie opère, découvrez votre surprise !</p>
-              </div>
-            </div>
-          ) : wonItem ? (
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="space-y-6"
-            >
-              <div className="relative">
-                <motion.div
-                  animate={{ rotate: [0, 5, -5, 0] }}
-                  transition={{ duration: 0.5, repeat: 3 }}
-                  className={`mx-auto w-32 h-32 rounded-xl p-4 ${getRarityBgColor(wonItem.rarity)}`}
-                >
-                  <img src={wonItem.image_url} alt={wonItem.name} className="w-full h-full object-contain" />
-                </motion.div>
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.5 }}
-                  className="absolute -top-2 -right-2"
-                >
-                  <Sparkles className="text-yellow-500" size={24} />
-                </motion.div>
-              </div>
+      {/* Contenu principal */}
+      <div className="max-w-7xl mx-auto px-6 py-8 relative z-10">
+        
+        {/* Hero Section améliorée */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 overflow-hidden mb-8"
+        >
+          <div className="p-8">
+            <div className="flex flex-col lg:flex-row items-center gap-8">
               
-              <div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Félicitations !</h3>
-                <p className="text-lg font-semibold text-primary-600 mb-1">{wonItem.name}</p>
-                <Badge variant={getRarityBadgeVariant(wonItem.rarity)}>
-                  {wonItem.rarity.toUpperCase()}
-                </Badge>
-                <p className="text-gray-600 mt-3">{wonItem.description}</p>
-                
-                <div className="mt-4 p-4 bg-primary-50 rounded-xl">
-                  <CurrencyDisplay 
-                    amount={wonItem.market_value} 
-                    type="coins" 
-                    size="lg"
+              {/* Image avec effets */}
+              <motion.div 
+                className="relative flex-shrink-0"
+                whileHover={{ scale: 1.05, rotate: 2 }}
+                transition={{ type: "spring", stiffness: 300 }}
+              >
+                <div className="relative">
+                  <img 
+                    src={box.image_url}
+                    alt={box.name}
+                    className="w-80 h-auto object-contain drop-shadow-2xl"
                   />
-                  <p className="text-sm text-gray-600 mt-1">Valeur de l'item</p>
+                  
+                  {/* Effet de lueur */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary-500/20 via-transparent to-primary-500/20 rounded-2xl opacity-0 hover:opacity-100 transition-opacity duration-500" />
+                  
+                  {/* Particules autour de la boîte */}
+                  <div className="absolute -inset-4">
+                    {[...Array(6)].map((_, i) => (
+                      <motion.div
+                        key={i}
+                        className="absolute w-1 h-1 bg-primary-400 rounded-full"
+                        style={{
+                          top: `${20 + i * 15}%`,
+                          left: `${10 + (i % 2) * 80}%`
+                        }}
+                        animate={{
+                          scale: [0, 1, 0],
+                          opacity: [0, 1, 0]
+                        }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          delay: i * 0.3
+                        }}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
+                
+                <Badge className="absolute top-4 right-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-3 py-1 shadow-lg">
+                  🔥 HOT
+                </Badge>
+              </motion.div>
 
-              <div className="flex gap-3">
-                <Button 
-                  fullWidth
-                  onClick={() => {
-                    setShowOpeningModal(false)
-                    setWonItem(null)
-                  }}
-                >
-                  <Gift size={16} className="mr-2" />
-                  Voir dans mon inventaire
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => {
-                    setShowOpeningModal(false)
-                    setWonItem(null)
-                  }}
-                >
-                  Fermer
-                </Button>
-              </div>
-            </motion.div>
-          ) : null}
-        </div>
-      </Modal>
+              {/* Infos enrichies */}
+              <div className="flex-1 space-y-6">
+                <div>
+                  <motion.h1 
+                    className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent mb-3"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    {box.name}
+                  </motion.h1>
+                  <motion.p 
+                    className="text-lg text-gray-600 leading-relaxed"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.3 }}
+                  >
+                    {box.description}
+                  </motion.p>
+                </div>
 
-      {/* Modal des items */}
-      <Modal 
-        isOpen={showItemsModal} 
-        onClose={() => setShowItemsModal(false)}
-        title="Tous les items possibles"
-        size="lg"
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {items.map((item) => (
-            <Card key={item.id} className={`p-4 ${getRarityBgColor(item.rarity)}`}>
-              <div className="flex items-center gap-4">
-                <img 
-                  src={item.image_url} 
-                  alt={item.name}
-                  className="w-16 h-16 object-contain"
-                />
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900">{item.name}</h4>
-                  <p className="text-sm text-gray-600 mb-2">{item.description}</p>
-                  <div className="flex items-center justify-between">
-                    <Badge variant={getRarityBadgeVariant(item.rarity)} size="sm">
-                      {item.rarity}
-                    </Badge>
-                    <div className="text-right">
-                      <div className="text-sm font-semibold text-gray-900">{item.probability}%</div>
-                      <CurrencyDisplay amount={item.market_value} type="coins" size="sm" />
+                {/* Stats animées */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { 
+                      value: userCoins, 
+                      label: 'Vos coins', 
+                      color: 'primary', 
+                      icon: <Coins size={20} />,
+                      format: 'currency'
+                    },
+                    { 
+                      value: box.price_virtual, 
+                      label: 'Prix', 
+                      color: 'blue', 
+                      icon: <Star size={20} /> 
+                    },
+                    { 
+                      value: box.times_opened, 
+                      label: 'Ouvertures', 
+                      color: 'purple', 
+                      icon: <Play size={20} />,
+                      format: 'number'
+                    },
+                    { 
+                      value: box.total_items, 
+                      label: 'Items', 
+                      color: 'orange', 
+                      icon: <Gift size={20} /> 
+                    }
+                  ].map((stat, index) => (
+                    <motion.div 
+                      key={index}
+                      className={`text-center p-4 bg-gradient-to-br from-${stat.color}-50 to-${stat.color}-100 rounded-xl border border-${stat.color}-200 hover:scale-105 transition-transform cursor-pointer`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4 + index * 0.1 }}
+                      whileHover={{ y: -2 }}
+                    >
+                      <div className={`flex items-center justify-center text-${stat.color}-600 mb-2`}>
+                        {stat.icon}
+                      </div>
+                      
+                      {stat.format === 'currency' ? (
+                        <CurrencyDisplay amount={stat.value} type="coins" size="lg" />
+                      ) : (
+                        <div className={`text-2xl font-bold text-${stat.color}-700`}>
+                          {stat.format === 'number' ? stat.value.toLocaleString() : stat.value}
+                        </div>
+                      )}
+                      <p className={`text-sm text-${stat.color}-600 font-medium mt-1`}>{stat.label}</p>
+                    </motion.div>
+                  ))}
+                </div>
+
+                {/* Contrôles améliorés */}
+                <div className="space-y-4">
+                  {/* Mode sélecteur premium */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      <Zap size={16} />
+                      Mode de jeu :
+                    </span>
+                    <div className="flex bg-gray-100 rounded-xl p-1 border border-gray-200">
+                      <button
+                        onClick={() => setOpenMode('single')}
+                        className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
+                          openMode === 'single'
+                            ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-md'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Crown size={14} />
+                        REAL SPIN
+                      </button>
+                      <button
+                        onClick={() => setOpenMode('demo')}
+                        className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
+                          openMode === 'demo'
+                            ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-md'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Play size={14} />
+                        DEMO
+                      </button>
                     </div>
+                  </div>
+
+                  {/* Boutons d'action stylés */}
+                  <div className="flex flex-wrap gap-3">
+                    <Button variant="outline" className="flex items-center gap-2 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-colors">
+                      <Heart size={16} />
+                      Ajouter aux favoris
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowItemsModal(true)}
+                      className="flex items-center gap-2 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
+                    >
+                      <Eye size={16} />
+                      Voir tous les items
+                    </Button>
+
+                    <Button 
+                      variant="outline" 
+                      onClick={resetWheel}
+                      className="flex items-center gap-2 hover:bg-orange-50 hover:border-orange-300 hover:text-orange-700 transition-colors"
+                      disabled={isSpinning}
+                    >
+                      🔄 Reset roulette
+                    </Button>
                   </div>
                 </div>
               </div>
-            </Card>
-          ))}
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Roulette Spectaculaire */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 overflow-hidden mb-8"
+        >
+          <div className="p-8">
+            <div className="text-center mb-8">
+              <motion.h2 
+                className="text-3xl font-bold text-gray-900 mb-2 flex items-center justify-center gap-3"
+                animate={{ 
+                  scale: isSpinning ? [1, 1.05, 1] : 1,
+                }}
+                transition={{ 
+                  duration: 0.5, 
+                  repeat: isSpinning ? Infinity : 0 
+                }}
+              >
+                <Sparkles className={isSpinning ? "text-primary-500 animate-spin" : "text-primary-500"} />
+                Roulette des Trésors
+                <Sparkles className={isSpinning ? "text-primary-500 animate-spin" : "text-primary-500"} />
+              </motion.h2>
+              <p className="text-gray-600 text-lg">
+                {isSpinning 
+                  ? `⚡ Vitesse: ${Math.round(spinSpeed)} km/h` 
+                  : "Prêt pour l'aventure ? Lancez la roulette !"
+                }
+              </p>
+            </div>
+
+            {/* Container roulette avec effets */}
+            <div 
+              ref={containerRef}
+              className="relative h-80 overflow-hidden bg-gradient-to-r from-gray-100 via-white to-gray-100 rounded-2xl border-2 border-gray-300 mb-8 shadow-inner"
+            >
+              
+              {/* Indicateurs de zone de victoire */}
+              <div className="absolute inset-x-0 top-0 h-3 bg-gradient-to-r from-transparent via-primary-500 to-transparent opacity-70 z-20"></div>
+              <div className="absolute inset-x-0 bottom-0 h-3 bg-gradient-to-r from-transparent via-primary-500 to-transparent opacity-70 z-20"></div>
+              
+              {/* Ligne centrale */}
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-32 bg-gradient-to-b from-primary-400 to-primary-600 rounded-full z-20 shadow-lg"></div>
+              
+              {/* Gradients de fade améliorés */}
+              <div className="absolute left-0 top-0 bottom-0 w-40 bg-gradient-to-r from-white via-white/90 to-transparent z-15 pointer-events-none"></div>
+              <div className="absolute right-0 top-0 bottom-0 w-40 bg-gradient-to-l from-white via-white/90 to-transparent z-15 pointer-events-none"></div>
+
+              {/* Items magiques */}
+              <div 
+                ref={wheelRef}
+                className="flex absolute h-full items-center"
+                style={{
+                  transform: 'translateX(0px)',
+                  willChange: 'transform'
+                }}
+              >
+                {wheelItems.map((item, index) => {
+                  const rarityStyles = getRarityStyles(item.rarity)
+                  const isCentral = index === centralItemIndex
+                  
+                  return (
+                    <motion.div
+                      key={item.id}
+                      className={`
+                        flex-shrink-0 w-60 h-64 mx-3 rounded-2xl border-3 
+                        flex flex-col items-center justify-center p-4 relative
+                        transition-all duration-300 cursor-pointer
+                        ${rarityStyles.bg} ${rarityStyles.border}
+                        ${isCentral ? `scale-110 z-10 ${rarityStyles.glow}` : 'hover:scale-105'}
+                        ${isSpinning && index % 5 === 0 ? 'animate-pulse' : ''}
+                      `}
+                      animate={isCentral ? {
+                        scale: [1.1, 1.15, 1.1],
+                        rotateY: [0, 5, -5, 0]
+                      } : {}}
+                      transition={{ duration: 0.5, repeat: isCentral ? Infinity : 0 }}
+                    >
+                      
+                      {/* Effet de brillance pour item central */}
+                      {isCentral && (
+                        <motion.div
+                          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent rounded-2xl"
+                          animate={{ x: ['-100%', '100%'] }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        />
+                      )}
+
+                      {/* Badge premium */}
+                      <div className="absolute top-3 right-3 z-10">
+                        <Badge className={`${rarityStyles.badge} text-white px-3 py-1 text-xs font-bold shadow-lg border border-white/30`}>
+                          {item.rarity === 'legendary' && <Crown size={10} className="mr-1" />}
+                          {item.rarity.toUpperCase()}
+                        </Badge>
+                      </div>
+
+                      {/* Image avec effets */}
+                      <motion.img
+                        src={item.image_url}
+                        alt={item.name}
+                        className="w-32 h-32 object-contain mb-3 drop-shadow-lg"
+                        animate={isCentral ? {
+                          rotateY: [0, 15, -15, 0],
+                          scale: [1, 1.1, 1]
+                        } : {}}
+                        transition={{ duration: 2, repeat: isCentral ? Infinity : 0 }}
+                      />
+
+                      {/* Nom stylé */}
+                      <h3 className={`text-sm font-bold text-center ${rarityStyles.text} mb-2 leading-tight`}>
+                        {item.name}
+                      </h3>
+                      
+                      {/* Valeur premium */}
+                      <motion.div 
+                        className="flex items-center gap-1 bg-white/95 backdrop-blur-sm rounded-lg px-3 py-1 shadow-md border border-white/50"
+                        whileHover={{ scale: 1.05 }}
+                      >
+                        <Coins size={14} className="text-primary-500" />
+                        <span className="font-bold text-sm text-gray-900">{item.market_value}</span>
+                      </motion.div>
+
+                      {/* Particules pour items rares */}
+                      {(item.rarity === 'legendary' || item.rarity === 'epic') && isCentral && (
+                        <div className="absolute inset-0 pointer-events-none">
+                          {[...Array(3)].map((_, i) => (
+                            <motion.div
+                              key={i}
+                              className="absolute w-1 h-1 bg-yellow-400 rounded-full"
+                              style={{
+                                top: `${30 + i * 20}%`,
+                                left: `${20 + i * 30}%`
+                              }}
+                              animate={{
+                                scale: [0, 1, 0],
+                                opacity: [0, 1, 0],
+                                y: [-10, -30, -50]
+                              }}
+                              transition={{
+                                duration: 1.5,
+                                repeat: Infinity,
+                                delay: i * 0.3
+                              }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </motion.div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Bouton de lancement épique */}
+            <div className="text-center">
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Button
+                  size="lg"
+                  onClick={spinWheel}
+                  disabled={isSpinning || (openMode === 'single' && userCoins < box.price_virtual)}
+                  className={`
+                    px-16 py-6 text-xl font-bold relative overflow-hidden
+                    ${isSpinning 
+                      ? 'bg-gradient-to-r from-orange-500 to-red-500 animate-pulse shadow-2xl shadow-orange-500/50' 
+                      : 'bg-gradient-to-r from-primary-500 via-primary-600 to-primary-700 hover:from-primary-600 hover:via-primary-700 hover:to-primary-800 shadow-xl shadow-primary-500/40'
+                    }
+                    border-2 border-white/20 backdrop-blur-sm
+                  `}
+                >
+                  {isSpinning && (
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                      animate={{ x: ['-100%', '100%'] }}
+                      transition={{ duration: 0.8, repeat: Infinity }}
+                    />
+                  )}
+                  
+                  <motion.div 
+                    className="flex items-center gap-3"
+                    animate={isSpinning ? { scale: [1, 1.05, 1] } : {}}
+                    transition={{ duration: 0.3, repeat: isSpinning ? Infinity : 0 }}
+                  >
+                    {isSpinning ? (
+                      <>
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 0.5, repeat: Infinity, ease: "linear" }}
+                        >
+                          <Zap size={28} />
+                        </motion.div>
+                        SPINNING...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={28} />
+                        {openMode === 'demo' ? 'ESSAI GRATUIT' : 'LANCER LA ROULETTE'}
+                        <Sparkles size={28} />
+                      </>
+                    )}
+                  </motion.div>
+                </Button>
+              </motion.div>
+              
+              {/* Infos sous le bouton */}
+              <div className="mt-6 space-y-2">
+                <div className="text-sm text-gray-600 flex items-center justify-center gap-4">
+                  <span>Items: {wheelItems.length}</span>
+                  <span>•</span>
+                  <span>Status: {isSpinning ? '🎰 En cours' : '✅ Prêt'}</span>
+                  {spinSpeed > 0 && (
+                    <>
+                      <span>•</span>
+                      <span>Vitesse: {Math.round(spinSpeed)} km/h</span>
+                    </>
+                  )}
+                </div>
+                
+                {userCoins < box.price_virtual && openMode === 'single' && (
+                  <motion.p 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-red-600 text-sm font-medium bg-red-50 rounded-lg px-4 py-2 border border-red-200"
+                  >
+                    ⚠️ Coins insuffisants ({box.price_virtual - userCoins} coins manquants)
+                  </motion.p>
+                )}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Résultat Spectaculaire */}
+        <AnimatePresence>
+          {showResult && wonItem && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, y: 50 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: 50 }}
+              transition={{ 
+                type: "spring", 
+                stiffness: 200, 
+                damping: 20,
+                duration: 0.6
+              }}
+            >
+              <div className="bg-gradient-to-br from-primary-50 via-white to-primary-50 rounded-3xl shadow-2xl border-2 border-primary-200 overflow-hidden relative">
+                
+                {/* Confettis de fond */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                  {[...Array(12)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      className="absolute w-3 h-3 rounded-full"
+                      style={{
+                        backgroundColor: getRarityStyles(wonItem.rarity).particle,
+                        left: `${10 + i * 8}%`,
+                        top: `${20 + (i % 3) * 30}%`
+                      }}
+                      animate={{
+                        y: [0, -100, -200],
+                        rotate: [0, 180, 360],
+                        scale: [1, 0.5, 0],
+                        opacity: [1, 0.8, 0]
+                      }}
+                      transition={{
+                        duration: 3,
+                        delay: i * 0.1,
+                        repeat: Infinity,
+                        repeatDelay: 2
+                      }}
+                    />
+                  ))}
+                </div>
+
+                <div className="p-8 relative z-10">
+                  
+                  {/* Header célébration */}
+                  <div className="text-center mb-8">
+                    <motion.div
+                      initial={{ scale: 0, rotate: -180 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ 
+                        type: "spring", 
+                        stiffness: 200, 
+                        delay: 0.2 
+                      }}
+                      className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-yellow-400 via-yellow-500 to-orange-500 rounded-full mb-6 shadow-2xl border-4 border-white"
+                    >
+                      <Trophy className="w-12 h-12 text-white drop-shadow-lg" />
+                    </motion.div>
+                    
+                    <motion.h2 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4 }}
+                      className="text-4xl font-bold text-gray-900 mb-3"
+                    >
+                      🎉 INCROYABLE ! 🎉
+                    </motion.h2>
+                    
+                    <motion.p 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.5 }}
+                      className="text-xl text-gray-600"
+                    >
+                      Vous avez remporté un {wonItem.rarity === 'legendary' ? 'LÉGENDAIRE' : wonItem.rarity.toUpperCase()} !
+                    </motion.p>
+                  </div>
+
+                  {/* Item gagné premium */}
+                  <div className="flex flex-col lg:flex-row items-center gap-8">
+                    
+                    {/* Image spectaculaire */}
+                    <motion.div
+                      initial={{ rotate: -15, scale: 0.8 }}
+                      animate={{ rotate: 0, scale: 1 }}
+                      transition={{ 
+                        type: "spring", 
+                        stiffness: 150, 
+                        delay: 0.6 
+                      }}
+                      className="relative"
+                    >
+                      <div className={`
+                        w-72 h-72 rounded-3xl p-8 border-4 shadow-2xl relative overflow-hidden
+                        ${getRarityStyles(wonItem.rarity).bg}
+                        ${getRarityStyles(wonItem.rarity).border}
+                        ${getRarityStyles(wonItem.rarity).glow}
+                      `}>
+                        <img 
+                          src={wonItem.image_url} 
+                          alt={wonItem.name}
+                          className="w-full h-full object-contain relative z-10"
+                        />
+                        
+                        {/* Effet de brillance animée */}
+                        <motion.div
+                          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent"
+                          animate={{ x: ['-100%', '100%'] }}
+                          transition={{ 
+                            duration: 2, 
+                            repeat: Infinity, 
+                            repeatDelay: 1 
+                          }}
+                        />
+
+                        {/* Particules spéciales pour légendaire */}
+                        {wonItem.rarity === 'legendary' && (
+                          <div className="absolute inset-0">
+                            {[...Array(8)].map((_, i) => (
+                              <motion.div
+                                key={i}
+                                className="absolute w-2 h-2 bg-yellow-400 rounded-full"
+                                style={{
+                                  top: `${20 + (i % 4) * 20}%`,
+                                  left: `${15 + (i % 2) * 70}%`
+                                }}
+                                animate={{
+                                  scale: [0, 1, 0],
+                                  opacity: [0, 1, 0],
+                                  rotate: [0, 180, 360]
+                                }}
+                                transition={{
+                                  duration: 2,
+                                  repeat: Infinity,
+                                  delay: i * 0.2
+                                }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+
+                    {/* Informations détaillées */}
+                    <motion.div 
+                      initial={{ opacity: 0, x: 30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.7 }}
+                      className="flex-1 text-center lg:text-left space-y-6"
+                    >
+                      <div>
+                        <h3 className="text-3xl font-bold text-gray-900 mb-3">
+                          {wonItem.name}
+                        </h3>
+                        
+                        <div className="flex items-center justify-center lg:justify-start gap-2 mb-4">
+                          <Badge 
+                            className={`${getRarityStyles(wonItem.rarity).badge} text-white px-4 py-2 text-sm font-bold shadow-lg`}
+                          >
+                            {wonItem.rarity === 'legendary' && <Crown size={14} className="mr-1" />}
+                            ⭐ {wonItem.rarity.toUpperCase()}
+                          </Badge>
+                          
+                          {wonItem.rarity === 'legendary' && (
+                            <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-1 text-xs">
+                              ULTRA RARE
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        <p className="text-lg text-gray-600 leading-relaxed mb-6">
+                          {wonItem.description}
+                        </p>
+                      </div>
+                      
+                      {/* Valeur avec effet */}
+                      <motion.div 
+                        className="bg-white rounded-2xl p-6 border border-gray-200 shadow-lg"
+                        whileHover={{ scale: 1.02 }}
+                      >
+                        <div className="text-center">
+                          <div className="flex items-center justify-center gap-3 mb-2">
+                            <Coins className="text-primary-500" size={32} />
+                            <span className="text-4xl font-bold text-primary-600">
+                              {wonItem.market_value}
+                            </span>
+                          </div>
+                          <p className="text-gray-600 font-medium">Valeur de votre trésor</p>
+                          
+                          {/* Bonus pour rareté élevée */}
+                          {wonItem.rarity === 'legendary' && (
+                            <div className="mt-3 text-yellow-600 font-bold text-sm">
+                              🏆 JACKPOT ! Vous avez eu seulement 5% de chance !
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+
+                      {/* Boutons d'action premium */}
+                      <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                        <Button 
+                          size="lg"
+                          onClick={() => setShowResult(false)}
+                          className="flex items-center gap-2 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 shadow-lg"
+                        >
+                          <Gift size={20} />
+                          Voir dans l'inventaire
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="lg"
+                          onClick={() => {
+                            setShowResult(false)
+                            resetWheel()
+                          }}
+                          className="border-2 border-primary-500 text-primary-600 hover:bg-primary-50 flex items-center gap-2"
+                        >
+                          <Sparkles size={20} />
+                          Retenter ma chance
+                        </Button>
+                      </div>
+                    </motion.div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Modal améliorée */}
+      <Modal 
+        isOpen={showItemsModal} 
+        onClose={() => setShowItemsModal(false)}
+        title="🎁 Trésors de cette boîte mystère"
+        size="lg"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {items.map((item) => {
+            const rarityStyles = getRarityStyles(item.rarity)
+            
+            return (
+              <motion.div 
+                key={item.id} 
+                className={`p-6 rounded-2xl border-2 ${rarityStyles.bg} ${rarityStyles.border} ${rarityStyles.glow} relative overflow-hidden`}
+                whileHover={{ scale: 1.02, y: -2 }}
+                transition={{ type: "spring", stiffness: 300 }}
+              >
+                {/* Effet de brillance au hover */}
+                <motion.div
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                  initial={{ x: '-100%' }}
+                  whileHover={{ x: '100%' }}
+                  transition={{ duration: 0.6 }}
+                />
+
+                <div className="flex items-center gap-4 relative z-10">
+                  <div className="relative">
+                    <img 
+                      src={item.image_url} 
+                      alt={item.name}
+                      className="w-20 h-20 object-contain drop-shadow-lg"
+                    />
+                    <Badge className={`absolute -top-2 -right-2 ${rarityStyles.badge} text-white px-2 py-1 text-xs border border-white/50`}>
+                      {item.rarity === 'legendary' && <Crown size={8} className="mr-1" />}
+                      {item.rarity}
+                    </Badge>
+                  </div>
+                  
+                  <div className="flex-1">
+                    <h4 className="font-bold text-gray-900 text-lg mb-1">{item.name}</h4>
+                    <p className="text-sm text-gray-600 mb-3 leading-relaxed">{item.description}</p>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Star size={14} className="text-yellow-500" />
+                        <span className="text-sm font-bold text-gray-700">{item.probability}%</span>
+                        <span className="text-xs text-gray-500">chance</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-1 bg-white/80 rounded-lg px-2 py-1">
+                        <Coins size={14} className="text-primary-500" />
+                        <span className="font-bold text-primary-600">{item.market_value}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )
+          })}
         </div>
+        
+        {/* Section info améliorée */}
+        <motion.div 
+          className="mt-8 p-6 bg-gradient-to-r from-primary-50 via-blue-50 to-purple-50 rounded-2xl border border-primary-200"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <div className="text-center">
+            <h3 className="font-bold text-gray-900 mb-3 flex items-center justify-center gap-2">
+              <Sparkles size={20} className="text-primary-500" />
+              Comment ça marche ?
+            </h3>
+            <p className="text-sm text-gray-600 leading-relaxed">
+              Chaque ouverture vous garantit un item selon les probabilités affichées. 
+              Plus la rareté est élevée, plus l'item est précieux et rare à obtenir !
+            </p>
+            <div className="mt-4 text-xs text-gray-500">
+              🍀 Bonne chance et que la fortune vous sourie !
+            </div>
+          </div>
+        </motion.div>
       </Modal>
-    </PageLayout>
+    </div>
   )
 }

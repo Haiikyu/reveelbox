@@ -109,3 +109,141 @@ body {
 .glow-legendary {
   box-shadow: 0 0 50px rgba(250, 204, 21, 0.6);
 }
+
+/* CSS simple et fonctionnel pour la roulette - Ajouter dans app/globals.css */
+
+/* Animation de spin simple avec CSS pur */
+.wheel-spinning {
+  animation: wheel-spin 4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes wheel-spin {
+  0% {
+    transform: translateX(var(--start-position, 0px));
+  }
+  100% {
+    transform: translateX(var(--end-position, -3000px));
+  }
+}
+
+/* Transition douce pour les items */
+.wheel-item {
+  transition: transform 0.2s ease;
+}
+
+.wheel-item:hover {
+  transform: scale(1.05);
+}
+
+/* Animation de pulsation pour le bouton */
+.btn-spinning {
+  animation: btn-pulse 1s ease-in-out infinite;
+}
+
+@keyframes btn-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Gradients pour les raretés */
+.rarity-common {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border-color: #9ca3af;
+}
+
+.rarity-rare {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border-color: #60a5fa;
+}
+
+.rarity-epic {
+  background: linear-gradient(135deg, #e9d5ff 0%, #d8b4fe 100%);
+  border-color: #a78bfa;
+}
+
+.rarity-legendary {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-color: #fbbf24;
+}
+
+/* Ombres douces */
+.shadow-soft {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.shadow-medium {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Animation de fade pour les résultats */
+.result-fade-in {
+  animation: fade-in 0.5s ease-out;
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Style pour les badges */
+.badge-fixed {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+}
+
+/* Optimisation des performances */
+.wheel-container {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Animation de rotation pour les icônes */
+.icon-spin {
+  animation: icon-rotate 1s linear infinite;
+}
+
+@keyframes icon-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Style pour les stats cards */
+.stat-card {
+  transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+}
+
+/* Animation de scale pour les modals */
+.modal-scale {
+  animation: modal-appear 0.3s ease-out;
+}
+
+@keyframes modal-appear {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
