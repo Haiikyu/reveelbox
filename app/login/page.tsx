@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -15,9 +15,38 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [notification, setNotification] = useState({ type: '', message: '' })
+  const [checkingAuth, setCheckingAuth] = useState(true)
   
   const router = useRouter()
   const supabase = createClientComponentClient()
+
+  // Vérifier si l'utilisateur est déjà connecté au chargement
+  useEffect(() => {
+    const checkUser = async () => {
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser()
+        
+        if (user) {
+          console.log('Utilisateur déjà connecté, redirection...')
+          // Si déjà connecté, rediriger vers la page demandée
+          const redirectPath = localStorage.getItem('redirectAfterLogin')
+          if (redirectPath && redirectPath !== '/login' && redirectPath !== '/signup') {
+            localStorage.removeItem('redirectAfterLogin')
+            router.push(redirectPath)
+          } else {
+            router.push('/boxes')
+          }
+        } else {
+          setCheckingAuth(false)
+        }
+      } catch (error) {
+        console.error('Erreur vérification auth:', error)
+        setCheckingAuth(false)
+      }
+    }
+
+    checkUser()
+  }, [router, supabase.auth])
 
   const showNotification = (type, message) => {
     setNotification({ type, message })
@@ -69,20 +98,52 @@ export default function LoginPage() {
         } else {
           showNotification('error', 'Erreur de connexion. Vérifiez vos identifiants')
         }
+        setLoading(false)
         return
       }
 
       if (data.user) {
         showNotification('success', 'Connexion réussie ! Redirection...')
+        
+        // REDIRECTION ULTRA AGRESSIVE vers buy-coins si demandé
+        const redirectPath = localStorage.getItem('redirectAfterLogin')
+        const forceStayOnBuyCoins = localStorage.getItem('FORCE_STAY_ON_BUY_COINS')
+        
+        if (forceStayOnBuyCoins === 'true' || redirectPath === '/buy-coins') {
+          console.log('🚀 REDIRECTION FORCÉE vers /buy-coins')
+          localStorage.removeItem('redirectAfterLogin')
+          localStorage.removeItem('FORCE_STAY_ON_BUY_COINS')
+          
+          // Redirection immédiate et multiple pour être sûr
+          router.replace('/buy-coins')
+          setTimeout(() => router.replace('/buy-coins'), 100)
+          setTimeout(() => router.replace('/buy-coins'), 500)
+          
+          // Empêcher toute autre redirection pendant 2 secondes
+          localStorage.setItem('BLOCK_ALL_REDIRECTS', 'true')
+          setTimeout(() => {
+            localStorage.removeItem('BLOCK_ALL_REDIRECTS')
+          }, 2000)
+          
+          return
+        }
+        
+        // Redirection normale pour autres cas
         setTimeout(() => {
-          router.push('/boxes')
-        }, 1500)
+          if (redirectPath && redirectPath !== '/login' && redirectPath !== '/signup') {
+            localStorage.removeItem('redirectAfterLogin')
+            console.log('Redirection vers:', redirectPath)
+            router.push(redirectPath)
+          } else {
+            console.log('Redirection par défaut vers /boxes')
+            router.push('/boxes')
+          }
+        }, 1000)
       }
 
     } catch (error) {
       console.error('Erreur connexion:', error)
       showNotification('error', 'Une erreur est survenue lors de la connexion')
-    } finally {
       setLoading(false)
     }
   }
@@ -106,6 +167,18 @@ export default function LoginPage() {
     } catch (error) {
       showNotification('error', 'Une erreur est survenue')
     }
+  }
+
+  // Affichage du loading pendant la vérification de l'auth
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Vérification de votre session...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -148,6 +221,19 @@ export default function LoginPage() {
           <p className="mt-2 text-sm text-gray-600">
             Accédez à votre compte ReveelBox
           </p>
+          
+          {/* Indicateur de redirection si présent */}
+          {typeof window !== 'undefined' && localStorage.getItem('redirectAfterLogin') && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3"
+            >
+              <p className="text-sm text-blue-800">
+                🔄 Vous serez redirigé vers votre page après connexion
+              </p>
+            </motion.div>
+          )}
         </motion.div>
       </div>
 
@@ -280,6 +366,13 @@ export default function LoginPage() {
               <Link
                 href="/signup"
                 className="w-full flex justify-center py-3 px-4 border border-gray-200 rounded-xl shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors duration-200"
+                onClick={() => {
+                  // Sauvegarder la redirection pour signup aussi
+                  const redirectPath = localStorage.getItem('redirectAfterLogin')
+                  if (redirectPath) {
+                    localStorage.setItem('redirectAfterSignup', redirectPath)
+                  }
+                }}
               >
                 Créer un compte
               </Link>

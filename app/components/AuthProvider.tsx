@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase, getProfile } from '@/lib/supabase.js'
-import { useRouter } from 'next/navigation'
 
 const AuthContext = createContext<any>({})
 
@@ -12,7 +11,6 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const router = useRouter()
 
   useEffect(() => {
     // Vérifier la session actuelle
@@ -24,8 +22,10 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       setLoading(false)
     })
 
-    // Écouter les changements d'authentification
+    // Écouter les changements d'authentification SANS REDIRECTIONS
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔄 Auth change:', event, session?.user?.email)
+      
       setUser(session?.user ?? null)
       
       if (session?.user) {
@@ -34,20 +34,34 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         setProfile(null)
       }
       
-      if (event === 'SIGNED_IN') {
-        router.refresh()
-      } else if (event === 'SIGNED_OUT') {
-        router.push('/')
-      }
+      // AUCUNE REDIRECTION AUTOMATIQUE - Laissons les pages gérer ça
     })
 
     return () => subscription.unsubscribe()
-  }, [router])
+  }, [])
 
   const loadProfile = async (userId: string) => {
-    const { data, error } = await getProfile(userId)
-    if (data) {
-      setProfile(data)
+    try {
+      const { data, error } = await getProfile(userId)
+      if (data) {
+        setProfile(data)
+      } else {
+        // Profil par défaut si non trouvé
+        setProfile({
+          id: userId,
+          virtual_currency: 100,
+          loyalty_points: 0,
+          total_exp: 0
+        })
+      }
+    } catch (error) {
+      console.error('Erreur profil:', error)
+      setProfile({
+        id: userId,
+        virtual_currency: 100,
+        loyalty_points: 0,
+        total_exp: 0
+      })
     }
   }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -17,9 +17,39 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [notification, setNotification] = useState({ type: '', message: '' })
+  const [checkingAuth, setCheckingAuth] = useState(true)
   
   const router = useRouter()
   const supabase = createClientComponentClient()
+
+  // Vérifier si l'utilisateur est déjà connecté au chargement
+  useEffect(() => {
+    const checkUser = async () => {
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser()
+        
+        if (user) {
+          console.log('Utilisateur déjà connecté, redirection...')
+          // Si déjà connecté, rediriger vers la page demandée
+          const redirectPath = localStorage.getItem('redirectAfterLogin') || localStorage.getItem('redirectAfterSignup')
+          if (redirectPath && redirectPath !== '/login' && redirectPath !== '/signup') {
+            localStorage.removeItem('redirectAfterLogin')
+            localStorage.removeItem('redirectAfterSignup')
+            router.push(redirectPath)
+          } else {
+            router.push('/boxes')
+          }
+        } else {
+          setCheckingAuth(false)
+        }
+      } catch (error) {
+        console.error('Erreur vérification auth:', error)
+        setCheckingAuth(false)
+      }
+    }
+
+    checkUser()
+  }, [router, supabase.auth])
 
   const showNotification = (type, message) => {
     setNotification({ type, message })
@@ -82,6 +112,7 @@ export default function SignUpPage() {
         } else {
           showNotification('error', error.message)
         }
+        setLoading(false)
         return
       }
 
@@ -92,17 +123,39 @@ export default function SignUpPage() {
         }, 2000)
       } else if (data.user) {
         showNotification('success', 'Inscription réussie ! Redirection...')
+        
+        // Redirection intelligente vers la page d'origine
         setTimeout(() => {
-          router.push('/boxes')
-        }, 1500)
+          const redirectPath = localStorage.getItem('redirectAfterLogin') || localStorage.getItem('redirectAfterSignup')
+          if (redirectPath && redirectPath !== '/login' && redirectPath !== '/signup') {
+            localStorage.removeItem('redirectAfterLogin')
+            localStorage.removeItem('redirectAfterSignup')
+            console.log('Redirection après signup vers:', redirectPath)
+            router.push(redirectPath)
+          } else {
+            console.log('Redirection par défaut vers /boxes')
+            router.push('/boxes')
+          }
+        }, 1000)
       }
 
     } catch (error) {
       console.error('Erreur inscription:', error)
       showNotification('error', 'Une erreur est survenue lors de l\'inscription')
-    } finally {
       setLoading(false)
     }
+  }
+
+  // Affichage du loading pendant la vérification de l'auth
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Vérification de votre session...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -145,6 +198,19 @@ export default function SignUpPage() {
           <p className="mt-2 text-sm text-gray-600">
             Créez votre compte et commencez l'aventure
           </p>
+          
+          {/* Indicateur de redirection si présent */}
+          {typeof window !== 'undefined' && (localStorage.getItem('redirectAfterLogin') || localStorage.getItem('redirectAfterSignup')) && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3"
+            >
+              <p className="text-sm text-blue-800">
+                🔄 Vous serez redirigé vers votre page après inscription
+              </p>
+            </motion.div>
+          )}
         </motion.div>
       </div>
 
@@ -303,6 +369,14 @@ export default function SignUpPage() {
               <Link
                 href="/login"
                 className="w-full flex justify-center py-3 px-4 border border-gray-200 rounded-xl shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors duration-200"
+                onClick={() => {
+                  // Transférer la redirection vers login
+                  const redirectPath = localStorage.getItem('redirectAfterSignup') || localStorage.getItem('redirectAfterLogin')
+                  if (redirectPath) {
+                    localStorage.setItem('redirectAfterLogin', redirectPath)
+                    localStorage.removeItem('redirectAfterSignup')
+                  }
+                }}
               >
                 Se connecter
               </Link>

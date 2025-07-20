@@ -39,7 +39,7 @@ export default function Navbar() {
     { href: '/battle', label: 'Battles', icon: Sword },
     { href: '/affiliates', label: 'Affiliés', icon: Users },
     { href: '/contact', label: 'Contact', icon: Mail },
-    { href: '/free-drop', label: 'Free Drop', icon: Gift, highlight: true }
+    { href: '/freedrop', label: 'Free Drop', icon: Gift, highlight: true }
   ]
 
   // Scroll handler
