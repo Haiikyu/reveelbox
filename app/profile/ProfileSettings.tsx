@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useAuth } from '@/app/components/AuthProvider'
+import { createClient } from '@/utils/supabase/client'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Edit3,
@@ -68,8 +69,6 @@ export default function ProfileSettings({
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  
-  const supabase = createClientComponentClient()
 
   // Handlers
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -99,6 +98,7 @@ export default function ProfileSettings({
 
   const sendVerificationEmail = async () => {
     try {
+      const supabase = createClient()
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email: user.email
@@ -130,6 +130,7 @@ export default function ProfileSettings({
     }
 
     try {
+      const supabase = createClient()
       const { error } = await supabase.auth.updateUser({
         password: passwordForm.newPassword
       })
@@ -150,6 +151,7 @@ export default function ProfileSettings({
     setExportingData(true)
     
     try {
+      const supabase = createClient()
       const [profileRes, transactionsRes, inventoryRes, battlesRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user.id).single(),
         supabase.from('transactions').select('*').eq('user_id', user.id),
@@ -199,6 +201,7 @@ export default function ProfileSettings({
     }
 
     try {
+      const supabase = createClient()
       await supabase.from('battle_players').delete().eq('user_id', user.id)
       await supabase.from('user_inventory').delete().eq('user_id', user.id)
       await supabase.from('transactions').delete().eq('user_id', user.id)
@@ -211,6 +214,17 @@ export default function ProfileSettings({
     } catch (error) {
       console.error('Error deleting account:', error)
       showNotification('error', 'Erreur lors de la suppression du compte')
+    }
+  }
+
+  const signOut = async () => {
+    try {
+      const supabase = createClient()
+      await supabase.auth.signOut()
+      window.location.href = '/'
+    } catch (error) {
+      console.error('Error signing out:', error)
+      showNotification('error', 'Erreur lors de la déconnexion')
     }
   }
 
@@ -568,7 +582,7 @@ export default function ProfileSettings({
 
           {/* Sign Out */}
           <button 
-            onClick={() => supabase.auth.signOut()}
+            onClick={signOut}
             className="w-full flex items-center gap-3 p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors text-left"
           >
             <LogOut className="h-5 w-5 text-gray-600" />

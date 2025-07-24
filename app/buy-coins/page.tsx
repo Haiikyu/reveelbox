@@ -1,3 +1,5 @@
+// app/buy-coins/page.tsx - Version corrigée avec standard ReveelBox
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -29,7 +31,7 @@ interface CoinPackage {
 }
 
 export default function BuyCoinsPage() {
-  const { user, profile, loading: authLoading } = useAuth()
+  const { user, profile, loading: authLoading, isAuthenticated } = useAuth()
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null)
@@ -45,6 +47,13 @@ export default function BuyCoinsPage() {
     setNotification({ message, type })
     setTimeout(() => setNotification(null), 4000)
   }
+
+  // Protection de route
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      setShowLoginPrompt(true)
+    }
+  }, [authLoading, isAuthenticated])
 
   // Packages de coins ultra-attractifs
   const coinPackages: CoinPackage[] = [
@@ -268,7 +277,7 @@ export default function BuyCoinsPage() {
               <div className="text-right">
                 <p className="text-sm text-gray-600 font-medium">Solde actuel</p>
                 <CurrencyDisplay 
-                  amount={profile.virtual_currency || 100} 
+                  amount={profile.virtual_currency || 0} 
                   type="coins" 
                   size="lg" 
                   showIcon={true}

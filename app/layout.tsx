@@ -1,30 +1,30 @@
-import './globals.css'
-import { Inter } from 'next/font/google'
-import Navbar from './components/Navbar'
-import AuthProvider from './components/AuthProvider'
+// app/layout.tsx - Remplacer le contenu par :
+import { Inter } from 'next/font/google';
+import './globals.css';
 
-const inter = Inter({ subsets: ['latin'] })
+import { AuthProvider } from './components/AuthProvider';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'ReveelBox - Découvrez des objets réels uniques',
-  description: 'Ouvrez des boîtes mystères contenant des objets réels de collection',
-}
+  title: 'ReveelBox - Loot Boxes avec des Objets Réels',
+  description: 'Découvrez des objets uniques dans nos loot boxes mystères',
+};
 
-export default function RootLayout({ children }: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr">
       <body className={inter.className}>
         <AuthProvider>
-          <div className="min-h-screen bg-white">
+          <div className="flex flex-col min-h-screen">
             <Navbar />
-            <main className="container mx-auto px-4 py-8">
-              {children}
-            </main>
+            <main className="flex-1">{children}</main>
+            <Footer />
           </div>
         </AuthProvider>
       </body>
     </html>
-  )
+  );
 }

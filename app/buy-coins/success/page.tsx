@@ -1,3 +1,5 @@
+// app/buy-coins/success/page.tsx - Version corrigée avec standard ReveelBox
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -8,7 +10,7 @@ import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { LoadingState } from '../../components/ui/LoadingState'
 import { CurrencyDisplay } from '../../components/ui/CurrencyDisplay'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 
@@ -67,6 +69,7 @@ function SuccessPageContent() {
     const fetchPurchaseData = async () => {
       try {
         setLoading(true)
+        const supabase = createClient()
         
         // Récupérer l'utilisateur actuel
         const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser()

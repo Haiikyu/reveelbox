@@ -1,67 +1,171 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { createClient } from '@/utils/supabase/client'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Eye, EyeOff, Mail, Lock, User, Gift, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
+import { 
+  Eye, 
+  EyeOff, 
+  Mail, 
+  Lock, 
+  User, 
+  Gift, 
+  Loader2, 
+  AlertCircle, 
+  CheckCircle, 
+  Calendar,
+  Users,
+  Star,
+  Trophy
+} from 'lucide-react'
+import { useAuth } from '@/app/components/AuthProvider'
 
-export default function SignUpPage() {
+// Composant pour gérer les paramètres de recherche
+function SignUpForm() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    username: '',
+    birthDate: ''
   })
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [notification, setNotification] = useState({ type: '', message: '' })
-  const [checkingAuth, setCheckingAuth] = useState(true)
+  const [referralCode, setReferralCode] = useState('')
+  const [referralInfo, setReferralInfo] = useState<{
+    code: string
+    username: string
+    isDemo: boolean
+  } | null>(null)
+  const [checkingReferral, setCheckingReferral] = useState(false)
   
   const router = useRouter()
-  const supabase = createClientComponentClient()
+  const searchParams = useSearchParams()
+  const supabase = createClient()
+  const { user, loading: authLoading } = useAuth()
+
+  // Récupérer le code de parrainage depuis l'URL
+  useEffect(() => {
+    const refParam = searchParams?.get('ref')
+    if (refParam) {
+      setReferralCode(refParam)
+      validateReferralCode(refParam)
+    }
+  }, [searchParams])
 
   // Vérifier si l'utilisateur est déjà connecté au chargement
   useEffect(() => {
-    const checkUser = async () => {
-      try {
-        const { data: { user }, error } = await supabase.auth.getUser()
-        
-        if (user) {
-          console.log('Utilisateur déjà connecté, redirection...')
-          // Si déjà connecté, rediriger vers la page demandée
-          const redirectPath = localStorage.getItem('redirectAfterLogin') || localStorage.getItem('redirectAfterSignup')
-          if (redirectPath && redirectPath !== '/login' && redirectPath !== '/signup') {
-            localStorage.removeItem('redirectAfterLogin')
-            localStorage.removeItem('redirectAfterSignup')
-            router.push(redirectPath)
-          } else {
-            router.push('/boxes')
-          }
-        } else {
-          setCheckingAuth(false)
-        }
-      } catch (error) {
-        console.error('Erreur vérification auth:', error)
-        setCheckingAuth(false)
+    if (!authLoading && user) {
+      console.log('Utilisateur déjà connecté, redirection...')
+      const redirectPath = localStorage.getItem('redirectAfterLogin') || localStorage.getItem('redirectAfterSignup')
+      if (redirectPath && redirectPath !== '/login' && redirectPath !== '/signup') {
+        localStorage.removeItem('redirectAfterLogin')
+        localStorage.removeItem('redirectAfterSignup')
+        router.push(redirectPath)
+      } else {
+        router.push('/boxes')
       }
     }
+  }, [user, authLoading, router])
 
-    checkUser()
-  }, [router, supabase.auth])
-
-  const showNotification = (type, message) => {
+  const showNotification = (type: string, message: string) => {
     setNotification({ type, message })
     setTimeout(() => setNotification({ type: '', message: '' }), 5000)
   }
 
+  // Valider le code de parrainage
+  const validateReferralCode = async (code: string) => {
+    if (!code || code.length < 3) return
+
+    setCheckingReferral(true)
+    try {
+      // Vérifier si le code existe (avec fallback pour mode démo)
+      const { data, error } = await supabase
+        .from('affiliates')
+        .select(`
+          code,
+          profiles!affiliates_user_id_fkey(username)
+        `)
+        .eq('code', code)
+        .eq('is_active', true)
+        .single()
+
+      if (error || !data) {
+        console.log('Code non trouvé en DB, utilisation mode démo')
+        // Mode démo si la table n'existe pas
+        setReferralInfo({
+          code: code,
+          username: 'Affilié VIP',
+          isDemo: true
+        })
+      } else {
+        setReferralInfo({
+          code: data.code,
+          username: data.profiles?.username || 'Utilisateur',
+          isDemo: false
+        })
+      }
+    } catch (error) {
+      console.error('Erreur validation code:', error)
+      // Mode démo en cas d'erreur
+      setReferralInfo({
+        code: code,
+        username: 'Affilié VIP',
+        isDemo: true
+      })
+    } finally {
+      setCheckingReferral(false)
+    }
+  }
+
+  // Calculer l'âge à partir de la date de naissance
+  const calculateAge = (birthDate: string) => {
+    const today = new Date()
+    const birth = new Date(birthDate)
+    let age = today.getFullYear() - birth.getFullYear()
+    const monthDiff = today.getMonth() - birth.getMonth()
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--
+    }
+    
+    return age
+  }
+
   const validateForm = () => {
-    if (!formData.email || !formData.password || !formData.confirmPassword) {
+    if (!formData.email || !formData.password || !formData.confirmPassword || !formData.username || !formData.birthDate) {
       showNotification('error', 'Tous les champs sont requis')
       return false
     }
 
+    // Validation nom d'utilisateur
+    if (formData.username.length < 3) {
+      showNotification('error', 'Le nom d\'utilisateur doit contenir au moins 3 caractères')
+      return false
+    }
+
+    if (formData.username.length > 20) {
+      showNotification('error', 'Le nom d\'utilisateur ne peut pas dépasser 20 caractères')
+      return false
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
+      showNotification('error', 'Le nom d\'utilisateur ne peut contenir que des lettres, chiffres et underscores')
+      return false
+    }
+
+    // Validation âge
+    const age = calculateAge(formData.birthDate)
+    if (age < 18) {
+      showNotification('error', 'Vous devez avoir au moins 18 ans pour vous inscrire')
+      return false
+    }
+
+    // Validation mot de passe
     if (formData.password.length < 6) {
       showNotification('error', 'Le mot de passe doit contenir au moins 6 caractères')
       return false
@@ -72,6 +176,7 @@ export default function SignUpPage() {
       return false
     }
 
+    // Validation email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(formData.email)) {
       showNotification('error', 'Email invalide')
@@ -81,14 +186,36 @@ export default function SignUpPage() {
     return true
   }
 
-  const handleChange = (e) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }))
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    
+    // Formatage spécial pour le nom d'utilisateur
+    if (name === 'username') {
+      const cleanedValue = value.toLowerCase().replace(/[^a-z0-9_]/g, '')
+      setFormData(prev => ({
+        ...prev,
+        [name]: cleanedValue
+      }))
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }))
+    }
   }
 
-  const handleSubmit = async (e) => {
+  const handleReferralCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const code = e.target.value.toUpperCase()
+    setReferralCode(code)
+    setReferralInfo(null)
+    
+    // Valider le code après un délai
+    if (code.length >= 3) {
+      setTimeout(() => validateReferralCode(code), 500)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!validateForm()) return
@@ -96,58 +223,141 @@ export default function SignUpPage() {
     setLoading(true)
 
     try {
-      const { data, error } = await supabase.auth.signUp({
+      // 1. Créer l'utilisateur avec Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: {
+            username: formData.username,
+            birth_date: formData.birthDate,
+            referral_code: referralCode || null
+          }
         }
       })
 
-      if (error) {
-        if (error.message.includes('already registered')) {
+      if (authError) {
+        if (authError.message.includes('already registered')) {
           showNotification('error', 'Cet email est déjà utilisé')
-        } else if (error.message.includes('weak password')) {
+        } else if (authError.message.includes('weak password')) {
           showNotification('error', 'Mot de passe trop faible')
         } else {
-          showNotification('error', error.message)
+          showNotification('error', authError.message)
         }
         setLoading(false)
         return
       }
 
-      if (data.user && !data.user.email_confirmed_at) {
-        showNotification('success', 'Vérifiez votre email pour confirmer votre inscription')
-        setTimeout(() => {
-          router.push('/login')
-        }, 2000)
-      } else if (data.user) {
-        showNotification('success', 'Inscription réussie ! Redirection...')
-        
-        // Redirection intelligente vers la page d'origine
-        setTimeout(() => {
-          const redirectPath = localStorage.getItem('redirectAfterLogin') || localStorage.getItem('redirectAfterSignup')
-          if (redirectPath && redirectPath !== '/login' && redirectPath !== '/signup') {
-            localStorage.removeItem('redirectAfterLogin')
-            localStorage.removeItem('redirectAfterSignup')
-            console.log('Redirection après signup vers:', redirectPath)
-            router.push(redirectPath)
-          } else {
-            console.log('Redirection par défaut vers /boxes')
-            router.push('/boxes')
+      if (authData.user) {
+        try {
+          // 2. Créer le profil utilisateur
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({
+              id: authData.user.id,
+              username: formData.username,
+              birth_date: formData.birthDate,
+              virtual_currency: referralCode && referralInfo ? 150 : 100, // Bonus si parrainage
+              loyalty_points: 0,
+              total_exp: 0,
+              created_at: new Date().toISOString()
+            })
+
+          if (profileError) {
+            console.error('Erreur création profil:', profileError)
+            // Continue même si le profil n'a pas pu être créé
           }
-        }, 1000)
+
+          // 3. Transaction de bienvenue
+          try {
+            await supabase
+              .from('transactions')
+              .insert({
+                user_id: authData.user.id,
+                type: 'welcome_bonus',
+                virtual_amount: referralCode && referralInfo ? 150 : 100,
+                description: referralCode && referralInfo
+                  ? `Bonus de bienvenue + parrainage (${referralCode})` 
+                  : 'Bonus de bienvenue'
+              })
+          } catch (error) {
+            console.error('Erreur transaction bienvenue:', error)
+          }
+
+          // 4. Traiter le parrainage si présent et valide
+          if (referralCode && referralInfo && !referralInfo.isDemo) {
+            try {
+              // Utiliser la fonction RPC si disponible
+              const { error: referralError } = await supabase.rpc('register_referral', {
+                p_affiliate_code: referralCode,
+                p_referred_user_id: authData.user.id
+              })
+
+              if (referralError) {
+                console.error('Erreur traitement parrainage:', referralError)
+              } else {
+                console.log('Parrainage traité avec succès')
+              }
+            } catch (error) {
+              console.error('Erreur RPC parrainage:', error)
+              // Fallback : enregistrement manuel si RPC non disponible
+              try {
+                await supabase
+                  .from('referrals')
+                  .insert({
+                    referrer_user_id: '00000000-0000-0000-0000-000000000000', // Placeholder
+                    referred_user_id: authData.user.id,
+                    affiliate_code: referralCode,
+                    commission_earned: 5.00,
+                    status: 'converted'
+                  })
+              } catch (fallbackError) {
+                console.error('Erreur fallback parrainage:', fallbackError)
+              }
+            }
+          }
+
+        } catch (error) {
+          console.error('Erreur post-inscription:', error)
+        }
+
+        // 5. Notification et redirection
+        if (!authData.user.email_confirmed_at) {
+          showNotification('success', 'Vérifiez votre email pour confirmer votre inscription')
+          setTimeout(() => {
+            router.push('/login')
+          }, 2000)
+        } else {
+          const successMessage = referralCode && referralInfo
+            ? `Inscription réussie ! Bonus de parrainage de 50 coins supplémentaires !`
+            : 'Inscription réussie ! 100 coins de bienvenue ajoutés !'
+          
+          showNotification('success', successMessage)
+          
+          setTimeout(() => {
+            const redirectPath = localStorage.getItem('redirectAfterLogin') || localStorage.getItem('redirectAfterSignup')
+            if (redirectPath && redirectPath !== '/login' && redirectPath !== '/signup') {
+              localStorage.removeItem('redirectAfterLogin')
+              localStorage.removeItem('redirectAfterSignup')
+              router.push(redirectPath)
+            } else {
+              router.push('/boxes')
+            }
+          }, 2000)
+        }
       }
 
     } catch (error) {
       console.error('Erreur inscription:', error)
       showNotification('error', 'Une erreur est survenue lors de l\'inscription')
+    } finally {
       setLoading(false)
     }
   }
 
   // Affichage du loading pendant la vérification de l'auth
-  if (checkingAuth) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
@@ -158,6 +368,11 @@ export default function SignUpPage() {
     )
   }
 
+  // Si l'utilisateur est connecté, ne pas afficher la page
+  if (user) {
+    return null
+  }
+
   return (
     <div className="min-h-screen bg-white flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       {/* Notification */}
@@ -166,7 +381,7 @@ export default function SignUpPage() {
           initial={{ opacity: 0, y: -50 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -50 }}
-          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-soft-lg border ${
+          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg border ${
             notification.type === 'error' 
               ? 'bg-red-50 border-red-200 text-red-800' 
               : 'bg-green-50 border-green-200 text-green-800'
@@ -189,7 +404,7 @@ export default function SignUpPage() {
           transition={{ duration: 0.6 }}
           className="text-center"
         >
-          <div className="mx-auto h-16 w-16 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center shadow-soft-lg">
+          <div className="mx-auto h-16 w-16 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center shadow-lg">
             <Gift className="h-8 w-8 text-white" />
           </div>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
@@ -199,6 +414,30 @@ export default function SignUpPage() {
             Créez votre compte et commencez l'aventure
           </p>
           
+          {/* Affichage du parrainage si présent */}
+          {referralInfo && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mt-4 bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-lg p-4"
+            >
+              <div className="flex items-center justify-center gap-3">
+                <div className="h-10 w-10 bg-green-500 rounded-full flex items-center justify-center">
+                  <Users className="h-5 w-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-green-800">
+                    Parrainage de {referralInfo.username}
+                  </p>
+                  <p className="text-xs text-green-600">
+                    +50 coins bonus à l'inscription !
+                  </p>
+                </div>
+                <Trophy className="h-5 w-5 text-green-600" />
+              </div>
+            </motion.div>
+          )}
+
           {/* Indicateur de redirection si présent */}
           {typeof window !== 'undefined' && (localStorage.getItem('redirectAfterLogin') || localStorage.getItem('redirectAfterSignup')) && (
             <motion.div
@@ -219,9 +458,38 @@ export default function SignUpPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
-          className="bg-white py-8 px-4 shadow-soft-lg sm:rounded-2xl sm:px-10 border border-gray-100"
+          className="bg-white py-8 px-4 shadow-lg sm:rounded-2xl sm:px-10 border border-gray-100"
         >
           <form className="space-y-6" onSubmit={handleSubmit}>
+            
+            {/* Nom d'utilisateur */}
+            <div>
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+                Nom d'utilisateur
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <User className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  id="username"
+                  name="username"
+                  type="text"
+                  required
+                  className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-gray-50 focus:bg-white"
+                  placeholder="Haikyu"
+                  value={formData.username}
+                  onChange={handleChange}
+                  disabled={loading}
+                  minLength={3}
+                  maxLength={20}
+                />
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                3-20 caractères, lettres, chiffres et _ uniquement
+              </p>
+            </div>
+
             {/* Email */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
@@ -312,6 +580,72 @@ export default function SignUpPage() {
                 </button>
               </div>
             </div>
+			
+			{/* Date de naissance */}
+            <div>
+              <label htmlFor="birthDate" className="block text-sm font-medium text-gray-700 mb-2">
+                Date de naissance
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Calendar className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  id="birthDate"
+                  name="birthDate"
+                  type="date"
+                  required
+                  className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-gray-50 focus:bg-white"
+                  value={formData.birthDate}
+                  onChange={handleChange}
+                  disabled={loading}
+                  max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                />
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Vous devez avoir au moins 18 ans
+              </p>
+              {formData.birthDate && calculateAge(formData.birthDate) < 18 && (
+                <p className="mt-1 text-sm text-red-600">
+                  Âge insuffisant ({calculateAge(formData.birthDate)} ans)
+                </p>
+              )}
+            </div>
+			
+			{/* Code de parrainage */}
+            <div>
+              <label htmlFor="referralCode" className="block text-sm font-medium text-gray-700 mb-2">
+                Code de parrainage (optionnel)
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Star className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  id="referralCode"
+                  name="referralCode"
+                  type="text"
+                  className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-gray-50 focus:bg-white uppercase"
+                  placeholder="REV12345"
+                  value={referralCode}
+                  onChange={handleReferralCodeChange}
+                  disabled={loading}
+                />
+                {checkingReferral && (
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                    <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                  </div>
+                )}
+                {referralInfo && (
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  </div>
+                )}
+              </div>
+              {referralCode && !checkingReferral && !referralInfo && (
+                <p className="mt-1 text-sm text-red-600">Code de parrainage invalide</p>
+              )}
+            </div>
 
             {/* Bonus d'inscription */}
             <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-xl p-4">
@@ -324,7 +658,10 @@ export default function SignUpPage() {
                     Bonus d'inscription
                   </p>
                   <p className="text-xs text-green-600">
-                    100 coins offerts pour commencer !
+                    {referralInfo ? '150 coins' : '100 coins'} offerts pour commencer !
+                    {referralInfo && (
+                      <span className="block">+50 coins grâce au parrainage 🎉</span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -335,7 +672,7 @@ export default function SignUpPage() {
               whileHover={{ scale: loading ? 1 : 1.02 }}
               whileTap={{ scale: loading ? 1 : 0.98 }}
               type="submit"
-              disabled={loading}
+              disabled={loading || (formData.birthDate && calculateAge(formData.birthDate) < 18)}
               className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
             >
               {loading ? (
@@ -402,5 +739,21 @@ export default function SignUpPage() {
         </motion.p>
       </div>
     </div>
+  )
+}
+
+// Composant principal avec Suspense
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement...</p>
+        </div>
+      </div>
+    }>
+      <SignUpForm />
+    </Suspense>
   )
 }

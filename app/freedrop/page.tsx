@@ -1,840 +1,991 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useAuth } from '@/app/components/AuthProvider'
+import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Gift, 
-  Star,
-  Clock,
-  Zap,
-  Crown,
-  Award,
-  Calendar,
-  TrendingUp,
-  Coins,
-  Trophy,
-  Target,
-  Flame,
-  CheckCircle,
-  AlertCircle,
-  Loader2,
-  Lock,
-  Unlock,
-  ArrowRight,
-  RotateCcw,
+  Clock, 
+  Star, 
+  Zap, 
+  Crown, 
   Sparkles,
-  Users,
-  Eye,
-  Download,
-  Play
+  CheckCircle,
+  Lock,
+  Calendar,
+  Target,
+  TrendingUp,
+  Award,
+  Package,
+  Coins,
+  ArrowLeft,
+  RefreshCw,
+  Timer,
+  Flame,
+  Info,
+  AlertCircle
 } from 'lucide-react'
 
-export default function FreeDropPage() {
-  const [user, setUser] = useState(null)
-  const [profile, setProfile] = useState(null)
-  const [playerLevel, setPlayerLevel] = useState(1)
-  const [playerExp, setPlayerExp] = useState(0)
-  const [expToNext, setExpToNext] = useState(1000)
-  const [loading, setLoading] = useState(true)
-  const [claiming, setClaiming] = useState(false)
-  const [notification, setNotification] = useState({ type: '', message: '' })
-  const [lastClaimDate, setLastClaimDate] = useState(null)
-  const [canClaim, setCanClaim] = useState(false)
-  const [selectedReward, setSelectedReward] = useState(null)
-  const [openingAnimation, setOpeningAnimation] = useState(false)
-  
+export default function FreedropPage() {
+  const { user, profile, loading: authLoading, isAuthenticated } = useAuth()
   const router = useRouter()
-  const supabase = createClientComponentClient()
+  
+  const [loading, setLoading] = useState(true)
+  const [dailyBoxes, setDailyBoxes] = useState([])
+  const [claimedToday, setClaimedToday] = useState([])
+  const [timeUntilReset, setTimeUntilReset] = useState('')
+  const [selectedBox, setSelectedBox] = useState(null)
+  const [isOpening, setIsOpening] = useState(false)
+  const [openedItem, setOpenedItem] = useState(null)
+  const [showResult, setShowResult] = useState(false)
+  const [streak, setStreak] = useState(0)
+  const [notification, setNotification] = useState({ type: '', message: '' })
 
   const showNotification = (type, message) => {
     setNotification({ type, message })
-    setTimeout(() => setNotification({ type: '', message: '' }), 5000)
+    setTimeout(() => setNotification({ type: '', message: '' }), 4000)
   }
 
-  // XP thresholds for each level
-  const getExpForLevel = (level) => {
-    return level * 1000 + (level - 1) * 500 // Level 1: 1000, Level 2: 2500, Level 3: 4500, etc.
-  }
-
-  // Calculate level from total XP
-  const calculateLevelFromExp = (totalExp) => {
-    let level = 1
-    let currentExp = totalExp
-    
-    while (currentExp >= getExpForLevel(level)) {
-      currentExp -= getExpForLevel(level)
-      level++
+  // Protection de route
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push('/login')
     }
-    
-    return {
-      level: level,
-      currentExp: currentExp,
-      expToNext: getExpForLevel(level) - currentExp
-    }
-  }
-
-  // Free drop rewards by level
-  const freeDropRewards = [
-    { 
-      level: 1, 
-      name: 'Starter Pack', 
-      description: 'Pack de démarrage pour nouveaux joueurs',
-      coins: 50,
-      items: ['Accessoire basique'],
-      rarity: 'common',
-      color: 'from-gray-400 to-gray-600',
-      bgColor: 'bg-gray-50',
-      borderColor: 'border-gray-300'
-    },
-    { 
-      level: 10, 
-      name: 'Bronze Reward', 
-      description: 'Première récompense de progression',
-      coins: 100,
-      items: ['Skin Bronze', '2x Boost XP'],
-      rarity: 'uncommon',
-      color: 'from-orange-400 to-orange-600',
-      bgColor: 'bg-orange-50',
-      borderColor: 'border-orange-300'
-    },
-    { 
-      level: 20, 
-      name: 'Silver Treasure', 
-      description: 'Trésor argenté pour les joueurs réguliers',
-      coins: 200,
-      items: ['Skin Argent', 'Boîte mystère', '5x Boost XP'],
-      rarity: 'rare',
-      color: 'from-gray-400 to-gray-600',
-      bgColor: 'bg-gray-50',
-      borderColor: 'border-gray-400'
-    },
-    { 
-      level: 30, 
-      name: 'Gold Package', 
-      description: 'Package doré pour les vétérans',
-      coins: 350,
-      items: ['Skin Doré', '2x Boîte mystère', 'Badge exclusif'],
-      rarity: 'epic',
-      color: 'from-yellow-400 to-yellow-600',
-      bgColor: 'bg-yellow-50',
-      borderColor: 'border-yellow-300'
-    },
-    { 
-      level: 40, 
-      name: 'Platinum Elite', 
-      description: 'Récompense d\'élite platine',
-      coins: 500,
-      items: ['Skin Platine', '3x Boîte mystère', 'Titre "Elite"'],
-      rarity: 'epic',
-      color: 'from-indigo-400 to-indigo-600',
-      bgColor: 'bg-indigo-50',
-      borderColor: 'border-indigo-300'
-    },
-    { 
-      level: 50, 
-      name: 'Diamond Prestige', 
-      description: 'Prestige diamant pour les maîtres',
-      coins: 750,
-      items: ['Skin Diamant', '5x Boîte mystère', 'Emote exclusif'],
-      rarity: 'legendary',
-      color: 'from-cyan-400 to-cyan-600',
-      bgColor: 'bg-cyan-50',
-      borderColor: 'border-cyan-300'
-    },
-    { 
-      level: 60, 
-      name: 'Mythic Champion', 
-      description: 'Récompense ultime des champions',
-      coins: 1000,
-      items: ['Skin Mythique', '10x Boîte mystère', 'Couronne de Champion'],
-      rarity: 'mythic',
-      color: 'from-purple-400 to-pink-600',
-      bgColor: 'bg-gradient-to-br from-purple-50 to-pink-50',
-      borderColor: 'border-purple-400'
-    }
-  ]
+  }, [authLoading, isAuthenticated, router])
 
   useEffect(() => {
-    const initializePage = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        
-        if (!user) {
-          router.push('/login')
-          return
-        }
-        
-        setUser(user)
-        
-        // Load profile with XP and level data
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*, total_exp, last_freedrop_claim')
-          .eq('id', user.id)
-          .single()
-        
-        if (profile) {
-          setProfile(profile)
-          
-          // Calculate level from total XP (default to 0 if null)
-          const totalExp = profile.total_exp || 0
-          const levelData = calculateLevelFromExp(totalExp)
-          
-          setPlayerLevel(levelData.level)
-          setPlayerExp(levelData.currentExp)
-          setExpToNext(levelData.expToNext)
-          
-          // Check if can claim (once per day)
-          const lastClaim = profile.last_freedrop_claim
-          const today = new Date().toDateString()
-          const lastClaimDate = lastClaim ? new Date(lastClaim).toDateString() : null
-          
-          setLastClaimDate(lastClaimDate)
-          setCanClaim(lastClaimDate !== today)
-        }
-        
-      } catch (error) {
-        console.error('Error loading free drop page:', error)
-        showNotification('error', 'Erreur lors du chargement')
-      } finally {
-        setLoading(false)
-      }
+    if (!authLoading && isAuthenticated && user) {
+      loadFreedropData()
+      
+      // Mettre à jour le timer chaque seconde
+      const timer = setInterval(updateTimeUntilReset, 1000)
+      return () => clearInterval(timer)
     }
+  }, [authLoading, isAuthenticated, user])
 
-    initializePage()
-  }, [supabase, router])
-
-  const getAvailableReward = () => {
-    // Find the highest level reward the player can claim
-    const availableRewards = freeDropRewards.filter(reward => playerLevel >= reward.level)
-    return availableRewards[availableRewards.length - 1] || freeDropRewards[0]
+  const loadFreedropData = async () => {
+    try {
+      setLoading(true)
+      
+      // Charger les caisses quotidiennes
+      await loadDailyBoxes()
+      
+      // Vérifier les réclamations d'aujourd'hui
+      await checkTodayClaims()
+      
+      // Charger le streak
+      await loadStreak()
+      
+    } catch (error) {
+      console.error('Error loading freedrop data:', error)
+      showNotification('error', 'Erreur lors du chargement')
+    } finally {
+      setLoading(false)
+    }
   }
+	
+  const loadDailyBoxes = async () => {
+    const supabase = createClient()
+    
+    // Charger toutes les caisses disponibles pour le freedrop
+    const { data, error } = await supabase
+      .from('loot_boxes')
+      .select(`
+        *,
+        loot_box_items (
+          probability,
+          items (
+            id,
+            name,
+            description,
+            rarity,
+            image_url,
+            market_value,
+            category
+          )
+        )
+      `)
+      .eq('is_active', true)
+      .eq('is_daily_free', true) // Nouvelle colonne pour identifier les caisses daily
+      .order('required_level', { ascending: true })
 
-  const claimFreeReward = async () => {
-    if (!canClaim) {
-      showNotification('error', 'Vous avez déjà réclamé votre récompense aujourd\'hui')
+    if (error) {
+      console.error('Error loading daily boxes:', error)
+      
+      // Données de test si pas de caisses en DB
+      const testBoxes = generateTestDailyBoxes()
+      setDailyBoxes(testBoxes)
       return
     }
 
-    setClaiming(true)
-    setOpeningAnimation(true)
-
-    try {
-      const reward = getAvailableReward()
-      setSelectedReward(reward)
-
-      // Simulate opening animation
-      setTimeout(async () => {
-        // Update profile with coins and last claim date
-        const { error } = await supabase
-          .from('profiles')
-          .update({
-            virtual_currency: (profile.virtual_currency || 0) + reward.coins,
-            last_freedrop_claim: new Date().toISOString()
-          })
-          .eq('id', user.id)
-
-        if (error) throw error
-
-        // Update local state
-        setProfile(prev => ({
-          ...prev,
-          virtual_currency: (prev.virtual_currency || 0) + reward.coins
-        }))
-        
-        setCanClaim(false)
-        setLastClaimDate(new Date().toDateString())
-        setOpeningAnimation(false)
-        
-        showNotification('success', `Vous avez reçu ${reward.coins} coins !`)
-      }, 3000)
-
-    } catch (error) {
-      console.error('Error claiming reward:', error)
-      showNotification('error', 'Erreur lors de la réclamation')
-      setOpeningAnimation(false)
-    } finally {
-      setClaiming(false)
+    // Si pas de caisses daily en DB, générer des données de test
+    if (!data || data.length === 0) {
+      const testBoxes = generateTestDailyBoxes()
+      setDailyBoxes(testBoxes)
+    } else {
+      setDailyBoxes(data)
     }
   }
 
-  const getTimeUntilNextClaim = () => {
-    if (canClaim) return 'Disponible maintenant !'
+  const generateTestDailyBoxes = () => {
+    const userLevel = calculateUserLevel(profile?.total_exp || 0)
     
+    return [
+      {
+        id: 'daily-1',
+        name: 'Caisse Débutant',
+        description: 'Votre première caisse quotidienne gratuite',
+        required_level: 1,
+        image_url: 'https://i.imgur.com/daily1.png',
+        rarity: 'common',
+        max_value: 50,
+        loot_box_items: [
+          {
+            probability: 70,
+            items: { id: '1', name: 'Porte-clés Basic', rarity: 'common', market_value: 5, image_url: 'https://via.placeholder.com/200x200/9CA3AF/FFFFFF?text=Basic' }
+          },
+          {
+            probability: 25,
+            items: { id: '2', name: 'Sticker Cool', rarity: 'rare', market_value: 15, image_url: 'https://via.placeholder.com/200x200/3B82F6/FFFFFF?text=Rare' }
+          },
+          {
+            probability: 5,
+            items: { id: '3', name: 'Badge Collector', rarity: 'epic', market_value: 35, image_url: 'https://via.placeholder.com/200x200/8B5CF6/FFFFFF?text=Epic' }
+          }
+        ]
+      },
+      {
+        id: 'daily-2',
+        name: 'Caisse Aventurier',
+        description: 'Pour les explorateurs expérimentés',
+        required_level: 5,
+        image_url: 'https://i.imgur.com/daily2.png',
+        rarity: 'rare',
+        max_value: 100,
+        loot_box_items: [
+          {
+            probability: 60,
+            items: { id: '4', name: 'Gadget Vintage', rarity: 'common', market_value: 20, image_url: 'https://via.placeholder.com/200x200/9CA3AF/FFFFFF?text=Vintage' }
+          },
+          {
+            probability: 30,
+            items: { id: '5', name: 'Objet de Collection', rarity: 'rare', market_value: 45, image_url: 'https://via.placeholder.com/200x200/3B82F6/FFFFFF?text=Collection' }
+          },
+          {
+            probability: 10,
+            items: { id: '6', name: 'Pièce Rare', rarity: 'epic', market_value: 80, image_url: 'https://via.placeholder.com/200x200/8B5CF6/FFFFFF?text=Rare+Coin' }
+          }
+        ]
+      },
+      {
+        id: 'daily-3',
+        name: 'Caisse Expert',
+        description: 'Réservée aux maîtres du jeu',
+        required_level: 10,
+        image_url: 'https://i.imgur.com/daily3.png',
+        rarity: 'epic',
+        max_value: 200,
+        loot_box_items: [
+          {
+            probability: 50,
+            items: { id: '7', name: 'Accessoire Premium', rarity: 'rare', market_value: 50, image_url: 'https://via.placeholder.com/200x200/3B82F6/FFFFFF?text=Premium' }
+          },
+          {
+            probability: 35,
+            items: { id: '8', name: 'Objet Exclusif', rarity: 'epic', market_value: 120, image_url: 'https://via.placeholder.com/200x200/8B5CF6/FFFFFF?text=Exclusif' }
+          },
+          {
+            probability: 15,
+            items: { id: '9', name: 'Trésor Légendaire', rarity: 'legendary', market_value: 180, image_url: 'https://via.placeholder.com/200x200/F59E0B/FFFFFF?text=Trésor' }
+          }
+        ]
+      },
+      {
+        id: 'daily-4',
+        name: 'Caisse Maître',
+        description: 'Le summum de la récompense quotidienne',
+        required_level: 20,
+        image_url: 'https://i.imgur.com/daily4.png',
+        rarity: 'legendary',
+        max_value: 350,
+        loot_box_items: [
+          {
+            probability: 40,
+            items: { id: '10', name: 'Objet de Maître', rarity: 'epic', market_value: 100, image_url: 'https://via.placeholder.com/200x200/8B5CF6/FFFFFF?text=Maître' }
+          },
+          {
+            probability: 40,
+            items: { id: '11', name: 'Relique Antique', rarity: 'legendary', market_value: 250, image_url: 'https://via.placeholder.com/200x200/F59E0B/FFFFFF?text=Relique' }
+          },
+          {
+            probability: 20,
+            items: { id: '12', name: 'Artefact Mythique', rarity: 'legendary', market_value: 300, image_url: 'https://via.placeholder.com/200x200/F59E0B/FFFFFF?text=Mythique' }
+          }
+        ]
+      }
+    ]
+  }
+
+  const checkTodayClaims = async () => {
+    const supabase = createClient()
+    const today = new Date().toISOString().split('T')[0]
+    
+    // Vérifier les réclamations d'aujourd'hui
+    const { data, error } = await supabase
+      .from('daily_claims')
+      .select('daily_box_id, claimed_at')
+      .eq('user_id', user.id)
+      .gte('claimed_at', `${today}T00:00:00.000Z`)
+      .lt('claimed_at', `${today}T23:59:59.999Z`)
+
+    if (!error && data) {
+      setClaimedToday(data.map(claim => claim.daily_box_id))
+    }
+  }
+
+  const loadStreak = async () => {
+    const supabase = createClient()
+    
+    // Calculer le streak basé sur les réclamations récentes
+    const { data, error } = await supabase
+      .from('daily_claims')
+      .select('claimed_at')
+      .eq('user_id', user.id)
+      .order('claimed_at', { ascending: false })
+      .limit(30)
+
+    if (!error && data) {
+      const currentStreak = calculateStreak(data)
+      setStreak(currentStreak)
+    }
+  }
+
+  const calculateStreak = (claims) => {
+    if (!claims || claims.length === 0) return 0
+    
+    let streak = 0
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    for (let i = 0; i < 30; i++) {
+      const checkDate = new Date(today)
+      checkDate.setDate(today.getDate() - i)
+      
+      const hasClaimOnDate = claims.some(claim => {
+        const claimDate = new Date(claim.claimed_at)
+        claimDate.setHours(0, 0, 0, 0)
+        return claimDate.getTime() === checkDate.getTime()
+      })
+      
+      if (hasClaimOnDate) {
+        streak++
+      } else if (i > 0) { // Ne pas casser le streak si pas de claim aujourd'hui
+        break
+      }
+    }
+    
+    return streak
+  }
+
+  const calculateUserLevel = (exp) => {
+    return Math.floor(exp / 100) + 1
+  }
+
+  const updateTimeUntilReset = () => {
     const now = new Date()
     const tomorrow = new Date(now)
     tomorrow.setDate(tomorrow.getDate() + 1)
     tomorrow.setHours(0, 0, 0, 0)
     
-    const diff = tomorrow - now
+    const diff = tomorrow.getTime() - now.getTime()
     const hours = Math.floor(diff / (1000 * 60 * 60))
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000)
     
-    return `${hours}h ${minutes}m`
+    setTimeUntilReset(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`)
   }
 
-  const getLevelProgress = () => {
-    const totalExpForCurrentLevel = getExpForLevel(playerLevel)
-    const progress = (playerExp / totalExpForCurrentLevel) * 100
-    return Math.min(progress, 100)
+  const getRarityColor = (rarity) => {
+    const colors = {
+      common: 'from-gray-400 to-gray-600',
+      rare: 'from-blue-400 to-blue-600',
+      epic: 'from-purple-400 to-purple-600',
+      legendary: 'from-yellow-400 to-yellow-600'
+    }
+    return colors[rarity] || colors.common
   }
 
-  if (loading) {
+  const getRarityBg = (rarity) => {
+    const colors = {
+      common: 'bg-gray-50 border-gray-200',
+      rare: 'bg-blue-50 border-blue-200',
+      epic: 'bg-purple-50 border-purple-200',
+      legendary: 'bg-yellow-50 border-yellow-200'
+    }
+    return colors[rarity] || colors.common
+  }
+
+  const claimDailyBox = async (box) => {
+    if (isOpening) return
+    
+    try {
+      setIsOpening(true)
+      setSelectedBox(box)
+      
+      // Simuler l'ouverture
+      await new Promise(resolve => setTimeout(resolve, 3000))
+      
+      // Calculer l'objet obtenu selon les probabilités
+      const obtainedItem = calculateRandomItem(box.loot_box_items)
+      
+      const supabase = createClient()
+
+      // Enregistrer la réclamation
+      const { error: claimError } = await supabase
+        .from('daily_claims')
+        .insert({
+          user_id: user.id,
+          daily_box_id: box.id,
+          item_id: obtainedItem.id,
+          claimed_at: new Date().toISOString()
+        })
+
+      if (claimError) {
+        console.error('Error recording claim:', claimError)
+      }
+
+      // Ajouter à l'inventaire
+      const { error: inventoryError } = await supabase
+        .from('user_inventory')
+        .insert({
+          user_id: user.id,
+          item_id: obtainedItem.id,
+          quantity: 1,
+          obtained_at: new Date().toISOString(),
+          obtained_from: 'daily_free'
+        })
+
+      if (inventoryError) {
+        console.error('Error adding to inventory:', inventoryError)
+      }
+
+      // Ajouter de l'XP
+      const xpGained = Math.floor(obtainedItem.market_value / 10) + 5
+      const { error: xpError } = await supabase
+        .from('profiles')
+        .update({ 
+          total_exp: (profile?.total_exp || 0) + xpGained 
+        })
+        .eq('id', user.id)
+
+      if (xpError) {
+        console.error('Error updating XP:', xpError)
+      }
+
+      // Enregistrer la transaction
+      const { error: transactionError } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: user.id,
+          type: 'daily_free_claim',
+          item_id: obtainedItem.id,
+          virtual_amount: 0,
+          description: `Réclamation quotidienne: ${box.name}`
+        })
+
+      if (transactionError) {
+        console.error('Error recording transaction:', transactionError)
+      }
+
+      setOpenedItem({ ...obtainedItem, xpGained })
+      setShowResult(true)
+      
+      // Mettre à jour les réclamations d'aujourd'hui
+      setClaimedToday(prev => [...prev, box.id])
+      
+      showNotification('success', `Vous avez obtenu ${obtainedItem.name} !`)
+      
+    } catch (error) {
+      console.error('Error claiming daily box:', error)
+      showNotification('error', 'Erreur lors de la réclamation')
+    } finally {
+      setIsOpening(false)
+    }
+  }
+
+  const calculateRandomItem = (lootBoxItems) => {
+    const random = Math.random() * 100
+    let cumulative = 0
+    
+    for (const lootItem of lootBoxItems) {
+      cumulative += lootItem.probability
+      if (random <= cumulative) {
+        return lootItem.items
+      }
+    }
+    
+    // Fallback au premier item
+    return lootBoxItems[0]?.items
+  }
+
+  const userLevel = calculateUserLevel(profile?.total_exp || 0)
+
+  // Loading state - Protégé par l'auth
+  if (authLoading || loading || !isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 pt-20 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-green-500 mx-auto mb-4" />
-          <p className="text-gray-600">Chargement...</p>
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full mx-auto mb-4"
+          />
+          <p className="text-gray-600 font-medium">Chargement des caisses quotidiennes...</p>
         </div>
       </div>
     )
   }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gray-50 pt-20 flex items-center justify-center">
-        <div className="text-center">
-          <Gift className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Connexion requise</h2>
-          <p className="text-gray-600 mb-6">Connectez-vous pour accéder aux récompenses gratuites</p>
-          <button
-            onClick={() => router.push('/login')}
-            className="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-full font-medium hover:shadow-lg transition-all duration-200"
-          >
-            Se connecter
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  const currentReward = getAvailableReward()
 
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
+      
       {/* Notification */}
-      {notification.message && (
-        <motion.div
-          initial={{ opacity: 0, y: -50 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -50 }}
-          className={`fixed top-24 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg border ${
-            notification.type === 'error' 
-              ? 'bg-red-50 border-red-200 text-red-800' 
-              : 'bg-green-50 border-green-200 text-green-800'
-          }`}
-        >
-          {notification.type === 'error' ? (
-            <AlertCircle className="h-5 w-5" />
-          ) : (
-            <CheckCircle className="h-5 w-5" />
-          )}
-          <span className="text-sm font-medium">{notification.message}</span>
-        </motion.div>
-      )}
-
-      {/* Opening Animation Overlay */}
       <AnimatePresence>
-        {openingAnimation && (
+        {notification.message && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center"
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className={`fixed top-24 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg border ${
+              notification.type === 'error' 
+                ? 'bg-red-50 border-red-200 text-red-800' 
+                : 'bg-green-50 border-green-200 text-green-800'
+            }`}
           >
-            <motion.div
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="text-center"
-            >
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                className={`w-32 h-32 rounded-2xl bg-gradient-to-br ${currentReward?.color} mx-auto mb-6 flex items-center justify-center`}
-              >
-                <Gift className="h-16 w-16 text-white" />
-              </motion.div>
-              <h2 className="text-3xl font-bold text-white mb-2">Ouverture en cours...</h2>
-              <p className="text-gray-300">Votre récompense gratuite vous attend !</p>
-            </motion.div>
+            {notification.type === 'error' ? (
+              <AlertCircle className="h-5 w-5" />
+            ) : (
+              <CheckCircle className="h-5 w-5" />
+            )}
+            <span className="text-sm font-medium">{notification.message}</span>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Hero Section */}
-      <section className="bg-gradient-to-br from-green-50 to-emerald-100 py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center"
-          >
-            <div className="flex justify-center mb-6">
-              <div className="h-16 w-16 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <Gift className="h-8 w-8 text-white" />
-              </div>
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Free Drop Quotidien
-            </h1>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-              Réclamez votre récompense gratuite chaque jour ! Plus votre niveau est élevé, meilleures sont les récompenses.
-            </p>
-
-            {/* Level & XP Display */}
-            <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
-                    <Crown className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900">Niveau {playerLevel}</h3>
-                    <p className="text-gray-600 text-sm">{playerExp} / {getExpForLevel(playerLevel)} XP</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-green-600">{expToNext}</p>
-                  <p className="text-gray-600 text-sm">XP au niveau suivant</p>
-                </div>
-              </div>
-              
-              {/* Progress Bar */}
-              <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${getLevelProgress()}%` }}
-                  transition={{ duration: 1, ease: "easeOut" }}
-                  className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full"
-                />
-              </div>
-              <p className="text-center text-gray-600 text-sm">
-                Progression du niveau ({getLevelProgress().toFixed(1)}%)
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <div className="flex items-center gap-4 mb-6">
+            <button
+              onClick={() => router.back()}
+              className="p-2 hover:bg-white rounded-lg transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5 text-gray-600" />
+            </button>
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 flex items-center gap-3">
+                <Gift className="h-10 w-10 text-green-600" />
+                Caisses Quotidiennes
+              </h1>
+              <p className="text-gray-600 mt-2 text-lg">
+                Réclamez vos récompenses quotidiennes gratuites • Niveau {userLevel}
               </p>
             </div>
-          </motion.div>
-        </div>
-      </section>
+          </div>
 
-      {/* Current Reward */}
-      <section className="py-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Votre récompense d'aujourd'hui
-            </h2>
-            <p className="text-gray-600">
-              {canClaim ? 'Prête à être réclamée !' : `Prochaine récompense dans ${getTimeUntilNextClaim()}`}
-            </p>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className={`relative ${currentReward.bgColor} rounded-3xl p-8 border-2 ${currentReward.borderColor} shadow-xl overflow-hidden`}
-          >
-            {/* Background Pattern */}
-            <div className="absolute inset-0 opacity-10">
-              <div className="absolute -top-10 -right-10 w-40 h-40 bg-white rounded-full" />
-              <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-white rounded-full" />
+          {/* Stats Header */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            {/* Timer */}
+            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 text-blue-600 mb-2">
+                    <Timer className="h-5 w-5" />
+                    <span className="font-semibold">Prochaine réinitialisation</span>
+                  </div>
+                  <div className="text-3xl font-bold text-gray-900 font-mono">{timeUntilReset}</div>
+                  <div className="text-sm text-gray-600 mt-1">Nouvelles caisses disponibles</div>
+                </div>
+                <Clock className="h-12 w-12 text-blue-300" />
+              </div>
             </div>
 
-            <div className="relative z-10">
-              <div className="text-center mb-8">
-                <motion.div
-                  whileHover={{ scale: 1.1, rotate: 5 }}
-                  className={`inline-flex w-24 h-24 bg-gradient-to-br ${currentReward.color} rounded-2xl items-center justify-center mb-4 shadow-lg`}
-                >
-                  <Gift className="h-12 w-12 text-white" />
-                </motion.div>
-                
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">{currentReward.name}</h3>
-                <p className="text-gray-600 mb-4">{currentReward.description}</p>
-                
-                <div className="flex items-center justify-center gap-6 mb-6">
-                  <div className="flex items-center gap-2">
-                    <Coins className="h-6 w-6 text-yellow-500" />
-                    <span className="text-xl font-bold text-gray-900">{currentReward.coins} coins</span>
+            {/* Streak */}
+            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 text-orange-600 mb-2">
+                    <Flame className="h-5 w-5" />
+                    <span className="font-semibold">Série actuelle</span>
                   </div>
-                  <div className="h-6 w-px bg-gray-300" />
-                  <div className="flex items-center gap-2">
-                    <Star className="h-6 w-6 text-purple-500" />
-                    <span className="text-lg font-semibold text-gray-700">{currentReward.items.length} items</span>
+                  <div className="text-3xl font-bold text-gray-900">{streak} jours</div>
+                  <div className="text-sm text-gray-600 mt-1">
+                    {streak > 0 ? 'Continue ta série !' : 'Commence ta série aujourd\'hui'}
                   </div>
                 </div>
-
-                {/* Items List */}
-                <div className="mb-8">
-                  <h4 className="font-semibold text-gray-900 mb-3">Récompenses incluses :</h4>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {currentReward.items.map((item, index) => (
-                      <span
-                        key={index}
-                        className="bg-white/80 text-gray-700 px-3 py-1 rounded-full text-sm font-medium border border-gray-200"
-                      >
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+                <Award className="h-12 w-12 text-orange-300" />
               </div>
+            </div>
 
-              {/* Claim Button */}
-              <div className="text-center">
-                <motion.button
-                  whileHover={{ scale: canClaim ? 1.05 : 1 }}
-                  whileTap={{ scale: canClaim ? 0.95 : 1 }}
-                  onClick={claimFreeReward}
-                  disabled={!canClaim || claiming}
-                  className={`inline-flex items-center gap-3 px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-200 ${
-                    canClaim && !claiming
-                      ? 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:shadow-xl'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  {claiming ? (
-                    <>
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                      Réclamation en cours...
-                    </>
-                  ) : canClaim ? (
-                    <>
-                      <Download className="h-6 w-6" />
-                      Réclamer maintenant !
-                    </>
-                  ) : (
-                    <>
-                      <Clock className="h-6 w-6" />
-                      Déjà réclamé aujourd'hui
-                    </>
-                  )}
-                </motion.button>
+            {/* Level Progress */}
+            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 text-purple-600 mb-2">
+                    <Star className="h-5 w-5" />
+                    <span className="font-semibold">Niveau {userLevel}</span>
+                  </div>
+                  <div className="text-sm text-gray-600 mb-2">
+                    {profile?.total_exp || 0} / {userLevel * 100} XP
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-purple-500 h-2 rounded-full transition-all duration-300"
+                      style={{ 
+                        width: `${((profile?.total_exp || 0) % 100)}%` 
+                      }}
+                    />
+                  </div>
+                </div>
+                <Crown className="h-12 w-12 text-purple-300" />
+              </div>
+            </div>
+          </div>
+        </motion.div>
 
-                {!canClaim && (
-                  <p className="mt-4 text-gray-600 text-sm">
-                    Revenez demain pour votre prochaine récompense gratuite !
-                  </p>
+        {/* Info Box */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-8"
+        >
+          <div className="flex items-start gap-3">
+            <Info className="h-6 w-6 text-blue-600 mt-1" />
+            <div>
+              <h3 className="font-bold text-blue-900 mb-2">Comment ça marche ?</h3>
+              <ul className="text-blue-800 space-y-1 text-sm">
+                <li>• Réclamez une caisse gratuite par jour selon votre niveau</li>
+                <li>• Plus votre niveau est élevé, plus les récompenses sont intéressantes</li>
+                <li>• Maintenez votre série quotidienne pour débloquer des bonus</li>
+                <li>• Les caisses se réinitialisent chaque jour à minuit</li>
+              </ul>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Daily Boxes Grid */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6"
+        >
+          {dailyBoxes.map((box, index) => {
+            const isUnlocked = userLevel >= (box.required_level || 1)
+            const isClaimed = claimedToday.includes(box.id)
+            const canClaim = isUnlocked && !isClaimed
+
+            return (
+              <DailyBoxCard
+                key={box.id}
+                box={box}
+                index={index}
+                isUnlocked={isUnlocked}
+                isClaimed={isClaimed}
+                canClaim={canClaim}
+                onClaim={() => claimDailyBox(box)}
+                getRarityColor={getRarityColor}
+                getRarityBg={getRarityBg}
+              />
+            )
+          })}
+        </motion.div>
+
+        {/* Streak Rewards Info */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="mt-12 bg-white rounded-xl shadow-lg p-8 border border-gray-200"
+        >
+          <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+            <Sparkles className="h-7 w-7 text-yellow-600" />
+            Bonus de Série
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[
+              { days: 3, bonus: '+10% XP', color: 'blue' },
+              { days: 7, bonus: '+1 Caisse Bonus', color: 'green' },
+              { days: 14, bonus: '+25% XP', color: 'purple' },
+              { days: 30, bonus: 'Caisse Légendaire', color: 'yellow' }
+            ].map((reward, index) => (
+              <div 
+                key={index}
+                className={`p-4 rounded-xl border-2 text-center ${
+                  streak >= reward.days
+                    ? `bg-${reward.color}-50 border-${reward.color}-200`
+                    : 'bg-gray-50 border-gray-200'
+                }`}
+              >
+                <div className={`text-2xl font-bold ${
+                  streak >= reward.days ? `text-${reward.color}-600` : 'text-gray-400'
+                }`}>
+                  {reward.days}j
+                </div>
+                <div className={`text-sm font-medium ${
+                  streak >= reward.days ? `text-${reward.color}-700` : 'text-gray-500'
+                }`}>
+                  {reward.bonus}
+                </div>
+                {streak >= reward.days && (
+                  <CheckCircle className={`h-5 w-5 text-${reward.color}-600 mx-auto mt-2`} />
                 )}
               </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Rewards Progression */}
-      <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Progression des récompenses
-            </h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              Montez en niveau pour débloquer des récompenses encore plus généreuses ! 
-              Gagnez de l'XP en ouvrant des boîtes (1 coin dépensé = 1 XP gagné).
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {freeDropRewards.map((reward, index) => {
-              const isUnlocked = playerLevel >= reward.level
-              const isCurrent = reward.level === currentReward.level
-              
-              return (
-                <motion.div
-                  key={reward.level}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.4 + index * 0.1 }}
-                  className={`relative p-6 rounded-2xl border-2 transition-all duration-300 ${
-                    isCurrent
-                      ? `${reward.borderColor} ${reward.bgColor} ring-4 ring-green-200`
-                      : isUnlocked
-                      ? `${reward.borderColor} ${reward.bgColor} hover:shadow-lg`
-                      : 'border-gray-200 bg-gray-50'
-                  }`}
-                >
-                  {/* Current Badge */}
-                  {isCurrent && (
-                    <div className="absolute -top-3 -right-3 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold">
-                      ACTUEL
-                    </div>
-                  )}
-
-                  <div className="text-center">
-                    <div className={`inline-flex w-16 h-16 rounded-xl items-center justify-center mb-4 ${
-                      isUnlocked 
-                        ? `bg-gradient-to-br ${reward.color}` 
-                        : 'bg-gray-300'
-                    }`}>
-                      {isUnlocked ? (
-                        <Gift className="h-8 w-8 text-white" />
-                      ) : (
-                        <Lock className="h-8 w-8 text-gray-500" />
-                      )}
-                    </div>
-                    
-                    <h3 className={`font-bold mb-2 ${isUnlocked ? 'text-gray-900' : 'text-gray-500'}`}>
-                      Niveau {reward.level}
-                    </h3>
-                    <h4 className={`text-sm font-medium mb-2 ${isUnlocked ? 'text-gray-800' : 'text-gray-400'}`}>
-                      {reward.name}
-                    </h4>
-                    
-                    <div className={`flex items-center justify-center gap-1 mb-3 ${isUnlocked ? 'text-yellow-600' : 'text-gray-400'}`}>
-                      <Coins className="h-4 w-4" />
-                      <span className="font-semibold">{reward.coins}</span>
-                    </div>
-                    
-                    <div className="space-y-1">
-                      {reward.items.slice(0, 2).map((item, itemIndex) => (
-                        <div
-                          key={itemIndex}
-                          className={`text-xs px-2 py-1 rounded-full ${
-                            isUnlocked 
-                              ? 'bg-white/80 text-gray-700' 
-                              : 'bg-gray-200 text-gray-500'
-                          }`}
-                        >
-                          {item}
-                        </div>
-                      ))}
-                      {reward.items.length > 2 && (
-                        <div className={`text-xs ${isUnlocked ? 'text-gray-600' : 'text-gray-400'}`}>
-                          +{reward.items.length - 2} autres...
-                        </div>
-                      )}
-                    </div>
-
-                    {!isUnlocked && (
-                      <div className="mt-4 text-xs text-gray-500">
-                        <Lock className="h-3 w-3 inline mr-1" />
-                        Niveau {reward.level} requis
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              )
-            })}
+            ))}
           </div>
-        </div>
-      </section>
+        </motion.div>
+      </div>
 
-      {/* How to Level Up */}
-      <section className="py-16 bg-gradient-to-br from-blue-50 to-indigo-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.5 }}
-            className="text-center"
-          >
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">
-              Comment gagner de l'XP ?
-            </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="text-center">
-                <div className="h-16 w-16 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Gift className="h-8 w-8 text-white" />
-                </div>
-                <h3 className="font-bold text-gray-900 mb-2">Ouvrez des boîtes</h3>
-                <p className="text-gray-600 text-sm">
-                  Chaque coin dépensé vous rapporte 1 XP
-                </p>
-              </div>
-              
-              <div className="text-center">
-                <div className="h-16 w-16 bg-gradient-to-br from-red-400 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Target className="h-8 w-8 text-white" />
-                </div>
-                <h3 className="font-bold text-gray-900 mb-2">Participez aux battles</h3>
-                <p className="text-gray-600 text-sm">
-                  Les battles rapportent de l'XP bonus
-                </p>
-              </div>
-              
-              <div className="text-center">
-                <div className="h-16 w-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Calendar className="h-8 w-8 text-white" />
-                </div>
-                <h3 className="font-bold text-gray-900 mb-2">Connexion quotidienne</h3>
-                <p className="text-gray-600 text-sm">
-                  Bonus XP pour les connexions régulières
-                </p>
-              </div>
-            </div>
+      {/* Opening Animation Modal */}
+      <OpeningModal
+        isOpen={isOpening}
+        box={selectedBox}
+        getRarityColor={getRarityColor}
+      />
 
-            <div className="mt-8 bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Calcul de l'XP</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-green-50 rounded-xl p-4 border border-green-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Coins className="h-5 w-5 text-green-600" />
-                    <span className="font-semibold text-green-800">Dépense en coins</span>
-                  </div>
-                  <p className="text-green-700 text-sm">1 coin dépensé = 1 XP gagné</p>
-                  <p className="text-green-600 text-xs mt-1">Exemple : 150 coins → 150 XP</p>
-                </div>
-                
-                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Trophy className="h-5 w-5 text-blue-600" />
-                    <span className="font-semibold text-blue-800">Bonus activités</span>
-                  </div>
-                  <p className="text-blue-700 text-sm">Battles, défis, événements</p>
-                  <p className="text-blue-600 text-xs mt-1">Bonus multiplicateurs selon l'activité</p>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Statistics */}
-      <section className="py-16 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Vos statistiques Free Drop
-            </h2>
-            <p className="text-gray-600">
-              Suivez votre progression et vos récompenses
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-2xl p-6 text-center">
-              <div className="h-12 w-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Calendar className="h-6 w-6 text-white" />
-              </div>
-              <div className="text-2xl font-bold text-green-700 mb-1">7</div>
-              <div className="text-green-600 text-sm">Jours consécutifs</div>
-            </div>
-
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-2xl p-6 text-center">
-              <div className="h-12 w-12 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Gift className="h-6 w-6 text-white" />
-              </div>
-              <div className="text-2xl font-bold text-blue-700 mb-1">23</div>
-              <div className="text-blue-600 text-sm">Récompenses réclamées</div>
-            </div>
-
-            <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 border border-yellow-200 rounded-2xl p-6 text-center">
-              <div className="h-12 w-12 bg-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Coins className="h-6 w-6 text-white" />
-              </div>
-              <div className="text-2xl font-bold text-yellow-700 mb-1">2,150</div>
-              <div className="text-yellow-600 text-sm">Coins obtenus gratuitement</div>
-            </div>
-
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-2xl p-6 text-center">
-              <div className="h-12 w-12 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <TrendingUp className="h-6 w-6 text-white" />
-              </div>
-              <div className="text-2xl font-bold text-purple-700 mb-1">{playerLevel}</div>
-              <div className="text-purple-600 text-sm">Niveau actuel</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Call to Action */}
-      <section className="py-16 bg-gradient-to-br from-green-500 to-green-600">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.7 }}
-          >
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Prêt à monter de niveau ?
-            </h2>
-            <p className="text-green-100 text-lg mb-8 max-w-2xl mx-auto">
-              Ouvrez des boîtes, participez aux battles et réclamez vos récompenses quotidiennes pour progresser !
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => router.push('/boxes')}
-                className="bg-white text-green-600 px-8 py-4 rounded-full text-lg font-semibold hover:shadow-xl transition-all duration-200 inline-flex items-center gap-2"
-              >
-                <Gift className="h-5 w-5" />
-                Ouvrir des boîtes
-                <ArrowRight className="h-5 w-5" />
-              </motion.button>
-              
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => router.push('/battle')}
-                className="border-2 border-white text-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-white hover:text-green-600 transition-all duration-200 inline-flex items-center gap-2"
-              >
-                <Target className="h-5 w-5" />
-                Rejoindre une battle
-              </motion.button>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.8 }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Questions fréquentes
-            </h2>
-          </motion.div>
-
-          <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-              <h3 className="font-bold text-gray-900 mb-2">À quelle heure se renouvellent les récompenses ?</h3>
-              <p className="text-gray-600">Les récompenses quotidiennes se renouvellent chaque jour à minuit (UTC+1).</p>
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-              <h3 className="font-bold text-gray-900 mb-2">Que se passe-t-il si je rate une journée ?</h3>
-              <p className="text-gray-600">Rien de grave ! Vous pouvez reprendre le lendemain. Il n'y a pas de pénalité pour les jours manqués.</p>
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-              <h3 className="font-bold text-gray-900 mb-2">Comment calculer mon XP total ?</h3>
-              <p className="text-gray-600">Votre XP total correspond au montant total de coins que vous avez dépensé sur la plateforme (1 coin = 1 XP).</p>
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-              <h3 className="font-bold text-gray-900 mb-2">Y a-t-il une limite de niveau ?</h3>
-              <p className="text-gray-600">Actuellement, le niveau maximum avec des récompenses spéciales est 60. De nouveaux paliers seront ajoutés régulièrement !</p>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Result Modal */}
+      <ResultModal
+        isOpen={showResult}
+        onClose={() => setShowResult(false)}
+        item={openedItem}
+        getRarityColor={getRarityColor}
+        getRarityBg={getRarityBg}
+      />
     </div>
+  )
+}
+
+// Composant de carte de caisse quotidienne
+function DailyBoxCard({ box, index, isUnlocked, isClaimed, canClaim, onClaim, getRarityColor, getRarityBg }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: index * 0.1 }}
+      className={`relative bg-white rounded-2xl shadow-lg border-3 p-6 transition-all duration-300 ${
+        canClaim 
+          ? `${getRarityBg(box.rarity)} hover:scale-105 cursor-pointer` 
+          : isUnlocked
+          ? 'bg-gray-50 border-gray-200'
+          : 'bg-gray-100 border-gray-300 opacity-60'
+      }`}
+      onClick={canClaim ? onClaim : undefined}
+    >
+      {/* Status Badge */}
+      <div className="absolute -top-3 -right-3">
+        {isClaimed ? (
+          <div className="bg-green-500 text-white rounded-full p-2">
+            <CheckCircle className="h-5 w-5" />
+          </div>
+        ) : !isUnlocked ? (
+          <div className="bg-gray-400 text-white rounded-full p-2">
+            <Lock className="h-5 w-5" />
+          </div>
+        ) : (
+          <div className="bg-yellow-500 text-white rounded-full p-2 animate-pulse">
+            <Gift className="h-5 w-5" />
+          </div>
+        )}
+      </div>
+
+      {/* Rarity Glow */}
+      {canClaim && (
+        <div className={`absolute inset-0 rounded-2xl bg-gradient-to-r ${getRarityColor(box.rarity)} opacity-20 animate-pulse`} />
+      )}
+
+      {/* Content */}
+      <div className="relative z-10 text-center">
+        
+        {/* Box Image */}
+        <div className="w-20 h-20 mx-auto mb-4 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden">
+          {box.image_url ? (
+            <img src={box.image_url} alt={box.name} className="w-full h-full object-cover" />
+          ) : (
+            <Package className="h-10 w-10 text-gray-400" />
+          )}
+        </div>
+
+        {/* Info */}
+        <h3 className="font-bold text-gray-900 text-lg mb-2">
+          {box.name}
+        </h3>
+        
+        <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+          {box.description}
+        </p>
+
+        {/* Requirements */}
+        <div className="flex items-center justify-center gap-2 mb-4">
+          <Star className="h-4 w-4 text-yellow-500" />
+          <span className="text-sm font-medium text-gray-700">
+            Niveau {box.required_level || 1} requis
+          </span>
+        </div>
+
+        {/* Rarity Badge */}
+        <div className={`inline-block px-3 py-1 rounded-full text-xs font-bold text-white bg-gradient-to-r ${getRarityColor(box.rarity)} mb-4`}>
+          {box.rarity?.toUpperCase() || 'COMMON'}
+        </div>
+
+        {/* Max Value */}
+        <div className="flex items-center justify-center gap-1 text-yellow-600 mb-4">
+          <Coins className="h-4 w-4" />
+          <span className="text-sm font-medium">Jusqu'à {box.max_value} coins</span>
+        </div>
+
+        {/* Action Button */}
+        {isClaimed ? (
+          <div className="bg-green-100 text-green-700 py-2 px-4 rounded-lg text-sm font-medium">
+            ✓ Réclamée aujourd'hui
+          </div>
+        ) : !isUnlocked ? (
+          <div className="bg-gray-100 text-gray-500 py-2 px-4 rounded-lg text-sm font-medium">
+            🔒 Niveau {box.required_level || 1} requis
+          </div>
+        ) : (
+          <button className="w-full bg-green-500 text-white py-3 rounded-xl hover:bg-green-600 transition-colors font-semibold text-sm">
+            🎁 Réclamer
+          </button>
+        )}
+      </div>
+    </motion.div>
+  )
+}
+
+// Modal d'animation d'ouverture
+function OpeningModal({ isOpen, box, getRarityColor }) {
+  if (!isOpen || !box) return null
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center"
+      >
+        <motion.div
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.5, opacity: 0 }}
+          className="text-center"
+        >
+          {/* Box Animation */}
+          <motion.div
+            animate={{ 
+              rotateY: [0, 360],
+              scale: [1, 1.2, 1]
+            }}
+            transition={{ 
+              duration: 3,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className={`w-32 h-32 mx-auto mb-8 rounded-2xl bg-gradient-to-br ${getRarityColor(box.rarity)} flex items-center justify-center shadow-2xl`}
+          >
+            <Package className="h-16 w-16 text-white" />
+          </motion.div>
+
+          {/* Loading Text */}
+          <motion.div
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+            className="text-white"
+          >
+            <h3 className="text-2xl font-bold mb-2">Ouverture en cours...</h3>
+            <p className="text-gray-300">🎲 Calcul des probabilités</p>
+          </motion.div>
+
+          {/* Sparkles */}
+          <div className="absolute inset-0 pointer-events-none">
+            {[...Array(20)].map((_, i) => (
+              <motion.div
+                key={i}
+                initial={{ 
+                  opacity: 0,
+                  x: "50%",
+                  y: "50%",
+                  scale: 0
+                }}
+                animate={{ 
+                  opacity: [0, 1, 0],
+                  x: `${50 + (Math.random() - 0.5) * 100}%`,
+                  y: `${50 + (Math.random() - 0.5) * 100}%`,
+                  scale: [0, 1, 0]
+                }}
+                transition={{ 
+                  duration: 2,
+                  delay: Math.random() * 2,
+                  repeat: Infinity
+                }}
+                className="absolute w-2 h-2 bg-yellow-400 rounded-full"
+              />
+            ))}
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  )
+}
+
+// Modal de résultat
+function ResultModal({ isOpen, onClose, item, getRarityColor, getRarityBg }) {
+  if (!isOpen || !item) return null
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0, y: 50 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.8, opacity: 0, y: 50 }}
+          onClick={(e) => e.stopPropagation()}
+          className={`bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center border-4 ${getRarityBg(item.rarity)}`}
+        >
+          {/* Confetti Animation */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
+            {[...Array(30)].map((_, i) => (
+              <motion.div
+                key={i}
+                initial={{ 
+                  opacity: 0,
+                  y: -20,
+                  x: `${Math.random() * 100}%`,
+                  rotate: 0
+                }}
+                animate={{ 
+                  opacity: [0, 1, 0],
+                  y: "120%",
+                  rotate: 360
+                }}
+                transition={{ 
+                  duration: 3,
+                  delay: Math.random() * 0.5
+                }}
+                className={`absolute w-3 h-3 ${
+                  Math.random() > 0.5 ? 'bg-yellow-400' : 'bg-green-400'
+                } rounded-full`}
+              />
+            ))}
+          </div>
+
+          {/* Success Icon */}
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+            className="relative z-10 mb-6"
+          >
+            <div className="w-20 h-20 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-4">
+              <CheckCircle className="h-10 w-10 text-green-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Félicitations ! 🎉
+            </h2>
+            <p className="text-gray-600">Vous avez obtenu :</p>
+          </motion.div>
+
+          {/* Item Display */}
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="relative z-10 mb-6"
+          >
+            {/* Item Image */}
+            <div className="w-24 h-24 mx-auto bg-gray-50 rounded-2xl flex items-center justify-center mb-4 overflow-hidden">
+              {item.image_url ? (
+                <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+              ) : (
+                <Package className="h-12 w-12 text-gray-400" />
+              )}
+            </div>
+
+            {/* Rarity Badge */}
+            <div className={`inline-block px-4 py-2 rounded-full text-sm font-bold text-white bg-gradient-to-r ${getRarityColor(item.rarity)} mb-3`}>
+              {item.rarity?.toUpperCase() || 'COMMON'}
+            </div>
+
+            {/* Item Name */}
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              {item.name}
+            </h3>
+
+            {/* Value & XP */}
+            <div className="grid grid-cols-2 gap-4 max-w-xs mx-auto">
+              <div className="bg-yellow-50 rounded-xl p-3 border border-yellow-200">
+                <div className="flex items-center justify-center gap-1 text-yellow-600 mb-1">
+                  <Coins className="h-4 w-4" />
+                  <span className="text-sm font-medium">Valeur</span>
+                </div>
+                <div className="text-lg font-bold text-gray-900">
+                  {item.market_value}
+                </div>
+              </div>
+              
+              <div className="bg-purple-50 rounded-xl p-3 border border-purple-200">
+                <div className="flex items-center justify-center gap-1 text-purple-600 mb-1">
+                  <Zap className="h-4 w-4" />
+                  <span className="text-sm font-medium">XP</span>
+                </div>
+                <div className="text-lg font-bold text-gray-900">
+                  +{item.xpGained}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Actions */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="relative z-10 space-y-3"
+          >
+            <button
+              onClick={onClose}
+              className="w-full bg-green-500 text-white py-3 rounded-xl hover:bg-green-600 transition-colors font-semibold"
+            >
+              Continuer
+            </button>
+            
+            <div className="flex gap-3">
+              <button className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm">
+                📦 Voir inventaire
+              </button>
+              <button className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm">
+                📤 Partager
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   )
 }

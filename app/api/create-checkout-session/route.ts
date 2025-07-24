@@ -1,8 +1,7 @@
 // app/api/create-checkout-session/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { createClient } from '@/utils/supabase/server'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
@@ -20,8 +19,8 @@ export async function POST(request: NextRequest) {
       package_name
     })
 
-    // Vérifier l'authentification
-    const supabase = createServerComponentClient({ cookies })
+    // Vérifier l'authentification avec le nouveau système
+    const supabase = createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user || user.id !== user_id) {

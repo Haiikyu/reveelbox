@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Eye, EyeOff, Mail, Lock, LogIn, Loader2, AlertCircle, CheckCircle, Gift } from 'lucide-react'
+import { useAuth } from '@/app/components/AuthProvider'
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -15,40 +16,27 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [notification, setNotification] = useState({ type: '', message: '' })
-  const [checkingAuth, setCheckingAuth] = useState(true)
   
   const router = useRouter()
-  const supabase = createClientComponentClient()
+  const supabase = createClient()
+  const { user, loading: authLoading } = useAuth()
 
   // Vérifier si l'utilisateur est déjà connecté au chargement
   useEffect(() => {
-    const checkUser = async () => {
-      try {
-        const { data: { user }, error } = await supabase.auth.getUser()
-        
-        if (user) {
-          console.log('Utilisateur déjà connecté, redirection...')
-          // Si déjà connecté, rediriger vers la page demandée
-          const redirectPath = localStorage.getItem('redirectAfterLogin')
-          if (redirectPath && redirectPath !== '/login' && redirectPath !== '/signup') {
-            localStorage.removeItem('redirectAfterLogin')
-            router.push(redirectPath)
-          } else {
-            router.push('/boxes')
-          }
-        } else {
-          setCheckingAuth(false)
-        }
-      } catch (error) {
-        console.error('Erreur vérification auth:', error)
-        setCheckingAuth(false)
+    if (!authLoading && user) {
+      console.log('Utilisateur déjà connecté, redirection...')
+      // Si déjà connecté, rediriger vers la page demandée
+      const redirectPath = localStorage.getItem('redirectAfterLogin')
+      if (redirectPath && redirectPath !== '/login' && redirectPath !== '/signup') {
+        localStorage.removeItem('redirectAfterLogin')
+        router.push(redirectPath)
+      } else {
+        router.push('/boxes')
       }
     }
+  }, [user, authLoading, router])
 
-    checkUser()
-  }, [router, supabase.auth])
-
-  const showNotification = (type, message) => {
+  const showNotification = (type: string, message: string) => {
     setNotification({ type, message })
     setTimeout(() => setNotification({ type: '', message: '' }), 5000)
   }
@@ -68,14 +56,14 @@ export default function LoginPage() {
     return true
   }
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
       ...prev,
       [e.target.name]: e.target.value
     }))
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!validateForm()) return
@@ -105,7 +93,7 @@ export default function LoginPage() {
       if (data.user) {
         showNotification('success', 'Connexion réussie ! Redirection...')
         
-        // REDIRECTION ULTRA AGRESSIVE vers buy-coins si demandé
+        // Redirection avec gestion des cas spéciaux
         const redirectPath = localStorage.getItem('redirectAfterLogin')
         const forceStayOnBuyCoins = localStorage.getItem('FORCE_STAY_ON_BUY_COINS')
         
@@ -114,10 +102,8 @@ export default function LoginPage() {
           localStorage.removeItem('redirectAfterLogin')
           localStorage.removeItem('FORCE_STAY_ON_BUY_COINS')
           
-          // Redirection immédiate et multiple pour être sûr
+          // Redirection immédiate
           router.replace('/buy-coins')
-          setTimeout(() => router.replace('/buy-coins'), 100)
-          setTimeout(() => router.replace('/buy-coins'), 500)
           
           // Empêcher toute autre redirection pendant 2 secondes
           localStorage.setItem('BLOCK_ALL_REDIRECTS', 'true')
@@ -170,7 +156,7 @@ export default function LoginPage() {
   }
 
   // Affichage du loading pendant la vérification de l'auth
-  if (checkingAuth) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
@@ -179,6 +165,11 @@ export default function LoginPage() {
         </div>
       </div>
     )
+  }
+
+  // Si l'utilisateur est connecté, ne pas afficher la page
+  if (user) {
+    return null
   }
 
   return (
