@@ -1,6 +1,7 @@
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from './components/AuthProvider'
+import { AuthDebugPanel } from './components/AuthDebugPanel'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 
@@ -25,6 +26,8 @@ export default function RootLayout({
             <main className="flex-1">{children}</main>
             <Footer />
           </div>
+          {/* Debug Panel - Visible seulement en développement */}
+          <AuthDebugPanel />
         </AuthProvider>
       </body>
     </html>
