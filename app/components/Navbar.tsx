@@ -23,10 +23,30 @@ import {
   Eye,
   Clock,
   Sparkles,
-  Plus,
-  DollarSign
+  Plus
 } from 'lucide-react'
 import { useAuth } from './AuthProvider'
+
+// Types pour les éléments de navigation et inventaire
+interface NavItem {
+  href: string
+  label: string
+  icon: any
+  highlight?: boolean
+}
+
+interface InventoryItem {
+  id: string
+  quantity: number
+  obtained_at: string
+  items: {
+    id: string
+    name: string
+    image_url: string
+    rarity: string
+    market_value: number
+  } | null
+}
 
 export default function Navbar() {
   const { user, profile, refreshProfile, signOut, isAuthenticated, loading } = useAuth()
@@ -36,17 +56,17 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
-  const [cartItems, setCartItems] = useState([])
+  const [cartItems, setCartItems] = useState<InventoryItem[]>([])
   const [cartLoading, setCartLoading] = useState(false)
   
-  const userMenuRef = useRef(null)
-  const cartRef = useRef(null)
+  const userMenuRef = useRef<HTMLDivElement | null>(null)
+  const cartRef = useRef<HTMLDivElement | null>(null)
   
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
 
-  const navItems = [
+  const navItems: NavItem[] = [
     { href: '/boxes', label: 'Mystery Boxes', icon: Package },
     { href: '/battle', label: 'Battles', icon: Sword },
     { href: '/affiliates', label: 'Affiliés', icon: Users },
@@ -54,13 +74,15 @@ export default function Navbar() {
     { href: '/freedrop', label: 'Free Drop', icon: Gift, highlight: true }
   ]
 
-  // Click outside handler
+  // Click‑outside handler
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node
+
+      if (userMenuRef.current && !userMenuRef.current.contains(target)) {
         setUserMenuOpen(false)
       }
-      if (cartRef.current && !cartRef.current.contains(event.target)) {
+      if (cartRef.current && !cartRef.current.contains(target)) {
         setCartOpen(false)
       }
     }
@@ -104,7 +126,12 @@ export default function Navbar() {
           return
         }
 
-        setCartItems(inventory || [])
+        setCartItems((inventory as any[])?.map(item => ({
+          id: item.id,
+          quantity: item.quantity,
+          obtained_at: item.obtained_at,
+          items: item.items || null
+        })) || [])
       } catch (error) {
         console.error('Erreur:', error)
       } finally {
@@ -117,7 +144,7 @@ export default function Navbar() {
     // Real-time subscription pour l'inventaire
     if (isAuthenticated && user) {
       const channel = supabase
-        .channel('inventory-changes')
+        .channel('inventory-changes')  
         .on(
           'postgres_changes',
           {
@@ -172,17 +199,16 @@ export default function Navbar() {
     setCartOpen(!cartOpen)
   }
 
-  // ✅ FONCTION CORRIGÉE - Éviter l'event bubbling
-  const handleBuyCoinsClick = (e) => {
+  const handleBuyCoinsClick = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setUserMenuOpen(false)
     router.push('/buy-coins')
   }
 
-  const isActive = (href) => pathname === href
+  const isActive = (href: string) => pathname === href
 
-  const getRarityColor = (rarity) => {
+  const getRarityColor = (rarity: string) => {
     switch (rarity) {
       case 'common': return 'border-gray-300 bg-gray-50'
       case 'rare': return 'border-blue-300 bg-blue-50'
@@ -192,7 +218,7 @@ export default function Navbar() {
     }
   }
 
-  const getRarityIcon = (rarity) => {
+  const getRarityIcon = (rarity: string) => {
     switch (rarity) {
       case 'legendary': return <Crown className="h-3 w-3 text-yellow-600" />
       case 'epic': return <Sparkles className="h-3 w-3 text-purple-600" />
@@ -201,10 +227,10 @@ export default function Navbar() {
     }
   }
 
-  const formatTimeAgo = (dateString) => {
+  const formatTimeAgo = (dateString: string) => {
     const now = new Date()
     const date = new Date(dateString)
-    const diffInMinutes = Math.floor((now - date) / (1000 * 60))
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
     
     if (diffInMinutes < 1) return 'À l\'instant'
     if (diffInMinutes < 60) return `${diffInMinutes}m`
@@ -354,7 +380,7 @@ export default function Navbar() {
                                       transition={{ delay: index * 0.05 }}
                                       className="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-b-0"
                                     >
-                                      <div className={`relative w-14 h-14 rounded-xl border-2 ${getRarityColor(item.items?.rarity)} shadow-sm flex items-center justify-center overflow-hidden`}>
+                                      <div className={`relative w-14 h-14 rounded-xl border-2 ${getRarityColor(item.items?.rarity || 'common')} shadow-sm flex items-center justify-center overflow-hidden`}>
                                         {item.items?.image_url ? (
                                           <img 
                                             src={item.items.image_url} 
@@ -366,7 +392,7 @@ export default function Navbar() {
                                         )}
                                         
                                         <div className="absolute -top-1 -right-1">
-                                          {getRarityIcon(item.items?.rarity)}
+                                          {getRarityIcon(item.items?.rarity || 'common')}
                                         </div>
 
                                         {item.quantity > 1 && (
@@ -488,7 +514,6 @@ export default function Navbar() {
                             <div className="flex items-center gap-1">
                               <Coins className="h-3 w-3 text-yellow-600" />
                               <span className="text-xs text-gray-600">{profile.virtual_currency}</span>
-                              {/* ✅ CORRECTION : Utiliser un span au lieu d'un bouton imbriqué */}
                               <span
                                 onClick={handleBuyCoinsClick}
                                 className="ml-1 p-0.5 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors cursor-pointer"

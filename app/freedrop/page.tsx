@@ -28,22 +28,61 @@ import {
   AlertCircle
 } from 'lucide-react'
 
+// ✅ TYPES TYPESCRIPT CORRIGÉS
+interface DailyBox {
+  id: string
+  name: string
+  description: string
+  required_level?: number
+  image_url?: string
+  rarity: 'common' | 'rare' | 'epic' | 'legendary'
+  max_value: number
+  loot_box_items: Array<{
+    probability: number
+    items: {
+      id: string
+      name: string
+      description?: string
+      rarity: 'common' | 'rare' | 'epic' | 'legendary'
+      image_url?: string
+      market_value: number
+      category?: string
+    }
+  }>
+}
+
+interface OpenedItem {
+  id: string
+  name: string
+  description?: string
+  rarity: 'common' | 'rare' | 'epic' | 'legendary'
+  image_url?: string
+  market_value: number
+  xpGained: number
+}
+
+interface NotificationState {
+  type: 'success' | 'error' | ''
+  message: string
+}
+
 export default function FreedropPage() {
   const { user, profile, loading: authLoading, isAuthenticated } = useAuth()
   const router = useRouter()
   
   const [loading, setLoading] = useState(true)
-  const [dailyBoxes, setDailyBoxes] = useState([])
-  const [claimedToday, setClaimedToday] = useState([])
+  const [dailyBoxes, setDailyBoxes] = useState<DailyBox[]>([])
+  const [claimedToday, setClaimedToday] = useState<string[]>([])
   const [timeUntilReset, setTimeUntilReset] = useState('')
-  const [selectedBox, setSelectedBox] = useState(null)
+  const [selectedBox, setSelectedBox] = useState<DailyBox | null>(null)
   const [isOpening, setIsOpening] = useState(false)
-  const [openedItem, setOpenedItem] = useState(null)
+  const [openedItem, setOpenedItem] = useState<OpenedItem | null>(null)
   const [showResult, setShowResult] = useState(false)
   const [streak, setStreak] = useState(0)
-  const [notification, setNotification] = useState({ type: '', message: '' })
+  const [notification, setNotification] = useState<NotificationState>({ type: '', message: '' })
 
-  const showNotification = (type, message) => {
+  // ✅ FONCTION NOTIFICATION TYPÉE
+  const showNotification = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message })
     setTimeout(() => setNotification({ type: '', message: '' }), 4000)
   }
@@ -120,16 +159,12 @@ export default function FreedropPage() {
       return
     }
 
-    // Si pas de caisses daily en DB, générer des données de test
-    if (!data || data.length === 0) {
-      const testBoxes = generateTestDailyBoxes()
-      setDailyBoxes(testBoxes)
-    } else {
+    if (data) {
       setDailyBoxes(data)
     }
   }
 
-  const generateTestDailyBoxes = () => {
+  const generateTestDailyBoxes = (): DailyBox[] => {
     const userLevel = calculateUserLevel(profile?.total_exp || 0)
     
     return [
@@ -229,6 +264,8 @@ export default function FreedropPage() {
   }
 
   const checkTodayClaims = async () => {
+    if (!user?.id) return
+    
     const supabase = createClient()
     const today = new Date().toISOString().split('T')[0]
     
@@ -246,6 +283,8 @@ export default function FreedropPage() {
   }
 
   const loadStreak = async () => {
+    if (!user?.id) return
+    
     const supabase = createClient()
     
     // Calculer le streak basé sur les réclamations récentes
@@ -262,7 +301,8 @@ export default function FreedropPage() {
     }
   }
 
-  const calculateStreak = (claims) => {
+  // ✅ FONCTION TYPÉE POUR CALCUL STREAK
+  const calculateStreak = (claims: Array<{ claimed_at: string }>) => {
     if (!claims || claims.length === 0) return 0
     
     let streak = 0
@@ -289,7 +329,7 @@ export default function FreedropPage() {
     return streak
   }
 
-  const calculateUserLevel = (exp) => {
+  const calculateUserLevel = (exp: number) => {
     return Math.floor(exp / 100) + 1
   }
 
@@ -307,28 +347,28 @@ export default function FreedropPage() {
     setTimeUntilReset(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`)
   }
 
-  const getRarityColor = (rarity) => {
+  const getRarityColor = (rarity: string) => {
     const colors = {
       common: 'from-gray-400 to-gray-600',
       rare: 'from-blue-400 to-blue-600',
       epic: 'from-purple-400 to-purple-600',
       legendary: 'from-yellow-400 to-yellow-600'
     }
-    return colors[rarity] || colors.common
+    return colors[rarity as keyof typeof colors] || colors.common
   }
 
-  const getRarityBg = (rarity) => {
+  const getRarityBg = (rarity: string) => {
     const colors = {
       common: 'bg-gray-50 border-gray-200',
       rare: 'bg-blue-50 border-blue-200',
       epic: 'bg-purple-50 border-purple-200',
       legendary: 'bg-yellow-50 border-yellow-200'
     }
-    return colors[rarity] || colors.common
+    return colors[rarity as keyof typeof colors] || colors.common
   }
 
-  const claimDailyBox = async (box) => {
-    if (isOpening) return
+  const claimDailyBox = async (box: DailyBox) => {
+    if (isOpening || !user?.id) return
     
     try {
       setIsOpening(true)
@@ -399,7 +439,8 @@ export default function FreedropPage() {
         console.error('Error recording transaction:', transactionError)
       }
 
-      setOpenedItem({ ...obtainedItem, xpGained })
+      const openedItemWithXP: OpenedItem = { ...obtainedItem, xpGained }
+      setOpenedItem(openedItemWithXP)
       setShowResult(true)
       
       // Mettre à jour les réclamations d'aujourd'hui
@@ -415,7 +456,8 @@ export default function FreedropPage() {
     }
   }
 
-  const calculateRandomItem = (lootBoxItems) => {
+  // ✅ FONCTION TYPÉE POUR CALCUL ITEM ALÉATOIRE
+  const calculateRandomItem = (lootBoxItems: DailyBox['loot_box_items']) => {
     const random = Math.random() * 100
     let cumulative = 0
     
@@ -675,8 +717,30 @@ export default function FreedropPage() {
   )
 }
 
+// ✅ COMPOSANTS TYPÉS
+
 // Composant de carte de caisse quotidienne
-function DailyBoxCard({ box, index, isUnlocked, isClaimed, canClaim, onClaim, getRarityColor, getRarityBg }) {
+interface DailyBoxCardProps {
+  box: DailyBox
+  index: number
+  isUnlocked: boolean
+  isClaimed: boolean
+  canClaim: boolean
+  onClaim: () => void
+  getRarityColor: (rarity: string) => string
+  getRarityBg: (rarity: string) => string
+}
+
+function DailyBoxCard({ 
+  box, 
+  index, 
+  isUnlocked, 
+  isClaimed, 
+  canClaim, 
+  onClaim, 
+  getRarityColor, 
+  getRarityBg 
+}: DailyBoxCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
@@ -773,7 +837,13 @@ function DailyBoxCard({ box, index, isUnlocked, isClaimed, canClaim, onClaim, ge
 }
 
 // Modal d'animation d'ouverture
-function OpeningModal({ isOpen, box, getRarityColor }) {
+interface OpeningModalProps {
+  isOpen: boolean
+  box: DailyBox | null
+  getRarityColor: (rarity: string) => string
+}
+
+function OpeningModal({ isOpen, box, getRarityColor }: OpeningModalProps) {
   if (!isOpen || !box) return null
 
   return (
@@ -849,7 +919,15 @@ function OpeningModal({ isOpen, box, getRarityColor }) {
 }
 
 // Modal de résultat
-function ResultModal({ isOpen, onClose, item, getRarityColor, getRarityBg }) {
+interface ResultModalProps {
+  isOpen: boolean
+  onClose: () => void
+  item: OpenedItem | null
+  getRarityColor: (rarity: string) => string
+  getRarityBg: (rarity: string) => string
+}
+
+function ResultModal({ isOpen, onClose, item, getRarityColor, getRarityBg }: ResultModalProps) {
   if (!isOpen || !item) return null
 
   return (

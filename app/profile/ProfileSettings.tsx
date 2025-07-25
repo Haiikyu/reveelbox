@@ -1,3 +1,5 @@
+// ✅ CORRECTION COMPLÈTE du fichier ProfileSettings.tsx
+
 'use client'
 
 import { useState } from 'react'
@@ -28,6 +30,7 @@ import {
   LogOut
 } from 'lucide-react'
 
+// ✅ INTERFACE CORRIGÉE - type changé en 'success' | 'error'
 interface ProfileSettingsProps {
   user: any
   profile: any
@@ -35,10 +38,10 @@ interface ProfileSettingsProps {
   setFormData: (data: any) => void
   editMode: boolean
   setEditMode: (mode: boolean) => void
-  showNotification: (type: string, message: string) => void
+  showNotification: (type: 'success' | 'error', message: string) => void // ✅ CORRIGÉ
   onSave: () => void
   saving: boolean
-  handleAvatarUpload?: (event: any) => void
+  handleAvatarUpload?: (event: React.ChangeEvent<HTMLInputElement>) => void // ✅ Type précisé
   uploadingAvatar?: boolean
 }
 
@@ -70,7 +73,7 @@ export default function ProfileSettings({
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
-  // Handlers
+  // ✅ HANDLERS TYPÉS CORRECTEMENT
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target
     const checked = (e.target as HTMLInputElement).checked

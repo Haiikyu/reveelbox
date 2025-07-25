@@ -50,17 +50,101 @@ import {
   RefreshCw
 } from 'lucide-react'
 
+// ✅ INTERFACES TYPESCRIPT CORRIGÉES
+interface NotificationState {
+  type: 'success' | 'error' | ''
+  message: string
+}
+
+interface FormData {
+  username: string
+  email: string
+  bio: string
+  location: string
+  phone: string
+  birth_date: string
+  privacy_profile: 'public' | 'private'
+  notifications_email: boolean
+  notifications_push: boolean
+}
+
+interface UserStats {
+  totalBoxesOpened: number
+  totalCoinsSpent: number
+  totalCoinsEarned: number
+  totalValue: number
+  battlesWon: number
+  battlesPlayed: number
+  battleWinRate: number
+  currentStreak: number
+  favoriteBox: string
+  joinDate: string | null
+  level: number
+  totalExp: number
+  currentLevelXP: number
+  nextLevelXP: number
+  achievements: Achievement[]
+  inventoryCount: number
+  uniqueItemsCount: number
+  lastActivity: string | null
+}
+
+interface Achievement {
+  id: number
+  name: string
+  description: string
+  icon: any
+  unlocked: boolean
+  category: string
+}
+
+interface Activity {
+  id: string
+  type: string
+  title: string
+  description: string
+  timestamp: string
+  icon: any
+  color: string
+}
+
+interface Transaction {
+  id: string
+  type: string
+  virtual_amount?: number
+  created_at: string
+  user_id: string
+}
+
+interface InventoryItem {
+  id: string
+  quantity: number
+  obtained_at: string
+  items?: {
+    name: string
+    rarity: 'common' | 'rare' | 'epic' | 'legendary'
+    image_url?: string
+    market_value: number
+  }
+}
+
+interface Tab {
+  id: string
+  label: string
+  icon: any
+}
+
 export default function ProfilePage() {
   const { user, profile, loading: authLoading, isAuthenticated, refreshProfile } = useAuth()
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState<string>('overview')
   const [editMode, setEditMode] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const [notification, setNotification] = useState({ type: '', message: '' })
+  const [notification, setNotification] = useState<NotificationState>({ type: '', message: '' })
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     username: '',
     email: '',
     bio: '',
@@ -72,7 +156,7 @@ export default function ProfilePage() {
     notifications_push: true
   })
 
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<UserStats>({
     totalBoxesOpened: 0,
     totalCoinsSpent: 0,
     totalCoinsEarned: 0,
@@ -93,12 +177,13 @@ export default function ProfilePage() {
     lastActivity: null
   })
 
-  const [recentActivity, setRecentActivity] = useState([])
-  const [userInventory, setUserInventory] = useState([])
+  const [recentActivity, setRecentActivity] = useState<Activity[]>([])
+  const [userInventory, setUserInventory] = useState<InventoryItem[]>([])
   
   const router = useRouter()
 
-  const showNotification = (type, message) => {
+  // ✅ FONCTION NOTIFICATION CORRIGÉE
+  const showNotification = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message })
     setTimeout(() => setNotification({ type: '', message: '' }), 4000)
   }
@@ -124,13 +209,13 @@ export default function ProfilePage() {
 
       // Initialiser formData avec les données du profil
       setFormData({
-        username: profile?.username || '',
-        email: user?.email || '',
-        bio: profile?.bio || '',
-        location: profile?.location || '',
-        phone: profile?.phone || '',
-        birth_date: profile?.birth_date || '',
-        privacy_profile: profile?.privacy_profile || 'public',
+        username: profile?.username ?? '',
+        email: user?.email ?? '',
+        bio: profile?.bio ?? '',
+        location: profile?.location ?? '',
+        phone: profile?.phone ?? '',
+        birth_date: profile?.birth_date ?? '',
+        privacy_profile: (profile?.privacy_profile as 'public' | 'private') ?? 'public',
         notifications_email: profile?.notifications_email ?? true,
         notifications_push: profile?.notifications_push ?? true
       })
@@ -147,12 +232,12 @@ export default function ProfilePage() {
     }
   }
 
-  const loadUserStats = async (userId) => {
+  const loadUserStats = async (userId: string) => {
     try {
       console.log('📊 Loading user stats for:', userId)
       const supabase = createClient()
       
-      // 1. Récupérer les transactions (simple, sans jointures)
+      // 1. Récupérer les transactions
       const { data: transactions, error: transError } = await supabase
         .from('transactions')
         .select('*')
@@ -163,7 +248,7 @@ export default function ProfilePage() {
         console.error('Transactions error:', transError)
       }
 
-      // 2. Récupérer l'inventaire (simple, sans jointures d'abord)
+      // 2. Récupérer l'inventaire
       const { data: inventory, error: invError } = await supabase
         .from('user_inventory')
         .select('*')
@@ -174,57 +259,56 @@ export default function ProfilePage() {
         console.error('Inventory error:', invError)
       }
 
-      // 3. Calculs simples basés sur les données disponibles
+      // 3. Calculs basés sur les données disponibles
       let totalBoxesOpened = 0
       let totalCoinsSpent = 0
       let totalCoinsEarned = 0
       let totalValue = 0
 
       if (transactions && transactions.length > 0) {
-        // Compter les boîtes ouvertes
         totalBoxesOpened = transactions.filter(t => 
           t.type === 'open_box' || t.type === 'purchase_box'
         ).length
         
-        // Calculer les coins dépensés
         totalCoinsSpent = transactions
           .filter(t => ['purchase_box', 'purchase_currency'].includes(t.type))
           .reduce((sum, t) => sum + Math.abs(t.virtual_amount || 0), 0)
         
-        // Calculer les coins gagnés
         totalCoinsEarned = transactions
           .filter(t => ['battle_win', 'daily_reward', 'referral_bonus'].includes(t.type))
           .reduce((sum, t) => sum + (t.virtual_amount || 0), 0)
       }
 
-      // 4. Valeur d'inventaire estimée (500 coins par objet en moyenne)
       if (inventory && inventory.length > 0) {
-        totalValue = inventory.length * 500 // Estimation basique
+        totalValue = inventory.length * 500
       }
 
-      // 5. Statistiques de battles (fallback avec données de test)
+      // 4. Statistiques de battles
       let battlesPlayed = 0
       let battlesWon = 0
       let battleWinRate = 0
 
-      // 6. Calcul niveau et XP
-      const baseXP = Math.floor(totalCoinsSpent / 10) // 1 XP pour 10 coins dépensés
-      const bonusXP = (totalBoxesOpened * 25) // 25 XP par boîte ouverte
+      // 5. Calcul niveau et XP
+      const baseXP = Math.floor(totalCoinsSpent / 10)
+      const bonusXP = (totalBoxesOpened * 25)
       const totalExp = baseXP + bonusXP
-      const level = Math.floor(totalExp / 100) + 1 // Niveau tous les 100 XP
+      const level = Math.floor(totalExp / 100) + 1
       const currentLevelXP = totalExp % 100
       const nextLevelXP = 100 - currentLevelXP
 
-      // 7. Boîte favorite (fallback)
+      // 6. Boîte favorite
       let favoriteBox = 'Aucune'
       if (totalBoxesOpened > 0) {
         favoriteBox = `Boîtes ouvertes (${totalBoxesOpened}x)`
       }
 
-      // 8. Streak (estimation basée sur l'activité récente)
+      // 7. Streak
       const currentStreak = calculateStreakFromTransactions(transactions || [])
 
-      // 9. Achievements basés sur les stats
+      // ✅ 8. CORRECTION JOINDATE
+      const joinDate = profile?.created_at ?? user?.created_at ?? null
+
+      // 9. Achievements
       const achievements = generateAchievements({
         totalBoxesOpened,
         totalCoinsSpent,
@@ -234,12 +318,12 @@ export default function ProfilePage() {
         inventoryCount: inventory?.length || 0,
         totalValue,
         level,
-        joinDate: profile?.created_at,
+        joinDate,
         currentStreak
       })
 
       // 10. Mettre à jour les stats
-      const newStats = {
+      const newStats: UserStats = {
         totalBoxesOpened,
         totalCoinsSpent,
         totalCoinsEarned,
@@ -249,21 +333,20 @@ export default function ProfilePage() {
         battleWinRate,
         currentStreak,
         favoriteBox,
-        joinDate: profile?.created_at || user?.created_at,
+        joinDate,
         level,
         totalExp,
         currentLevelXP,
         nextLevelXP,
         achievements,
         inventoryCount: inventory?.length || 0,
-        uniqueItemsCount: inventory?.length || 0, // Simplifié
-        lastActivity: transactions?.[0]?.created_at || null
+        uniqueItemsCount: inventory?.length || 0,
+        lastActivity: transactions?.[0]?.created_at ?? null
       }
 
       console.log('📊 Updated stats:', newStats)
       setStats(newStats)
       
-      // Mettre à jour l'activité récente
       setRecentActivity(formatActivityData(transactions?.slice(0, 20) || []))
 
       return newStats
@@ -275,7 +358,7 @@ export default function ProfilePage() {
     }
   }
 
-  const calculateStreakFromTransactions = (transactions) => {
+  const calculateStreakFromTransactions = (transactions: Transaction[]) => {
     if (!transactions || transactions.length === 0) return 0
 
     const today = new Date()
@@ -284,7 +367,6 @@ export default function ProfilePage() {
     let streak = 0
     let currentDate = new Date(today)
     
-    // Parcourir les 7 derniers jours maximum
     for (let i = 0; i < 7; i++) {
       const dayStart = new Date(currentDate)
       const dayEnd = new Date(currentDate)
@@ -299,7 +381,6 @@ export default function ProfilePage() {
         streak++
         currentDate.setDate(currentDate.getDate() - 1)
       } else {
-        // Si c'est aujourd'hui, on continue à chercher
         if (i === 0) {
           currentDate.setDate(currentDate.getDate() - 1)
           continue
@@ -311,8 +392,19 @@ export default function ProfilePage() {
     return streak
   }
 
-  const generateAchievements = (stats) => {
-    const achievements = [
+  const generateAchievements = (stats: {
+    totalBoxesOpened: number
+    totalCoinsSpent: number
+    totalCoinsEarned: number
+    battlesWon: number
+    battlesPlayed: number
+    inventoryCount: number
+    totalValue: number
+    level: number
+    joinDate?: string | null
+    currentStreak: number
+  }): Achievement[] => {
+    const achievements: Achievement[] = [
       {
         id: 1,
         name: 'Premier pas',
@@ -398,11 +490,11 @@ export default function ProfilePage() {
     return achievements
   }
 
-  const formatActivityData = (transactions) => {
+  const formatActivityData = (transactions: Transaction[]): Activity[] => {
     if (!transactions) return []
     
     return transactions.map(transaction => {
-      let title, description, icon, color
+      let title: string, description: string, icon: any, color: string
 
       switch (transaction.type) {
         case 'purchase_currency':
@@ -459,11 +551,10 @@ export default function ProfilePage() {
     })
   }
 
-  const loadUserActivity = async (userId) => {
+  const loadUserActivity = async (userId: string) => {
     try {
       const supabase = createClient()
       
-      // Requête simple sans jointures problématiques
       const { data: transactions, error } = await supabase
         .from('transactions')
         .select('*')
@@ -486,11 +577,10 @@ export default function ProfilePage() {
     }
   }
 
-  const loadUserInventory = async (userId) => {
+  const loadUserInventory = async (userId: string) => {
     try {
       const supabase = createClient()
       
-      // Requête simple d'abord
       const { data: inventory, error } = await supabase
         .from('user_inventory')
         .select('*')
@@ -503,13 +593,12 @@ export default function ProfilePage() {
         return
       }
 
-      // Simuler des objets pour l'affichage
       const mockInventory = (inventory || []).map((item, index) => ({
         ...item,
         items: {
           name: `Objet ${index + 1}`,
-          rarity: ['common', 'rare', 'epic', 'legendary'][index % 4],
-          image_url: null,
+          rarity: (['common', 'rare', 'epic', 'legendary'] as const)[index % 4],
+          image_url: undefined,
           market_value: 100 + (index * 50)
         }
       }))
@@ -522,17 +611,20 @@ export default function ProfilePage() {
     }
   }
 
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target
+    const checked = 'checked' in e.target ? e.target.checked : false
+    
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }))
   }
 
-  const handleAvatarUpload = async (event) => {
-    const file = event.target.files[0]
-    if (!file) return
+  // ✅ FONCTION UPLOAD AVATAR CORRIGÉE
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !user?.id) return
 
     if (!file.type.startsWith('image/')) {
       showNotification('error', 'Veuillez sélectionner une image')
@@ -548,10 +640,10 @@ export default function ProfilePage() {
 
     try {
       const supabase = createClient()
-      const fileExt = file.name.split('.').pop()
+      const fileExt = file.name.split('.').pop() || 'jpg'
       const fileName = `${user.id}/${Date.now()}.${fileExt}`
 
-      const { data, error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(fileName, file, { 
           cacheControl: '3600',
@@ -566,13 +658,18 @@ export default function ProfilePage() {
 
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ avatar_url: publicUrl })
+        .update({ 
+          avatar_url: publicUrl,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', user.id)
 
       if (updateError) throw updateError
 
       await refreshProfile()
       showNotification('success', 'Photo de profil mise à jour !')
+      
+      event.target.value = ''
       
     } catch (error) {
       console.error('Error uploading avatar:', error)
@@ -598,13 +695,12 @@ export default function ProfilePage() {
 
       const supabase = createClient()
 
-      // Vérifier si le username est déjà pris
       if (formData.username !== profile?.username) {
         const { data: existingUser } = await supabase
           .from('profiles')
           .select('id')
           .eq('username', formData.username)
-          .neq('id', user.id)
+          .neq('id', user?.id)
           .single()
 
         if (existingUser) {
@@ -613,7 +709,6 @@ export default function ProfilePage() {
         }
       }
 
-      // Mettre à jour le profil
       const { error } = await supabase
         .from('profiles')
         .update({
@@ -627,7 +722,7 @@ export default function ProfilePage() {
           notifications_push: formData.notifications_push,
           updated_at: new Date().toISOString()
         })
-        .eq('id', user.id)
+        .eq('id', user?.id)
 
       if (error) throw error
 
@@ -637,7 +732,11 @@ export default function ProfilePage() {
       
     } catch (error) {
       console.error('Error saving profile:', error)
-      showNotification('error', `Erreur: ${error.message}`)
+      if (error instanceof Error) {
+        showNotification('error', `Erreur: ${error.message}`)
+      } else {
+        showNotification('error', 'Erreur lors de la sauvegarde')
+      }
     } finally {
       setSaving(false)
     }
@@ -660,7 +759,7 @@ export default function ProfilePage() {
     }
   }
 
-  const tabs = [
+  const tabs: Tab[] = [
     { id: 'overview', label: 'Vue d\'ensemble', icon: User },
     { id: 'stats', label: 'Statistiques', icon: BarChart3 },
     { id: 'activity', label: 'Activité', icon: Clock },
@@ -668,31 +767,39 @@ export default function ProfilePage() {
     { id: 'settings', label: 'Paramètres', icon: Settings }
   ]
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'N/A'
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
+    try {
+      return new Date(dateString).toLocaleDateString('fr-FR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    } catch (error) {
+      return 'Date invalide'
+    }
   }
 
-  const formatDateTime = (dateString) => {
+  const formatDateTime = (dateString: string | null | undefined) => {
     if (!dateString) return 'N/A'
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
+    try {
+      return new Date(dateString).toLocaleDateString('fr-FR', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch (error) {
+      return 'Date invalide'
+    }
   }
 
   const calculateWinRate = () => {
-    return stats.battlesPlayed > 0 ? ((stats.battlesWon / stats.battlesPlayed) * 100).toFixed(1) : 0
+    return stats.battlesPlayed > 0 ? ((stats.battlesWon / stats.battlesPlayed) * 100).toFixed(1) : '0'
   }
 
-  const getRarityColor = (rarity) => {
+  const getRarityColor = (rarity?: string) => {
     switch (rarity) {
       case 'common': return 'text-gray-600 bg-gray-100'
       case 'rare': return 'text-blue-600 bg-blue-100'
@@ -1094,7 +1201,7 @@ export default function ProfilePage() {
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
                           className="bg-purple-500 h-2 rounded-full"
-                          style={{ width: `${Math.min(calculateWinRate(), 100)}%` }}
+                          style={{ width: `${Math.min(parseFloat(calculateWinRate()), 100)}%` }}
                         />
                       </div>
                     </div>

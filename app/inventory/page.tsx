@@ -33,25 +33,60 @@ import {
 import { useAuth } from '../components/AuthProvider'
 import { createClient } from '@/utils/supabase/client'
 
+// ✅ TYPES TYPESCRIPT CORRIGES
+interface InventoryItem {
+  id: string
+  user_id: string
+  item_id: string
+  quantity: number
+  obtained_at: string
+  obtained_from?: string
+  is_sold?: boolean
+  items?: {
+    id: string
+    name: string
+    description?: string
+    rarity: 'common' | 'rare' | 'epic' | 'legendary'
+    image_url?: string
+    market_value: number
+    category?: string
+  }
+}
+
+interface NotificationState {
+  type: 'success' | 'error'
+  message: string
+}
+
+interface Stats {
+  total: number
+  totalValue: number
+  totalSellValue: number
+  byRarity: Record<string, number>
+  uniqueItems: number
+  selectedValue: number
+}
+
 export default function InventoryPage() {
   const { user, profile, loading, isAuthenticated, refreshProfile } = useAuth()
   const router = useRouter()
   const supabase = createClient()
   
-  const [inventory, setInventory] = useState([])
+  const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [inventoryLoading, setInventoryLoading] = useState(true)
-  const [selectedItems, setSelectedItems] = useState([])
-  const [viewMode, setViewMode] = useState('grid') // 'grid' | 'list'
-  const [sortBy, setSortBy] = useState('recent') // 'recent' | 'rarity' | 'value' | 'name'
-  const [sortOrder, setSortOrder] = useState('desc')
-  const [filterRarity, setFilterRarity] = useState('all')
+  const [selectedItems, setSelectedItems] = useState<string[]>([])
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [sortBy, setSortBy] = useState<'recent' | 'rarity' | 'value' | 'name'>('recent')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [filterRarity, setFilterRarity] = useState<'all' | 'common' | 'rare' | 'epic' | 'legendary'>('all')
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedItem, setSelectedItem] = useState(null)
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null)
   const [showItemModal, setShowItemModal] = useState(false)
-  const [notification, setNotification] = useState({ type: 'success', message: '' })
+  const [notification, setNotification] = useState<NotificationState>({ type: 'success', message: '' })
   const [sellLoading, setSellLoading] = useState(false)
 
-  const showNotification = (type, message) => {
+  // ✅ FONCTION NOTIFICATION TYPEE
+  const showNotification = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message })
     setTimeout(() => setNotification({ type: 'success', message: '' }), 4000)
   }
@@ -71,11 +106,13 @@ export default function InventoryPage() {
   }, [isAuthenticated, user])
 
   const loadInventory = async () => {
+    if (!user?.id) return
+    
     try {
       setInventoryLoading(true)
       
       // Gestion des requêtes avec fallback selon le standard
-      let data = []
+      let data: InventoryItem[] = []
       let error = null
 
       try {
@@ -131,102 +168,106 @@ export default function InventoryPage() {
     }
   }
 
-  // Vendre un objet individuel
- const handleSellItem = async (itemId) => {
-  try {
-    console.log('🔄 Début vente item:', itemId)
-    setSellLoading(true)
-    
-    if (!user) {
-      throw new Error('Utilisateur non connecté')
+  // ✅ FONCTIONS DE VENTE TYPEES
+  const handleSellItem = async (itemId: string) => {
+    try {
+      console.log('🔄 Début vente item:', itemId)
+      setSellLoading(true)
+      
+      if (!user) {
+        throw new Error('Utilisateur non connecté')
+      }
+      
+      // Utiliser la fonction simple
+      const { data, error } = await supabase.rpc('sell_inventory_item_simple', {
+        p_inventory_item_id: itemId
+      })
+
+      console.log('📊 Réponse Supabase:', { data, error })
+
+      if (error) {
+        console.error('❌ Erreur Supabase:', error)
+        throw error
+      }
+
+      if (!data || !data.success) {
+        throw new Error('Vente échouée')
+      }
+
+      console.log('✅ Vente réussie:', data)
+
+      // Actualiser les données
+      await refreshProfile()
+      await loadInventory()
+      
+      // Retirer de la sélection
+      setSelectedItems(prev => prev.filter(id => id !== itemId))
+      
+      // Notification de succès
+      showNotification('success', `Vendu: ${data.item_name} pour ${data.coins_earned} coins!`)
+      
+    } catch (error) {
+      console.error('❌ Erreur vente:', error)
+      
+      let errorMessage = 'Erreur lors de la vente'
+      if (error instanceof Error && error.message) {
+        errorMessage = error.message
+      }
+      
+      showNotification('error', errorMessage)
+    } finally {
+      setSellLoading(false)
     }
-    
-    // Utiliser la fonction simple
-    const { data, error } = await supabase.rpc('sell_inventory_item_simple', {
-      p_inventory_item_id: itemId
-    })
-
-    console.log('📊 Réponse Supabase:', { data, error })
-
-    if (error) {
-      console.error('❌ Erreur Supabase:', error)
-      throw error
-    }
-
-    if (!data || !data.success) {
-      throw new Error('Vente échouée')
-    }
-
-    console.log('✅ Vente réussie:', data)
-
-    // Actualiser les données
-    await refreshProfile()
-    await loadInventory()
-    
-    // Retirer de la sélection
-    setSelectedItems(prev => prev.filter(id => id !== itemId))
-    
-    // Notification de succès
-    showNotification('success', `Vendu: ${data.item_name} pour ${data.coins_earned} coins!`)
-    
-  } catch (error) {
-    console.error('❌ Erreur vente:', error)
-    
-    let errorMessage = 'Erreur lors de la vente'
-    if (error?.message) {
-      errorMessage = error.message
-    } else if (error?.details) {
-      errorMessage = error.details
-    }
-    
-    showNotification('error', errorMessage)
-  } finally {
-    setSellLoading(false)
   }
-}
 
-const handleSellSelected = async () => {
-  if (selectedItems.length === 0) return
-  
-  try {
-    setSellLoading(true)
+  const handleSellSelected = async () => {
+    if (selectedItems.length === 0) return
     
-    if (!user) {
-      throw new Error('Utilisateur non connecté')
+    try {
+      setSellLoading(true)
+      
+      if (!user) {
+        throw new Error('Utilisateur non connecté')
+      }
+      
+      // Utiliser la fonction simple
+      const { data, error } = await supabase.rpc('sell_multiple_items_simple', {
+        p_inventory_item_ids: selectedItems
+      })
+
+      if (error) {
+        throw error
+      }
+
+      if (!data || !data.success) {
+        throw new Error('Vente multiple échouée')
+      }
+
+      // Actualiser les données
+      await refreshProfile()
+      await loadInventory()
+      
+      // Reset selection
+      setSelectedItems([])
+      
+      // Notification
+      showNotification('success', `Vendus: ${data.items_sold} objets pour ${data.total_coins_earned} coins!`)
+      
+    } catch (error) {
+      console.error('❌ Erreur vente multiple:', error)
+      
+      let errorMessage = 'Erreur lors de la vente multiple'
+      if (error instanceof Error && error.message) {
+        errorMessage = error.message
+      }
+      
+      showNotification('error', errorMessage)
+    } finally {
+      setSellLoading(false)
     }
-    
-    // Utiliser la fonction simple
-    const { data, error } = await supabase.rpc('sell_multiple_items_simple', {
-      p_inventory_item_ids: selectedItems
-    })
-
-    if (error) {
-      throw error
-    }
-
-    if (!data || !data.success) {
-      throw new Error('Vente multiple échouée')
-    }
-
-    // Actualiser les données
-    await refreshProfile()
-    await loadInventory()
-    
-    // Reset selection
-    setSelectedItems([])
-    
-    // Notification
-    showNotification('success', `Vendus: ${data.items_sold} objets pour ${data.total_coins_earned} coins!`)
-    
-  } catch (error) {
-    console.error('❌ Erreur vente multiple:', error)
-    showNotification('error', error?.message || 'Erreur lors de la vente multiple')
-  } finally {
-    setSellLoading(false)
   }
-}
 
-  // Filtrage et tri
+  // ✅ FILTRAGE ET TRI TYPES
   const filteredAndSortedInventory = inventory
     .filter(item => {
       // Filtre par recherche
@@ -246,11 +287,11 @@ const handleSellSelected = async () => {
       
       switch (sortBy) {
         case 'recent':
-          comparison = new Date(b.obtained_at) - new Date(a.obtained_at)
+          comparison = new Date(b.obtained_at).getTime() - new Date(a.obtained_at).getTime()
           break
         case 'rarity':
           const rarityOrder = { 'legendary': 4, 'epic': 3, 'rare': 2, 'common': 1 }
-          comparison = (rarityOrder[b.items?.rarity] || 0) - (rarityOrder[a.items?.rarity] || 0)
+          comparison = (rarityOrder[b.items?.rarity || 'common'] || 0) - (rarityOrder[a.items?.rarity || 'common'] || 0)
           break
         case 'value':
           comparison = (b.items?.market_value || 0) - (a.items?.market_value || 0)
@@ -265,8 +306,8 @@ const handleSellSelected = async () => {
       return sortOrder === 'asc' ? -comparison : comparison
     })
 
-  // Statistiques
-  const stats = {
+  // ✅ CALCUL STATISTIQUES TYPE
+  const stats: Stats = {
     total: inventory.length,
     totalValue: inventory.reduce((sum, item) => sum + ((item.items?.market_value || 0) * (item.quantity || 1)), 0),
     totalSellValue: inventory.reduce((sum, item) => {
@@ -276,7 +317,7 @@ const handleSellSelected = async () => {
     byRarity: ['common', 'rare', 'epic', 'legendary'].reduce((acc, rarity) => {
       acc[rarity] = inventory.filter(item => item.items?.rarity === rarity).length
       return acc
-    }, {}),
+    }, {} as Record<string, number>),
     uniqueItems: [...new Set(inventory.map(item => item.item_id))].length,
     selectedValue: selectedItems.reduce((sum, itemId) => {
       const item = inventory.find(i => i.id === itemId)
@@ -286,27 +327,28 @@ const handleSellSelected = async () => {
     }, 0)
   }
 
-  const getRarityColor = (rarity) => {
+  // ✅ FONCTIONS UTILITAIRES TYPEES
+  const getRarityColor = (rarity: string) => {
     const colors = {
       common: 'from-gray-400 to-gray-600',
       rare: 'from-blue-400 to-blue-600',
       epic: 'from-purple-400 to-purple-600',
       legendary: 'from-yellow-400 to-yellow-600'
     }
-    return colors[rarity] || colors.common
+    return colors[rarity as keyof typeof colors] || colors.common
   }
 
-  const getRarityBg = (rarity) => {
+  const getRarityBg = (rarity: string) => {
     const colors = {
       common: 'bg-gray-50 border-gray-200',
       rare: 'bg-blue-50 border-blue-200',
       epic: 'bg-purple-50 border-purple-200',
       legendary: 'bg-yellow-50 border-yellow-200'
     }
-    return colors[rarity] || colors.common
+    return colors[rarity as keyof typeof colors] || colors.common
   }
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('fr-FR', {
       day: 'numeric',
       month: 'short',
@@ -316,7 +358,7 @@ const handleSellSelected = async () => {
     })
   }
 
-  const handleItemClick = (item) => {
+  const handleItemClick = (item: InventoryItem) => {
     setSelectedItem(item)
     setShowItemModal(true)
   }
@@ -348,7 +390,7 @@ const handleSellSelected = async () => {
     showNotification('success', 'Inventaire exporté !')
   }
 
-  const toggleItemSelection = (itemId) => {
+  const toggleItemSelection = (itemId: string) => {
     setSelectedItems(prev => 
       prev.includes(itemId) 
         ? prev.filter(id => id !== itemId)
@@ -540,7 +582,7 @@ const handleSellSelected = async () => {
               {/* Rarity Filter */}
               <select
                 value={filterRarity}
-                onChange={(e) => setFilterRarity(e.target.value)}
+                onChange={(e) => setFilterRarity(e.target.value as any)}
                 className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
               >
                 <option value="all">Toutes les raretés</option>
@@ -553,7 +595,7 @@ const handleSellSelected = async () => {
               {/* Sort */}
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
+                onChange={(e) => setSortBy(e.target.value as any)}
                 className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
               >
                 <option value="recent">Plus récent</option>
@@ -761,8 +803,34 @@ const handleSellSelected = async () => {
   )
 }
 
+// ✅ COMPOSANTS TYPES
+
 // Composant Card pour la vue grille
-function InventoryItemCard({ item, index, isSelected, onSelect, onClick, onSell, sellLoading, getRarityColor, getRarityBg, formatDate }) {
+interface InventoryItemCardProps {
+  item: InventoryItem
+  index: number
+  isSelected: boolean
+  onSelect: () => void
+  onClick: () => void
+  onSell: () => void
+  sellLoading: boolean
+  getRarityColor: (rarity: string) => string
+  getRarityBg: (rarity: string) => string
+  formatDate: (dateString: string) => string
+}
+
+function InventoryItemCard({ 
+  item, 
+  index, 
+  isSelected, 
+  onSelect, 
+  onClick, 
+  onSell, 
+  sellLoading, 
+  getRarityColor, 
+  getRarityBg, 
+  formatDate 
+}: InventoryItemCardProps) {
   const sellPrice = Math.floor((item.items?.market_value || 0) * 0.7)
 
   return (
@@ -772,7 +840,7 @@ function InventoryItemCard({ item, index, isSelected, onSelect, onClick, onSell,
       transition={{ delay: index * 0.05 }}
       whileHover={{ y: -4, scale: 1.02 }}
       className={`bg-white rounded-xl shadow-lg border-2 p-6 cursor-pointer transition-all duration-300 ${
-        getRarityBg(item.items?.rarity)
+        getRarityBg(item.items?.rarity || 'common')
       } ${isSelected ? 'ring-2 ring-blue-500 border-blue-300' : ''}`}
       onClick={onClick}
     >
@@ -788,7 +856,7 @@ function InventoryItemCard({ item, index, isSelected, onSelect, onClick, onSell,
           className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
         />
         
-        <div className={`px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r ${getRarityColor(item.items?.rarity)} text-white`}>
+        <div className={`px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r ${getRarityColor(item.items?.rarity || 'common')} text-white`}>
           {item.items?.rarity?.toUpperCase() || 'COMMON'}
         </div>
       </div>
@@ -868,7 +936,29 @@ function InventoryItemCard({ item, index, isSelected, onSelect, onClick, onSell,
 }
 
 // Composant Row pour la vue liste
-function InventoryItemRow({ item, index, isSelected, onSelect, onClick, onSell, sellLoading, getRarityColor, formatDate }) {
+interface InventoryItemRowProps {
+  item: InventoryItem
+  index: number
+  isSelected: boolean
+  onSelect: () => void
+  onClick: () => void
+  onSell: () => void
+  sellLoading: boolean
+  getRarityColor: (rarity: string) => string
+  formatDate: (dateString: string) => string
+}
+
+function InventoryItemRow({ 
+  item, 
+  index, 
+  isSelected, 
+  onSelect, 
+  onClick, 
+  onSell, 
+  sellLoading, 
+  getRarityColor, 
+  formatDate 
+}: InventoryItemRowProps) {
   const sellPrice = Math.floor((item.items?.market_value || 0) * 0.7)
 
   return (
@@ -912,7 +1002,7 @@ function InventoryItemRow({ item, index, isSelected, onSelect, onClick, onSell, 
       </td>
       
       <td className="px-6 py-4">
-        <span className={`px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r ${getRarityColor(item.items?.rarity)} text-white`}>
+        <span className={`px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r ${getRarityColor(item.items?.rarity || 'common')} text-white`}>
           {item.items?.rarity?.toUpperCase() || 'COMMON'}
         </span>
       </td>
@@ -965,7 +1055,27 @@ function InventoryItemRow({ item, index, isSelected, onSelect, onClick, onSell, 
 }
 
 // Modal de détail d'un objet
-function ItemDetailModal({ item, isOpen, onClose, onSell, sellLoading, getRarityColor, getRarityBg, formatDate }) {
+interface ItemDetailModalProps {
+  item: InventoryItem | null
+  isOpen: boolean
+  onClose: () => void
+  onSell: (itemId: string) => void
+  sellLoading: boolean
+  getRarityColor: (rarity: string) => string
+  getRarityBg: (rarity: string) => string
+  formatDate: (dateString: string) => string
+}
+
+function ItemDetailModal({ 
+  item, 
+  isOpen, 
+  onClose, 
+  onSell, 
+  sellLoading, 
+  getRarityColor, 
+  getRarityBg, 
+  formatDate 
+}: ItemDetailModalProps) {
   if (!isOpen || !item) return null
 
   const sellPrice = Math.floor((item.items?.market_value || 0) * 0.7)
@@ -985,13 +1095,13 @@ function ItemDetailModal({ item, isOpen, onClose, onSell, sellLoading, getRarity
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
           onClick={(e) => e.stopPropagation()}
-          className={`bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border-4 ${getRarityBg(item.items?.rarity)}`}
+          className={`bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border-4 ${getRarityBg(item.items?.rarity || 'common')}`}
         >
           <div className="p-8">
             
             {/* Header */}
             <div className="flex justify-between items-start mb-6">
-              <div className={`px-4 py-2 rounded-full text-sm font-bold bg-gradient-to-r ${getRarityColor(item.items?.rarity)} text-white`}>
+              <div className={`px-4 py-2 rounded-full text-sm font-bold bg-gradient-to-r ${getRarityColor(item.items?.rarity || 'common')} text-white`}>
                 {item.items?.rarity?.toUpperCase() || 'COMMON'}
               </div>
               

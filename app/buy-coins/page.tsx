@@ -7,9 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Coins, CreditCard, Shield, Zap, Star, Crown, Sparkles, Gift, TrendingUp, Users, Check, X, Flame, Heart } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
-import { Badge } from '../components/ui/Badge'
 import { LoadingState } from '../components/ui/LoadingState'
-import { CurrencyDisplay } from '../components/ui/CurrencyDisplay'
 import { Modal } from '../components/ui/Modal'
 import { useAuth } from '../components/AuthProvider'
 import { useRouter } from 'next/navigation'
@@ -211,7 +209,7 @@ export default function BuyCoinsPage() {
         {[...Array(12)].map((_, i) => (
           <motion.div
             key={i}
-            className="absolute w-1 h-1 bg-primary-300/20 rounded-full"
+            className="absolute w-1 h-1 bg-green-300/20 rounded-full"
             style={{
               top: `${10 + (i * 8)}%`,
               left: `${5 + (i % 5) * 20}%`
@@ -276,18 +274,18 @@ export default function BuyCoinsPage() {
             >
               <div className="text-right">
                 <p className="text-sm text-gray-600 font-medium">Solde actuel</p>
-                <CurrencyDisplay 
-                  amount={profile.virtual_currency || 0} 
-                  type="coins" 
-                  size="lg" 
-                  showIcon={true}
-                  className="font-black"
-                />
+                <div className="flex items-center gap-2">
+                  <Coins size={24} className="text-green-600" />
+                  <span className="text-2xl font-black text-gray-900">
+                    {(profile.virtual_currency || 0).toLocaleString()}
+                  </span>
+                  <span className="text-gray-600 font-medium">coins</span>
+                </div>
               </div>
               <div className="w-px h-8 bg-gray-300"></div>
               <div className="text-center">
                 <p className="text-sm text-gray-600 font-medium">Niveau</p>
-                <p className="text-lg font-black text-primary-600">
+                <p className="text-lg font-black text-green-600">
                   {Math.floor((profile.total_exp || 0) / 100) + 1}
                 </p>
               </div>
@@ -315,14 +313,14 @@ export default function BuyCoinsPage() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: "spring", stiffness: 150 }}
-            className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full mb-8 shadow-2xl shadow-primary-200/50"
+            className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-green-400 to-green-600 rounded-full mb-8 shadow-2xl shadow-green-200/50"
           >
             <Coins className="w-12 h-12 text-white" />
           </motion.div>
           
           <h1 className="text-5xl md:text-6xl font-black text-gray-900 mb-6 tracking-tight">
             Rechargez vos{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-500 via-primary-600 to-primary-700">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-500 via-green-600 to-green-700">
               Coins
             </span>
           </h1>
@@ -393,21 +391,21 @@ export default function BuyCoinsPage() {
                   {/* Badges top */}
                   <div className="absolute top-3 left-3 right-3 flex justify-between items-start z-20">
                     {pkg.popular && (
-                      <Badge className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-3 py-1 text-xs font-bold shadow-lg">
+                      <div className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-3 py-1 text-xs font-bold shadow-lg rounded-full">
                         🔥 POPULAIRE
-                      </Badge>
+                      </div>
                     )}
                     
                     {pkg.bestValue && (
-                      <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-3 py-1 text-xs font-bold shadow-lg">
+                      <div className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-3 py-1 text-xs font-bold shadow-lg rounded-full">
                         👑 MEILLEURE VALEUR
-                      </Badge>
+                      </div>
                     )}
                     
                     {savings > 0 && (
-                      <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-3 py-1 text-xs font-bold shadow-lg ml-auto">
+                      <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-3 py-1 text-xs font-bold shadow-lg ml-auto rounded-full">
                         -{savings}%
-                      </Badge>
+                      </div>
                     )}
                   </div>
 
@@ -471,9 +469,9 @@ export default function BuyCoinsPage() {
                       </div>
                       
                       {pkg.bonus && (
-                        <Badge className="bg-white/20 text-white px-3 py-1 text-xs font-bold mb-2">
+                        <div className="bg-white/20 text-white px-3 py-1 text-xs font-bold mb-2 rounded-full">
                           +{pkg.bonus} coins bonus !
-                        </Badge>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -527,7 +525,7 @@ export default function BuyCoinsPage() {
                             ? 'bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 hover:from-yellow-600 hover:via-orange-600 hover:to-red-600 shadow-xl shadow-yellow-200/50' 
                             : pkg.popular
                             ? 'bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 shadow-xl shadow-blue-200/50'
-                            : 'bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700'
+                            : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
                           }
                         `}
                       >
@@ -586,7 +584,7 @@ export default function BuyCoinsPage() {
             <div className="relative z-10">
               <div className="text-center mb-12">
                 <h2 className="text-3xl md:text-4xl font-black mb-4">
-                  Pourquoi choisir nos <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-primary-600">Coins</span> ?
+                  Pourquoi choisir nos <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-green-600">Coins</span> ?
                 </h2>
                 <p className="text-xl text-gray-300 max-w-2xl mx-auto">
                   Maximisez vos chances avec nos avantages exclusifs
@@ -626,7 +624,7 @@ export default function BuyCoinsPage() {
                       {advantage.icon}
                     </div>
                     
-                    <h3 className="text-xl font-bold mb-3 group-hover:text-primary-400 transition-colors">
+                    <h3 className="text-xl font-bold mb-3 group-hover:text-green-400 transition-colors">
                       {advantage.title}
                     </h3>
                     
@@ -692,7 +690,7 @@ export default function BuyCoinsPage() {
             >
               <p className="text-gray-600 text-sm">
                 Une question ? Contactez notre support 24/7 : 
-                <a href="mailto:support@reveelbox.com" className="text-primary-600 font-semibold hover:underline ml-1">
+                <a href="mailto:support@reveelbox.com" className="text-green-600 font-semibold hover:underline ml-1">
                   support@reveelbox.com
                 </a>
               </p>
@@ -740,7 +738,7 @@ export default function BuyCoinsPage() {
 
           <div className="mt-4 pt-4 border-t border-gray-200">
             <p className="text-sm text-gray-500">
-              Nouveau ? <span className="text-primary-600 font-semibold">Créez un compte</span> et recevez 100 coins gratuits !
+              Nouveau ? <span className="text-green-600 font-semibold">Créez un compte</span> et recevez 100 coins gratuits !
             </p>
           </div>
         </div>
@@ -754,7 +752,7 @@ export default function BuyCoinsPage() {
         size="md"
       >
         <div className="text-center py-4">
-          <div className="w-16 h-16 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <Coins className="w-8 h-8 text-white" />
           </div>
           

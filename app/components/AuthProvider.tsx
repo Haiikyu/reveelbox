@@ -4,22 +4,24 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import type { User, Session } from '@supabase/supabase-js'
 
-interface Profile {
+// ✅ INTERFACE PROFILE UNIQUE ET COMPLETE
+export interface Profile {
   id: string
   username?: string
-  virtual_currency: number
-  loyalty_points: number
-  total_exp: number
+  email?: string
   bio?: string
   location?: string
   phone?: string
   birth_date?: string
   avatar_url?: string
-  privacy_profile: string
-  notifications_email: boolean
-  notifications_push: boolean
-  created_at: string
-  updated_at: string
+  privacy_profile?: 'public' | 'private'
+  notifications_email?: boolean
+  notifications_push?: boolean
+  virtual_currency?: number
+  loyalty_points?: number
+  total_exp?: number
+  created_at?: string
+  updated_at?: string
 }
 
 interface AuthContextType {
@@ -45,10 +47,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   const supabase = createClient()
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string): Promise<Profile | null> => {
     try {
       setProfileLoading(true)
-      console.log('🔍 Fetching profile for user:', userId)
       
       const { data, error } = await supabase
         .from('profiles')
@@ -57,41 +58,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single()
 
       if (error) {
-        console.error('❌ Erreur profil:', error)
+        console.error('Erreur profil:', error)
         
-        // Si le profil n'existe pas, le créer
+        // Créer le profil s'il n'existe pas
         if (error.code === 'PGRST116') {
-          console.log('📝 Création du profil utilisateur...')
           const { data: newProfile, error: createError } = await supabase
             .from('profiles')
             .insert({
               id: userId,
-              virtual_currency: 1000, // Coins de départ
+              virtual_currency: 1000,
               loyalty_points: 0,
-              total_exp: 0,
-              privacy_profile: 'public',
-              notifications_email: true,
-              notifications_push: true
+              total_exp: 0
             })
             .select()
             .single()
 
           if (createError) {
-            console.error('❌ Erreur création profil:', createError)
+            console.error('Erreur création profil:', createError)
             return null
           }
           
-          console.log('✅ Profil créé avec succès')
-          return newProfile
+          return newProfile as Profile
         }
         
         return null
       }
 
-      console.log('✅ Profil récupéré:', data.username || 'sans username')
-      return data
+      return data as Profile
     } catch (error) {
-      console.error('💥 Erreur fetch profil:', error)
+      console.error('Erreur fetch profil:', error)
       return null
     } finally {
       setProfileLoading(false)
@@ -99,12 +94,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const refreshProfile = async () => {
-    if (!user) {
-      console.log('⚠️ Pas d\'utilisateur pour refresh profile')
-      return
-    }
+    if (!user) return
     
-    console.log('🔄 Refreshing profile...')
     const profileData = await fetchProfile(user.id)
     if (profileData) {
       setProfile(profileData)
@@ -112,14 +103,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const updateProfile = async (updates: Partial<Profile>) => {
-    if (!user) {
-      console.error('❌ Pas d\'utilisateur pour update')
-      return
-    }
+    if (!user) return
 
     try {
-      console.log('📝 Updating profile:', updates)
-      
       const { error } = await supabase
         .from('profiles')
         .update(updates)
@@ -128,112 +114,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error
       
       await refreshProfile()
-      console.log('✅ Profil mis à jour')
     } catch (error) {
-      console.error('❌ Erreur update profil:', error)
+      console.error('Erreur update profil:', error)
       throw error
     }
   }
 
   const signOut = async () => {
     try {
-      console.log('👋 Déconnexion...')
-      
       const { error } = await supabase.auth.signOut()
       if (error) throw error
       
       setUser(null)
       setSession(null)
       setProfile(null)
-      
-      console.log('✅ Déconnexion réussie')
     } catch (error) {
-      console.error('❌ Erreur déconnexion:', error)
+      console.error('Erreur déconnexion:', error)
       throw error
     }
   }
 
   useEffect(() => {
-    console.log('🚀 Initialisation AuthProvider...')
-    
     // Récupérer la session initiale
     const getInitialSession = async () => {
       try {
-        console.log('🔍 Récupération session initiale...')
-        
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {
-          console.error('❌ Erreur session:', error)
+          console.error('Erreur session:', error)
           setLoading(false)
           return
         }
 
-        console.log('📊 Session récupérée:', session ? 'ACTIVE' : 'INACTIVE')
-        
         setSession(session)
         setUser(session?.user ?? null)
 
         if (session?.user) {
-          console.log('👤 Utilisateur trouvé, chargement profil...')
           const profileData = await fetchProfile(session.user.id)
           setProfile(profileData)
-        } else {
-          console.log('👻 Aucun utilisateur connecté')
         }
       } catch (error) {
-        console.error('💥 Erreur init session:', error)
+        console.error('Erreur init session:', error)
       } finally {
         setLoading(false)
-        console.log('✅ Initialisation terminée')
       }
     }
 
     getInitialSession()
 
     // Écouter les changements d'auth
-    console.log('👂 Mise en place du listener auth...')
-    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('🔔 Auth event:', event, session?.user?.id ? 'avec user' : 'sans user')
-        
         setSession(session)
         setUser(session?.user ?? null)
 
         if (session?.user) {
-          console.log('👤 Nouveau user, chargement profil...')
           const profileData = await fetchProfile(session.user.id)
           setProfile(profileData)
         } else {
-          console.log('👻 User supprimé, nettoyage profil')
           setProfile(null)
-        }
-
-        if (event === 'SIGNED_OUT') {
-          console.log('🚪 Événement de déconnexion')
         }
       }
     )
 
     return () => {
-      console.log('🧹 Nettoyage subscription auth')
       subscription.unsubscribe()
     }
   }, [])
 
   const isAuthenticated = !!user && !!session
-
-  // Debug logging
-  useEffect(() => {
-    console.log('📊 Auth State:', {
-      hasUser: !!user,
-      hasSession: !!session,
-      hasProfile: !!profile,
-      loading,
-      isAuthenticated
-    })
-  }, [user, session, profile, loading, isAuthenticated])
 
   return (
     <AuthContext.Provider

@@ -21,9 +21,59 @@ import {
   Crown
 } from 'lucide-react'
 
+// ✅ TYPES TYPESCRIPT CORRIGES
+interface LootBoxItem {
+  id?: string
+  name: string
+  rarity: 'common' | 'rare' | 'epic' | 'legendary'
+  image_url?: string
+  market_value?: number
+}
+
+interface LootBoxItemRelation {
+  probability?: number
+  items: LootBoxItem
+}
+
+interface LootBox {
+  id: string
+  name: string
+  description: string
+  price_virtual: number
+  image_url?: string
+  is_active?: boolean
+  is_daily_free?: boolean
+  loot_box_items?: LootBoxItemRelation[]
+  items?: LootBoxItem[] // Pour les données de fallback
+}
+
+interface BadgeInfo {
+  badge: string
+  color: string
+}
+
+interface Feature {
+  icon: any // Type pour les composants Lucide
+  title: string
+  description: string
+}
+
+interface Stat {
+  number: string
+  label: string
+  icon: any
+}
+
+interface Testimonial {
+  name: string
+  comment: string
+  rating: number
+  avatar: string
+}
+
 export default function HomePage() {
   const { user, loading: authLoading, isAuthenticated } = useAuth()
-  const [lootBoxes, setLootBoxes] = useState([])
+  const [lootBoxes, setLootBoxes] = useState<LootBox[]>([])
   const [loading, setLoading] = useState(true)
 
   // Charger les données SEULEMENT quand l'auth est prêt
@@ -87,8 +137,8 @@ export default function HomePage() {
     }
   }, [authLoading])
 
-  // Données de fallback (VRAIES LOOT BOXES, pas freedrop)
-  const getFallbackBoxes = () => [
+  // ✅ FONCTION TYPEE POUR DONNEES DE FALLBACK
+  const getFallbackBoxes = (): LootBox[] => [
     {
       id: '1',
       name: 'GRAIL VAULT',
@@ -143,8 +193,8 @@ export default function HomePage() {
     }
   ]
 
-  // Fonction pour obtenir le badge selon le prix
-  const getBadgeInfo = (box) => {
+  // ✅ FONCTION TYPEE POUR BADGE
+  const getBadgeInfo = (box: LootBox): BadgeInfo => {
     if (box.price_virtual >= 400) return { badge: 'LIMITED', color: 'bg-purple-500' }
     if (box.price_virtual >= 300) return { badge: 'HOT', color: 'bg-orange-500' }
     return { badge: 'NEW', color: 'bg-green-500' }
@@ -161,6 +211,60 @@ export default function HomePage() {
       </div>
     )
   }
+
+  // ✅ DONNEES TYPEES POUR FEATURES
+  const features: Feature[] = [
+    {
+      icon: Gift,
+      title: "Objets Réels Premium",
+      description: "Chaque boîte contient de vrais produits de marques prestigieuses"
+    },
+    {
+      icon: Truck,
+      title: "Livraison Express",
+      description: "Expédition rapide avec suivi en temps réel partout en France"
+    },
+    {
+      icon: Shield,
+      title: "100% Authentique",
+      description: "Tous nos produits sont certifiés authentiques ou remboursé"
+    },
+    {
+      icon: Sparkles,
+      title: "Expérience Immersive",
+      description: "Animations et effets visuels pour une expérience unique"
+    }
+  ]
+
+  // ✅ DONNEES TYPEES POUR STATS
+  const stats: Stat[] = [
+    { number: "125K+", label: "Boîtes ouvertes", icon: Package },
+    { number: "45K+", label: "Utilisateurs actifs", icon: Users },
+    { number: "99.2%", label: "Satisfaction", icon: Heart },
+    { number: "4.9★", label: "Note moyenne", icon: Star }
+  ]
+
+  // ✅ DONNEES TYPEES POUR TESTIMONIALS
+  const testimonials: Testimonial[] = [
+    {
+      name: "Alex M.",
+      comment: "J'ai reçu des Jordan 1 Chicago authentiques ! L'animation était incroyable.",
+      rating: 5,
+      avatar: "🔥"
+    },
+    {
+      name: "Sarah L.",
+      comment: "Livraison en 24h ! La Tech Box contenait des AirPods Pro, je recommande.",
+      rating: 5,
+      avatar: "⭐"
+    },
+    {
+      name: "Tom R.",
+      comment: "Accro total ! J'ai ouvert 10 boîtes ce mois-ci, chaque fois c'est la surprise.",
+      rating: 5,
+      avatar: "🎮"
+    }
+  ]
 
   return (
     <div className="min-h-screen bg-white">
@@ -280,14 +384,14 @@ export default function HomePage() {
                         <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 z-20">
                           <div className="flex space-x-1">
                             {(box.loot_box_items || box.items || []).slice(0, 4).map((item, cardIndex) => {
-                              const itemData = item.items || item
+                              const itemData = 'items' in item ? item.items : item
                               const cardColors = {
                                 legendary: 'bg-yellow-400 border-yellow-500',
                                 epic: 'bg-purple-400 border-purple-500',
                                 rare: 'bg-blue-400 border-blue-500',
                                 common: 'bg-gray-400 border-gray-500'
                               }
-                              const colorClass = cardColors[itemData?.rarity] || cardColors.common
+                              const colorClass = cardColors[itemData?.rarity || 'common']
                               
                               return (
                                 <motion.div
@@ -323,7 +427,8 @@ export default function HomePage() {
                               alt={box.name}
                               className="absolute inset-0 w-full h-full object-cover rounded-2xl"
                               onError={(e) => {
-                                e.target.style.display = 'none'
+                                const target = e.target as HTMLImageElement
+                                target.style.display = 'none'
                               }}
                             />
                           )}
@@ -453,28 +558,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[
-              {
-                icon: Gift,
-                title: "Objets Réels Premium",
-                description: "Chaque boîte contient de vrais produits de marques prestigieuses"
-              },
-              {
-                icon: Truck,
-                title: "Livraison Express",
-                description: "Expédition rapide avec suivi en temps réel partout en France"
-              },
-              {
-                icon: Shield,
-                title: "100% Authentique",
-                description: "Tous nos produits sont certifiés authentiques ou remboursé"
-              },
-              {
-                icon: Sparkles,
-                title: "Expérience Immersive",
-                description: "Animations et effets visuels pour une expérience unique"
-              }
-            ].map((feature, index) => {
+            {features.map((feature, index) => {
               const Icon = feature.icon
               return (
                 <motion.div
@@ -514,12 +598,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-            {[
-              { number: "125K+", label: "Boîtes ouvertes", icon: Package },
-              { number: "45K+", label: "Utilisateurs actifs", icon: Users },
-              { number: "99.2%", label: "Satisfaction", icon: Heart },
-              { number: "4.9★", label: "Note moyenne", icon: Star }
-            ].map((stat, index) => {
+            {stats.map((stat, index) => {
               const Icon = stat.icon
               return (
                 <motion.div
@@ -559,26 +638,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                name: "Alex M.",
-                comment: "J'ai reçu des Jordan 1 Chicago authentiques ! L'animation était incroyable.",
-                rating: 5,
-                avatar: "🔥"
-              },
-              {
-                name: "Sarah L.",
-                comment: "Livraison en 24h ! La Tech Box contenait des AirPods Pro, je recommande.",
-                rating: 5,
-                avatar: "⭐"
-              },
-              {
-                name: "Tom R.",
-                comment: "Accro total ! J'ai ouvert 10 boîtes ce mois-ci, chaque fois c'est la surprise.",
-                rating: 5,
-                avatar: "🎮"
-              }
-            ].map((testimonial, index) => (
+            {testimonials.map((testimonial, index) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 30 }}

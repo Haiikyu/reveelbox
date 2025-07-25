@@ -9,7 +9,6 @@ import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { LoadingState } from '../../components/ui/LoadingState'
-import { CurrencyDisplay } from '../../components/ui/CurrencyDisplay'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
@@ -303,23 +302,27 @@ function SuccessPageContent() {
                     {/* Package acheté */}
                     <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-200/50">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-bold text-gray-900">{purchaseDetails.packageName}</h3>
-                        <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-3 py-1 font-bold">
+                        <h3 className="text-lg font-bold text-gray-900">
+                          {purchaseDetails.packageName}
+                        </h3>
+                        
+                        {/* Badge sans variant, utilise les classes par défaut */}
+                        <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
                           ✅ ACHETÉ
-                        </Badge>
+                        </div>
                       </div>
-                      
+
                       <div className="grid grid-cols-2 gap-4">
                         <div className="text-center">
                           <div className="flex items-center justify-center gap-1 mb-2">
-                            <Coins className="w-5 h-5 text-primary-600" />
-                            <span className="text-2xl font-black text-primary-600">
+                            <Coins className="w-5 h-5 text-green-600" />
+                            <span className="text-2xl font-black text-green-600">
                               {purchaseDetails.coinsReceived}
                             </span>
                           </div>
                           <p className="text-sm text-gray-600 font-semibold">Coins principaux</p>
                         </div>
-                        
+
                         <div className="text-center">
                           <div className="flex items-center justify-center gap-1 mb-2">
                             <Gift className="w-5 h-5 text-purple-600" />
@@ -331,7 +334,7 @@ function SuccessPageContent() {
                         </div>
                       </div>
                     </div>
-
+                    
                     {/* Détails transaction */}
                     <div className="space-y-4">
                       <div className="flex justify-between items-center py-3 border-b border-gray-100">
@@ -390,7 +393,7 @@ function SuccessPageContent() {
 
               <div className="relative z-10">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary-400 to-primary-600 rounded-xl flex items-center justify-center">
+                  <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-xl flex items-center justify-center">
                     <Coins className="w-6 h-6 text-white" />
                   </div>
                   <div>
@@ -410,12 +413,12 @@ function SuccessPageContent() {
                         transition={{ delay: 1, type: "spring", stiffness: 150 }}
                         className="flex items-center justify-center gap-2 mb-2"
                       >
-                        <Coins className="w-8 h-8 text-primary-400" />
+                        <Coins className="w-8 h-8 text-green-400" />
                         <span className="text-4xl md:text-5xl font-black text-white">
                           {userProfile.virtual_currency.toLocaleString()}
                         </span>
                       </motion.div>
-                      <p className="text-primary-200 font-semibold">Coins disponibles</p>
+                      <p className="text-green-200 font-semibold">Coins disponibles</p>
                     </div>
 
                     {/* Stats utilisateur */}
@@ -464,9 +467,11 @@ function SuccessPageContent() {
           
           {/* Ouvrir des boîtes */}
           <motion.div whileHover={{ scale: 1.02, y: -5 }}>
-            <Card className="p-6 text-center bg-gradient-to-br from-primary-50 to-primary-100 border-primary-200 hover:shadow-xl transition-all duration-300 cursor-pointer group"
-                  onClick={() => router.push('/boxes')}>
-              <div className="w-16 h-16 bg-gradient-to-br from-primary-400 to-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+            <div 
+              className="p-6 text-center bg-gradient-to-br from-green-50 to-green-100 border-green-200 hover:shadow-xl transition-all duration-300 cursor-pointer group rounded-xl border shadow-lg bg-white"
+              onClick={() => router.push('/boxes')}
+            >
+              <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                 <Package className="w-8 h-8 text-white" />
               </div>
               
@@ -479,13 +484,15 @@ function SuccessPageContent() {
                 <ArrowRight size={16} className="mr-2" />
                 Commencer
               </Button>
-            </Card>
+            </div>
           </motion.div>
 
           {/* Voir l'inventaire */}
           <motion.div whileHover={{ scale: 1.02, y: -5 }}>
-            <Card className="p-6 text-center bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 hover:shadow-xl transition-all duration-300 cursor-pointer group"
-                  onClick={() => router.push('/inventory')}>
+            <div 
+              className="p-6 text-center bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 hover:shadow-xl transition-all duration-300 cursor-pointer group rounded-xl border shadow-lg bg-white"
+              onClick={() => router.push('/inventory')}
+            >
               <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                 <Gift className="w-8 h-8 text-white" />
               </div>
@@ -499,14 +506,16 @@ function SuccessPageContent() {
                 <Star size={16} className="mr-2" />
                 Voir
               </Button>
-            </Card>
+            </div>
           </motion.div>
 
           {/* Profil */}
           <motion.div whileHover={{ scale: 1.02, y: -5 }}>
-            <Card className="p-6 text-center bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 hover:shadow-xl transition-all duration-300 cursor-pointer group"
-                  onClick={() => router.push('/profile')}>
-              <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+            <div 
+              className="p-6 text-center bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 hover:shadow-xl transition-all duration-300 cursor-pointer group rounded-xl border shadow-lg bg-white"
+              onClick={() => router.push('/profile')}
+            >
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                 <Users className="w-8 h-8 text-white" />
               </div>
               
@@ -515,11 +524,11 @@ function SuccessPageContent() {
                 Gérez vos paramètres et statistiques
               </p>
               
-              <Button variant="outline" fullWidth className="group-hover:shadow-lg transition-shadow border-green-300 hover:border-green-400">
+              <Button variant="outline" fullWidth className="group-hover:shadow-lg transition-shadow border-blue-300 hover:border-blue-400">
                 <Heart size={16} className="mr-2" />
                 Profil
               </Button>
-            </Card>
+            </div>
           </motion.div>
         </motion.div>
 
@@ -543,13 +552,13 @@ function SuccessPageContent() {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 1.3, type: "spring", stiffness: 150 }}
-                className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full mb-6 shadow-2xl"
+                className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-400 to-green-600 rounded-full mb-6 shadow-2xl"
               >
                 <Sparkles className="w-10 h-10 text-white" />
               </motion.div>
               
               <h2 className="text-3xl md:text-4xl font-black mb-4">
-                Prêt pour la <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-primary-600">Chasse aux Trésors</span> ?
+                Prêt pour la <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-green-600">Chasse aux Trésors</span> ?
               </h2>
               
               <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
@@ -561,7 +570,7 @@ function SuccessPageContent() {
                   <Button 
                     size="lg"
                     onClick={() => router.push('/boxes')}
-                    className="bg-gradient-to-r from-primary-500 via-primary-600 to-primary-700 hover:from-primary-600 hover:via-primary-700 hover:to-primary-800 px-8 py-4 text-lg font-black shadow-2xl shadow-primary-500/30"
+                    className="bg-gradient-to-r from-green-500 via-green-600 to-green-700 hover:from-green-600 hover:via-green-700 hover:to-green-800 px-8 py-4 text-lg font-black shadow-2xl shadow-green-500/30"
                   >
                     <Package size={24} className="mr-3" />
                     🎯 Ouvrir des Boîtes
@@ -616,7 +625,7 @@ function SuccessPageContent() {
           </p>
           <p className="text-gray-500 text-sm">
             Une question ? Notre équipe est là pour vous : 
-            <a href="mailto:support@reveelbox.com" className="text-primary-600 font-semibold hover:underline ml-1">
+            <a href="mailto:support@reveelbox.com" className="text-green-600 font-semibold hover:underline ml-1">
               support@reveelbox.com
             </a>
           </p>

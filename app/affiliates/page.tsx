@@ -226,25 +226,28 @@ export default function AffiliationPage() {
     }
   }, [authLoading, isAuthenticated, user])
 
-  const loadAffiliateData = async () => {
-    try {
-      setLoading(true)
+const loadAffiliateData = async () => {
+  try {
+    if (!user) throw new Error('Utilisateur non authentifié')
 
-      // Créer ou récupérer les données d'affiliation
-      const affiliate = await createOrGetAffiliateData(user.id, profile?.username)
-      setAffiliateData(affiliate)
+    setLoading(true)
 
-      // Charger les parrainages
-      const referralsData = await loadReferrals(user.id)
-      setReferrals(referralsData)
+    const username = profile?.username      // string | undefined
 
-    } catch (error) {
-      console.error('Erreur chargement données:', error)
-      showNotification('error', 'Erreur lors du chargement des données')
-    } finally {
-      setLoading(false)
-    }
+    // ✅ deuxième argument = string | undefined
+    const affiliate = await createOrGetAffiliateData(user.id, username)
+    setAffiliateData(affiliate)
+
+    const referralsData = await loadReferrals(user.id)
+    setReferrals(referralsData)
+
+  } catch (error) {
+    console.error('Erreur chargement données :', error)
+    showNotification('error', 'Erreur lors du chargement des données')
+  } finally {
+    setLoading(false)
   }
+}
 
   // Copier le lien d'affiliation
   const copyAffiliateLink = async () => {
@@ -406,10 +409,12 @@ export default function AffiliationPage() {
     }
   ]
 
-  // Calcul du taux de conversion
-  const conversionRate = affiliateData?.clicks_count > 0 
-    ? ((affiliateData.conversions_count / affiliateData.clicks_count) * 100).toFixed(1)
-    : "0.0"
+const clicks      = affiliateData?.clicks_count      ?? 0   // number
+const conversions = affiliateData?.conversions_count ?? 0   // number
+
+const conversionRate = clicks > 0
+  ? ((conversions / clicks) * 100).toFixed(1)  // ex. "12.3"
+  : '0.0'
 
   // Loading state - Protégé par l'auth
   if (authLoading || loading) {

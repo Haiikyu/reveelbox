@@ -35,6 +35,14 @@ interface LootBox {
   }>
 }
 
+// ✅ INTERFACE PROFILE CORRIGEE
+interface Profile {
+  id: string
+  username?: string
+  virtual_currency?: number  // ✅ Optionnel
+  loyalty_points?: number    // ✅ Optionnel
+}
+
 // Types pour Next.js 15
 interface PageProps {
   params: Promise<{ id: string }>
@@ -67,6 +75,19 @@ export default function BoxOpeningPage({ params }: PageProps) {
   
   const router = useRouter()
   const supabase = createClient()
+
+  // ✅ FONCTION UTILITAIRE POUR OBTENIR LA CURRENCY DE MANIERE SURE
+  const getUserCurrency = (): number => {
+    if (!profile || typeof profile.virtual_currency !== 'number') {
+      return 0
+    }
+    return profile.virtual_currency
+  }
+
+  // ✅ FONCTION POUR VERIFIER SI L'UTILISATEUR PEUT SE PERMETTRE UNE BOX
+  const canAffordBox = (boxPrice: number): boolean => {
+    return getUserCurrency() >= boxPrice
+  }
 
   // Protection de route selon le standard
   useEffect(() => {
@@ -231,24 +252,27 @@ export default function BoxOpeningPage({ params }: PageProps) {
     return baseItems[baseItems.length - 1]
   }
 
-  // Fonction d'ouverture simplifiée selon les standards
+  // ✅ FONCTION D'OUVERTURE CORRIGEE AVEC GESTION DES UNDEFINED
   const openLootBox = async (): Promise<LootBoxItem> => {
     if (!user || !box) throw new Error('Utilisateur non connecté')
 
     try {
-      // Vérifier le solde
-      if (profile && profile.virtual_currency < box.price_virtual) {
+      // ✅ VERIFICATION CORRIGEE
+      if (!canAffordBox(box.price_virtual)) {
         throw new Error('Coins insuffisants')
       }
 
       // Sélectionner un item gagnant
       const wonItem = selectRandomItemByProbability(items)
 
-      // Déduire les coins
+      // ✅ DEDUCTION COINS CORRIGEE
+      const currentCurrency = getUserCurrency()
+      const newCurrency = currentCurrency - box.price_virtual
+
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ 
-          virtual_currency: (profile?.virtual_currency || 0) - box.price_virtual 
+          virtual_currency: Math.max(0, newCurrency)
         })
         .eq('id', user.id)
 
@@ -364,7 +388,7 @@ export default function BoxOpeningPage({ params }: PageProps) {
     }, duration + 500)
   }
 
-  // Fonction de spin principale
+  // ✅ FONCTION DE SPIN CORRIGEE
   const spinWheel = () => {
     if (isSpinning) return
 
@@ -383,7 +407,8 @@ export default function BoxOpeningPage({ params }: PageProps) {
         return
       }
       
-      if (!profile || profile.virtual_currency < box!.price_virtual) {
+      // ✅ VERIFICATION CORRIGEE
+      if (!canAffordBox(box!.price_virtual)) {
         showMessage('Coins insuffisants', 'error')
         setIsSpinning(false)
         return
@@ -531,7 +556,7 @@ export default function BoxOpeningPage({ params }: PageProps) {
             <div className="flex justify-center gap-8 mb-8">
               <div className="text-center bg-white/10 backdrop-blur-md rounded-xl p-4">
                 <div className="text-2xl font-bold text-green-400">
-                  {profile?.virtual_currency || 0}
+                  {getUserCurrency()}
                 </div>
                 <div className="text-white/70 text-sm">Vos coins</div>
               </div>
@@ -681,14 +706,14 @@ export default function BoxOpeningPage({ params }: PageProps) {
             <div className="text-center">
               <motion.button
                 onClick={spinWheel}
-                disabled={isSpinning || (openMode === 'single' && (!profile || profile.virtual_currency < box.price_virtual))}
+                disabled={isSpinning || (openMode === 'single' && !canAffordBox(box.price_virtual))}
                 className={`px-16 py-5 text-2xl font-bold rounded-2xl shadow-2xl transition-all duration-300 ${
                   isSpinning 
                     ? 'bg-gray-600 cursor-not-allowed' 
                     : openMode === 'single'
                       ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white hover:shadow-green-500/30'
                       : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white hover:shadow-blue-500/30'
-                } ${(!profile || profile.virtual_currency < box.price_virtual) && openMode === 'single' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                } ${!canAffordBox(box.price_virtual) && openMode === 'single' ? 'opacity-50 cursor-not-allowed' : ''}`}
                 whileHover={!isSpinning ? { scale: 1.05 } : {}}
                 whileTap={!isSpinning ? { scale: 0.95 } : {}}
               >
@@ -712,7 +737,7 @@ export default function BoxOpeningPage({ params }: PageProps) {
               </motion.button>
               
               {/* Message d'erreur pour coins insuffisants */}
-              {(!profile || profile.virtual_currency < box.price_virtual) && openMode === 'single' && (
+              {!canAffordBox(box.price_virtual) && openMode === 'single' && (
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -720,11 +745,9 @@ export default function BoxOpeningPage({ params }: PageProps) {
                 >
                   <p className="text-red-300 font-bold text-lg">
                     Coins insuffisants
-                    {profile && (
-                      <span className="ml-3 bg-red-500/30 px-3 py-1 rounded-full text-sm">
-                        {box.price_virtual - profile.virtual_currency} coins manquants
-                      </span>
-                    )}
+                    <span className="ml-3 bg-red-500/30 px-3 py-1 rounded-full text-sm">
+                      {box.price_virtual - getUserCurrency()} coins manquants
+                    </span>
                   </p>
                   <button
                     onClick={() => router.push('/buy-coins')}

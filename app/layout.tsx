@@ -1,19 +1,21 @@
-// app/layout.tsx - Remplacer le contenu par :
-import { Inter } from 'next/font/google';
-import './globals.css';
+import { Inter } from 'next/font/google'
+import './globals.css'
+import { AuthProvider } from './components/AuthProvider'
+import Navbar from './components/Navbar'
+import Footer from './components/Footer'
 
-import { AuthProvider } from './components/AuthProvider';
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
-
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
   title: 'ReveelBox - Loot Boxes avec des Objets Réels',
   description: 'Découvrez des objets uniques dans nos loot boxes mystères',
-};
+}
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ 
+  children 
+}: { 
+  children: React.ReactNode 
+}) {
   return (
     <html lang="fr">
       <body className={inter.className}>
@@ -26,5 +28,5 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </AuthProvider>
       </body>
     </html>
-  );
+  )
 }

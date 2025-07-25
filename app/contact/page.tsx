@@ -20,8 +20,36 @@ import {
   Package
 } from 'lucide-react'
 
+// Types pour les données du formulaire et notifications
+interface FormData {
+  name: string
+  email: string
+  subject: string
+  message: string
+  category: string
+}
+
+interface Notification {
+  type: 'success' | 'error' | ''
+  message: string
+}
+
+interface ContactInfo {
+  icon: any
+  title: string
+  content: string
+  description: string
+}
+
+interface FAQCategory {
+  icon: any
+  title: string
+  description: string
+  href: string
+}
+
 export default function ContactPage() {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
     subject: '',
@@ -29,21 +57,21 @@ export default function ContactPage() {
     category: 'general'
   })
   const [loading, setLoading] = useState(false)
-  const [notification, setNotification] = useState({ type: '', message: '' })
+  const [notification, setNotification] = useState<Notification>({ type: '', message: '' })
 
-  const showNotification = (type, message) => {
+  const showNotification = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message })
     setTimeout(() => setNotification({ type: '', message: '' }), 5000)
   }
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData(prev => ({
       ...prev,
       [e.target.name]: e.target.value
     }))
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     
     if (!formData.name || !formData.email || !formData.message) {
@@ -74,7 +102,7 @@ export default function ContactPage() {
     }
   }
 
-  const contactInfo = [
+  const contactInfo: ContactInfo[] = [
     {
       icon: Mail,
       title: "Email",
@@ -95,7 +123,7 @@ export default function ContactPage() {
     }
   ]
 
-  const faqCategories = [
+  const faqCategories: FAQCategory[] = [
     {
       icon: Package,
       title: "Commandes & Livraison",

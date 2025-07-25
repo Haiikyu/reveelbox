@@ -22,6 +22,22 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/app/components/AuthProvider'
 
+// Interfaces TypeScript pour la sécurité des types
+interface ReferralInfo {
+  code: string
+  username: string
+  isDemo: boolean
+}
+
+interface ProfileData {
+  username: string
+}
+
+interface AffiliateData {
+  code: string
+  profiles: ProfileData | ProfileData[] | null
+}
+
 // Composant pour gérer les paramètres de recherche
 function SignUpForm() {
   const [formData, setFormData] = useState({
@@ -36,11 +52,7 @@ function SignUpForm() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [notification, setNotification] = useState({ type: '', message: '' })
   const [referralCode, setReferralCode] = useState('')
-  const [referralInfo, setReferralInfo] = useState<{
-    code: string
-    username: string
-    isDemo: boolean
-  } | null>(null)
+  const [referralInfo, setReferralInfo] = useState<ReferralInfo | null>(null)
   const [checkingReferral, setCheckingReferral] = useState(false)
   
   const router = useRouter()
@@ -77,7 +89,7 @@ function SignUpForm() {
     setTimeout(() => setNotification({ type: '', message: '' }), 5000)
   }
 
-  // Valider le code de parrainage
+  // Valider le code de parrainage avec gestion correcte des types
   const validateReferralCode = async (code: string) => {
     if (!code || code.length < 3) return
 
@@ -103,9 +115,23 @@ function SignUpForm() {
           isDemo: true
         })
       } else {
+        // ✅ CORRECTION TypeScript - Gestion complète des types profiles
+        const affiliateData = data as AffiliateData
+        let username = 'Utilisateur'
+        
+        if (affiliateData.profiles) {
+          if (Array.isArray(affiliateData.profiles)) {
+            // Si c'est un tableau, prendre le premier élément
+            username = affiliateData.profiles[0]?.username || 'Utilisateur'
+          } else if (typeof affiliateData.profiles === 'object') {
+            // Si c'est un objet direct
+            username = affiliateData.profiles.username || 'Utilisateur'
+          }
+        }
+        
         setReferralInfo({
-          code: data.code,
-          username: data.profiles?.username || 'Utilisateur',
+          code: affiliateData.code,
+          username: username,
           isDemo: false
         })
       }
@@ -672,7 +698,7 @@ function SignUpForm() {
               whileHover={{ scale: loading ? 1 : 1.02 }}
               whileTap={{ scale: loading ? 1 : 0.98 }}
               type="submit"
-              disabled={loading || (formData.birthDate && calculateAge(formData.birthDate) < 18)}
+              disabled={loading || (formData.birthDate !== '' && calculateAge(formData.birthDate) < 18)}
               className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
             >
               {loading ? (

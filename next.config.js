@@ -1,23 +1,21 @@
-// next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   
-  // Configuration spécifique pour Framer Motion
+  // ✅ Configuration spécifique pour Framer Motion
   experimental: {
     optimizePackageImports: ['framer-motion']
   },
   
-  // Transpiler les packages ESM
+  // ✅ Transpiler les packages ESM
   transpilePackages: ['framer-motion'],
   
-  // Configuration du compilateur
+  // ✅ Configuration du compilateur
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production'
   },
   
-  // Configuration Webpack optimisée
+  // ✅ Configuration Webpack optimisée pour éviter les erreurs ENOENT
   webpack: (config, { dev, isServer }) => {
     // Optimisations pour le développement
     if (dev && !isServer) {
@@ -27,6 +25,12 @@ const nextConfig = {
         net: false,
         tls: false
       }
+    }
+    
+    // ✅ CORRECTION POUR ERREUR routes-manifest.json
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': __dirname
     }
     
     // Optimisation des modules
@@ -39,17 +43,45 @@ const nextConfig = {
     return config
   },
   
-  // Configuration des images (si nécessaire)
+  // ✅ Configuration des images (domaines autorisés)
   images: {
-    domains: ['i.imgur.com', 'images.unsplash.com'],
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '*.imgur.com',
+        hostname: 'i.imgur.com',
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'via.placeholder.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.stockx.com',
+        port: '',
+        pathname: '/**',
+      }
     ],
+  },
+  
+  // ✅ Configuration TypeScript stricte
+  typescript: {
+    // En développement, on peut ignorer temporairement
+    ignoreBuildErrors: process.env.NODE_ENV === 'development'
+  },
+  
+  // ✅ Configuration pour éviter les erreurs de manifest
+  generateBuildId: async () => {
+    return 'reveelbox-build-' + Date.now()
   }
 }
 

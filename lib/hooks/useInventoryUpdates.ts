@@ -1,7 +1,7 @@
 // hooks/useInventoryUpdates.ts - Hook pour gérer les mises à jour d'inventaire en temps réel
 
 import { useEffect, useState, useCallback } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@/utils/supabase/client'
 
 interface InventoryUpdate {
   type: 'inventory' | 'profile' | 'transaction'
@@ -12,7 +12,7 @@ interface InventoryUpdate {
 export function useInventoryUpdates(userId: string | null) {
   const [triggerUpdate, setTriggerUpdate] = useState(0)
   const [lastUpdate, setLastUpdate] = useState<InventoryUpdate | null>(null)
-  const supabase = createClientComponentClient()
+  const supabase = createClient()
 
   const handleUpdate = useCallback((update: InventoryUpdate) => {
     console.log('🔄 Real-time update received:', update)
@@ -179,3 +179,5 @@ export function useRealTimeNotifications(userId: string | null) {
     removeNotification
   }
 }
+
+

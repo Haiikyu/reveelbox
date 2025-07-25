@@ -4,6 +4,36 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Coins, Gift, Sparkles, X, Crown, Star } from 'lucide-react'
 
+// Types pour les props
+interface LootBox {
+  id: string
+  name: string
+  description: string
+  price_virtual: number
+  image_url: string
+}
+
+interface OpeningResult {
+  success: boolean
+  item?: {
+    id: string
+    name: string
+    description: string
+    rarity: string
+    market_value: number
+    image_url: string
+  }
+}
+
+interface BoxOpeningModalProps {
+  isOpen: boolean
+  onClose: () => void
+  lootBox: LootBox | null
+  userCoins: number
+  onOpenBox: (boxId: string) => Promise<OpeningResult>
+  isOpening?: boolean
+}
+
 export function BoxOpeningModal({ 
   isOpen, 
   onClose, 
@@ -11,11 +41,13 @@ export function BoxOpeningModal({
   userCoins, 
   onOpenBox,
   isOpening = false 
-}) {
+}: BoxOpeningModalProps) {
   const [showResult, setShowResult] = useState(false)
-  const [openingResult, setOpeningResult] = useState(null)
+  const [openingResult, setOpeningResult] = useState<OpeningResult | null>(null)
 
   const handleOpenBox = async () => {
+    if (!lootBox) return
+    
     const result = await onOpenBox(lootBox.id)
     
     if (result.success) {
@@ -31,7 +63,7 @@ export function BoxOpeningModal({
     }
   }
 
-  const getRarityColor = (rarity) => {
+  const getRarityColor = (rarity: string) => {
     switch (rarity) {
       case 'legendary': return 'from-yellow-400 to-yellow-600'
       case 'epic': return 'from-purple-400 to-purple-600'
@@ -40,7 +72,7 @@ export function BoxOpeningModal({
     }
   }
 
-  const getRarityIcon = (rarity) => {
+  const getRarityIcon = (rarity: string) => {
     switch (rarity) {
       case 'legendary': return <Crown className="h-8 w-8" />
       case 'epic': return <Sparkles className="h-8 w-8" />
@@ -65,14 +97,14 @@ export function BoxOpeningModal({
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
           onClick={(e) => e.stopPropagation()}
-          className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+          className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden relative"
         >
           {!showResult ? (
             // Vue d'ouverture
             <div className="p-8 text-center">
               <button
                 onClick={onClose}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10"
               >
                 <X className="h-6 w-6" />
               </button>
@@ -156,7 +188,7 @@ export function BoxOpeningModal({
                 transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
                 className="mb-6"
               >
-                <div className={`w-32 h-32 mx-auto bg-gradient-to-br ${getRarityColor(openingResult?.item?.rarity)} rounded-2xl flex items-center justify-center shadow-2xl mb-4 relative overflow-hidden`}>
+                <div className={`w-32 h-32 mx-auto bg-gradient-to-br ${getRarityColor(openingResult?.item?.rarity || 'common')} rounded-2xl flex items-center justify-center shadow-2xl mb-4 relative overflow-hidden`}>
                   {openingResult?.item?.image_url ? (
                     <img 
                       src={openingResult.item.image_url} 
@@ -165,7 +197,7 @@ export function BoxOpeningModal({
                     />
                   ) : (
                     <div className="text-white">
-                      {getRarityIcon(openingResult?.item?.rarity)}
+                      {getRarityIcon(openingResult?.item?.rarity || 'common')}
                     </div>
                   )}
                   
@@ -191,8 +223,8 @@ export function BoxOpeningModal({
                   {openingResult?.item?.name}
                 </h3>
                 
-                <div className={`inline-block px-4 py-2 rounded-full text-white font-bold mb-4 bg-gradient-to-r ${getRarityColor(openingResult?.item?.rarity)}`}>
-                  {openingResult?.item?.rarity?.toUpperCase()}
+                <div className={`inline-block px-4 py-2 rounded-full text-white font-bold mb-4 bg-gradient-to-r ${getRarityColor(openingResult?.item?.rarity || 'common')}`}>
+                  {openingResult?.item?.rarity?.toUpperCase() || 'COMMON'}
                 </div>
                 
                 <div className="bg-gray-50 rounded-xl p-4 mb-4">

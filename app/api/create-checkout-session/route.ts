@@ -19,18 +19,17 @@ export async function POST(request: NextRequest) {
       package_name
     })
 
-    // Vérifier l'authentification avec le nouveau système
-    const supabase = createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+  const supabase = await createClient()
 
-    if (authError || !user || user.id !== user_id) {
-      console.error('❌ Erreur auth:', authError)
-      return NextResponse.json(
-        { error: 'Non autorisé' },
-        { status: 401 }
-      )
-    }
+  const {
+    data:  { user },
+    error: authError,
+  } = await supabase.auth.getUser()
 
+  if (authError || !user || user.id !== user_id) {
+    console.error('❌ Erreur auth :', authError)
+    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+  }
     // Valider les données
     if (!package_id || !coins || !price || !package_name) {
       return NextResponse.json(

@@ -1,6 +1,6 @@
 // lib/freedrop.ts - Fonctions utilitaires pour le système de freedrop
 
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@/utils/supabase/client'
 
 export interface DailyBox {
   id: string
@@ -51,7 +51,7 @@ export interface StreakReward {
 }
 
 export class FreedropService {
-  private supabase = createClientComponentClient()
+  private supabase = createClient()
 
   /**
    * Récupère toutes les caisses quotidiennes disponibles
@@ -93,9 +93,16 @@ export class FreedropService {
         return this.getTestDailyBoxes()
       }
 
-      return data.map(box => ({
-        ...box,
-        rarity: this.calculateBoxRarity(box.required_level)
+      // ✅ CORRECTION TypeScript - Mapping sécurisé avec assertion de type
+      return data.map((box: any): DailyBox => ({
+        id: box.id,
+        name: box.name,
+        description: box.description,
+        required_level: box.required_level,
+        image_url: box.image_url,
+        max_reward_value: box.max_reward_value,
+        rarity: this.calculateBoxRarity(box.required_level),
+        loot_box_items: box.loot_box_items || []
       }))
     } catch (error) {
       console.error('Error in getDailyBoxes:', error)
@@ -208,9 +215,9 @@ export class FreedropService {
         success: true,
         item: {
           ...obtainedItem,
-          xpGained: data.xp_gained
+          xpGained: data?.xp_gained || 10
         },
-        xpGained: data.xp_gained
+        xpGained: data?.xp_gained || 10
       }
     } catch (error) {
       console.error('Error in claimDailyBox:', error)

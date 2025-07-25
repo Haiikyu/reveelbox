@@ -3,7 +3,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, Variants } from 'framer-motion'
 import { Search, Coins, ArrowRight } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { LoadingState } from '../components/ui/LoadingState'
@@ -26,8 +26,8 @@ interface LootBox {
   new?: boolean
 }
 
-// Variantes d'animation optimisées
-const containerVariants = {
+// Variantes d'animation optimisées avec types corrects
+const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
@@ -38,8 +38,12 @@ const containerVariants = {
   }
 }
 
-const itemVariants = {
-  hidden: { opacity: 0, y: 50, rotateY: -10 },
+const itemVariants: Variants = {
+  hidden: { 
+    opacity: 0, 
+    y: 50, 
+    rotateY: -10 
+  },
   visible: {
     opacity: 1,
     y: 0,
@@ -61,6 +65,7 @@ export default function BoxesPage() {
   const [selectedRarity, setSelectedRarity] = useState('all')
   
   const router = useRouter()
+  const supabase = createClient()
 
   // Calculer la rareté selon le prix
   const calculateRarityFromPrice = (price: number): string => {
@@ -93,7 +98,6 @@ export default function BoxesPage() {
     const fetchBoxes = async () => {
       try {
         setLoading(true)
-        const supabase = createClient()
         
         // Charger toutes les boîtes actives depuis Supabase
         const { data: boxesData, error } = await supabase
@@ -107,7 +111,7 @@ export default function BoxesPage() {
           console.error('Erreur lors du chargement des boîtes:', error)
           
           // Fallback avec données de test si aucune boîte en DB
-          const testBoxes = [
+          const testBoxes: LootBox[] = [
             {
               id: 'test-1',
               name: 'MYSTERY TECH BOX',
@@ -146,7 +150,7 @@ export default function BoxesPage() {
           console.log('Aucune boîte trouvée en base')
           
           // Fallback avec données de test
-          const testBoxes = [
+          const testBoxes: LootBox[] = [
             {
               id: 'test-1',
               name: 'MYSTERY TECH BOX',
@@ -182,7 +186,7 @@ export default function BoxesPage() {
         }
 
         // Mapper les données et calculer la rareté selon le prix
-        const mappedBoxes = boxesData.map(box => ({
+        const mappedBoxes: LootBox[] = boxesData.map(box => ({
           ...box,
           rarity: calculateRarityFromPrice(box.price_virtual),
           limited: box.price_virtual >= 350,
@@ -203,7 +207,7 @@ export default function BoxesPage() {
     if (!authLoading && isAuthenticated) {
       fetchBoxes()
     }
-  }, [authLoading, isAuthenticated])
+  }, [authLoading, isAuthenticated, supabase])
 
   // Filtres de rareté
   const rarityFilters = [

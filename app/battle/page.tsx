@@ -22,8 +22,8 @@ interface User {
 interface Profile {
   id: string;
   username?: string;
-  virtual_currency: number;
-  loyalty_points: number;
+  virtual_currency?: number;
+  loyalty_points?: number;
 }
 
 interface LootBox {
@@ -94,6 +94,19 @@ export default function BattlesListingPage() {
   const showNotification = (type: Notification['type'], message: string) => {
     setNotification({ type, message });
     setTimeout(() => setNotification({ type: 'success', message: '' }), 4000);
+  };
+
+  // ✅ FONCTION UTILITAIRE POUR OBTENIR LA CURRENCY DE MANIERE SURE
+  const getUserCurrency = (): number => {
+    if (!authProfile || typeof authProfile.virtual_currency !== 'number') {
+      return 0;
+    }
+    return authProfile.virtual_currency;
+  };
+
+  // ✅ FONCTION POUR VERIFIER SI L'UTILISATEUR PEUT SE PERMETTRE UNE BATTLE
+  const canAffordBattle = (entryCost: number): boolean => {
+    return getUserCurrency() >= entryCost;
   };
 
   // Redirection si non authentifié
@@ -259,7 +272,7 @@ export default function BattlesListingPage() {
     const battle = battles.find(b => b.id === battleId);
     if (!battle) return;
 
-    if (authProfile.virtual_currency < battle.entry_cost) {
+    if (!canAffordBattle(battle.entry_cost)) {
       showNotification('error', 'Coins insuffisants pour rejoindre cette battle');
       return;
     }
@@ -443,7 +456,7 @@ export default function BattlesListingPage() {
                   <div className="text-xs text-gray-600">Total</div>
                 </div>
                 <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-                  <div className="text-2xl font-bold text-yellow-600">{authProfile?.virtual_currency?.toLocaleString() || 0}</div>
+                  <div className="text-2xl font-bold text-yellow-600">{getUserCurrency().toLocaleString()}</div>
                   <div className="text-xs text-gray-600">Vos coins</div>
                 </div>
               </div>
@@ -471,7 +484,7 @@ export default function BattlesListingPage() {
                     const availableBattle = battles.find(b => 
                       b.status === 'waiting' && 
                       b.participants.length < b.max_players &&
-                      (authProfile?.virtual_currency || 0) >= b.entry_cost &&
+                      canAffordBattle(b.entry_cost) &&
                       !b.participants.some(p => p.user_id === authUser?.id)
                     );
                     
@@ -555,7 +568,7 @@ export default function BattlesListingPage() {
                 const StatusIcon = statusConfig.icon;
                 const canJoin = battle.status === 'waiting' && 
                               battle.participants.length < battle.max_players &&
-                              (authProfile?.virtual_currency || 0) >= battle.entry_cost &&
+                              canAffordBattle(battle.entry_cost) &&
                               !battle.participants.some(p => p.user_id === authUser?.id);
                 
                 return (
@@ -752,7 +765,7 @@ export default function BattlesListingPage() {
                           </button>
                         )}
                         
-                        {battle.status === 'waiting' && !canJoin && !battle.participants.some(p => p.user_id === authUser?.id) && (authProfile?.virtual_currency || 0) < battle.entry_cost && (
+                        {battle.status === 'waiting' && !canJoin && !battle.participants.some(p => p.user_id === authUser?.id) && !canAffordBattle(battle.entry_cost) && (
                           <button
                             disabled
                             className="flex-1 bg-gray-300 text-gray-500 px-6 py-4 rounded-xl font-bold cursor-not-allowed flex items-center justify-center gap-2"
@@ -829,7 +842,7 @@ export default function BattlesListingPage() {
                     const waitingBattle = battles.find(b => 
                       b.status === 'waiting' && 
                       b.participants.length < b.max_players &&
-                      (authProfile?.virtual_currency || 0) >= b.entry_cost &&
+                      canAffordBattle(b.entry_cost) &&
                       !b.participants.some(p => p.user_id === authUser?.id)
                     );
                     
