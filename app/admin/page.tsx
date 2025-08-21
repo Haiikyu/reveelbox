@@ -16,6 +16,7 @@ interface LootBox {
   price_real?: number;
   price_virtual?: number;
   is_active: boolean;
+  is_daily_free: boolean;
   created_at: string;
   items_count?: number;
 }
@@ -25,7 +26,7 @@ interface Item {
   name: string;
   description: string | null;
   image_url: string;
-  value: number;
+  market_value: number; // Corrigé de "value" vers "market_value"
   rarity: string;
   created_at: string;
 }
@@ -34,7 +35,7 @@ interface LootBoxItem {
   id: string;
   loot_box_id: string;
   item_id: string;
-  drop_rate: number; // Pourcentage de chance
+  probability: number; // Pourcentage de chance
   items?: Item; // Jointure avec la table items
 }
 
@@ -165,18 +166,20 @@ const AdminPage = () => {
     description: '',
     image_url: '',
     price_virtual: 100,
-    is_active: true
+    price_real: 9.99,
+    is_active: true,
+    is_daily_free: false
   });
   const [itemForm, setItemForm] = useState({
     name: '',
     description: '',
     image_url: '',
-    value: 10,
+    market_value: 10,
     rarity: 'common'
   });
   const [boxItemForm, setBoxItemForm] = useState({
     item_id: '',
-    drop_rate: ''
+    probability: ''
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -187,31 +190,46 @@ const AdminPage = () => {
       return;
     }
     
-    // Vérifier si l'utilisateur est admin (ajustez selon votre logique)
+    // Vérifier si l'utilisateur est admin
     if (user && user.email !== 'admin@reveelbox.com') {
-      console.warn('Accès admin refusé');
+      console.warn('Accès admin refusé pour:', user.email);
       router.push('/');
       return;
     }
   }, [authLoading, isAuthenticated, user, router]);
 
-  // Chargement des données
+  // Chargement des données au démarrage avec gestion d'erreurs
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (isAuthenticated && user && user.email === 'admin@reveelbox.com') {
       loadData();
     }
   }, [isAuthenticated, user]);
 
   const loadData = async () => {
+    console.log('Démarrage du chargement des données...');
     try {
       setLoading(true);
-      await Promise.all([
+      setErrors({});
+      
+      // Charger les données en parallèle
+      const results = await Promise.allSettled([
         loadBoxes(),
         loadItems(),
         loadBoxItems()
       ]);
+      
+      // Vérifier les résultats
+      results.forEach((result, index) => {
+        const names = ['boxes', 'items', 'box items'];
+        if (result.status === 'rejected') {
+          console.error(`Erreur chargement ${names[index]}:`, result.reason);
+        }
+      });
+      
+      console.log('Chargement terminé');
     } catch (error) {
-      console.error('Erreur lors du chargement:', error);
+      console.error('Erreur générale lors du chargement:', error);
+      setErrors({ general: 'Erreur lors du chargement des données' });
     } finally {
       setLoading(false);
     }
@@ -219,72 +237,110 @@ const AdminPage = () => {
 
   // Fonctions de chargement des données
   const loadBoxes = async () => {
-    const { data, error } = await supabase
-      .from('loot_boxes')
-      .select(`
-        id,
-        name,
-        description,
-        image_url,
-        price_virtual,
-        price_real,
-        is_active,
-        created_at,
-        loot_box_items(count)
-      `)
-      .order('created_at', { ascending: false });
+    try {
+      // D'abord, charger les boxes
+      const { data: boxesData, error: boxesError } = await supabase
+        .from('loot_boxes')
+        .select(`
+          id,
+          name,
+          description,
+          image_url,
+          price_virtual,
+          price_real,
+          is_active,
+          is_daily_free,
+          created_at
+        `)
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Erreur chargement boxes:', error);
-      return;
+      if (boxesError) {
+        console.error('Erreur chargement boxes:', boxesError);
+        setErrors({ general: 'Erreur lors du chargement des boxes' });
+        return;
+      }
+
+      // Ensuite, compter les items pour chaque box
+      const boxesWithCount = await Promise.all(
+        (boxesData || []).map(async (box) => {
+          const { count, error: countError } = await supabase
+            .from('loot_box_items')
+            .select('*', { count: 'exact', head: true })
+            .eq('loot_box_id', box.id);
+
+          if (countError) {
+            console.warn('Erreur count pour box', box.id, countError);
+          }
+
+          return {
+            ...box,
+            items_count: count || 0
+          };
+        })
+      );
+
+      setBoxes(boxesWithCount);
+    } catch (error) {
+      console.error('Erreur dans loadBoxes:', error);
+      setErrors({ general: 'Erreur lors du chargement des boxes' });
     }
-
-    // Ajouter le count des items
-    const boxesWithCount = data.map(box => ({
-      ...box,
-      items_count: box.loot_box_items?.[0]?.count || 0
-    }));
-
-    setBoxes(boxesWithCount);
   };
 
   const loadItems = async () => {
-    const { data, error } = await supabase
-      .from('items')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('items')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Erreur chargement items:', error);
-      return;
+      if (error) {
+        console.error('Erreur chargement items:', error);
+        setErrors({ general: 'Erreur lors du chargement des items' });
+        return;
+      }
+
+      setItems(data || []);
+    } catch (error) {
+      console.error('Erreur dans loadItems:', error);
+      setErrors({ general: 'Erreur lors du chargement des items' });
     }
-
-    setItems(data || []);
   };
 
   const loadBoxItems = async () => {
-    const { data, error } = await supabase
-      .from('loot_box_items')
-      .select(`
-        id,
-        loot_box_id,
-        item_id,
-        drop_rate,
-        items (
+    try {
+      console.log('Chargement des box items...');
+      const { data, error } = await supabase
+        .from('loot_box_items')
+        .select(`
           id,
-          name,
-          image_url,
-          value,
-          rarity
-        )
-      `);
+          loot_box_id,
+          item_id,
+          probability,
+          items!inner (
+            id,
+            name,
+            image_url,
+            market_value,
+            rarity
+          )
+        `);
 
-    if (error) {
-      console.error('Erreur chargement box items:', error);
-      return;
+      if (error) {
+        console.error('Erreur chargement box items (détail):', error);
+        // Ne pas bloquer si c'est juste une erreur de jointure
+        if (error.code !== 'PGRST116') {
+          setErrors({ general: `Erreur box items: ${error.message}` });
+        }
+        setBoxItems([]);
+        return;
+      }
+
+      console.log('Box items chargés:', data?.length || 0);
+      setBoxItems(data || []);
+    } catch (error) {
+      console.error('Erreur inattendue dans loadBoxItems:', error);
+      setBoxItems([]);
     }
-
-    setBoxItems(data || []);
   };
 
   // Fonctions de validation
@@ -293,6 +349,7 @@ const AdminPage = () => {
     if (!boxForm.name.trim()) newErrors.name = 'Le nom est requis';
     if (!boxForm.image_url.trim()) newErrors.image_url = 'L\'image est requise';
     if (!boxForm.price_virtual || boxForm.price_virtual <= 0) newErrors.price_virtual = 'Le prix doit être supérieur à 0';
+    if (!boxForm.price_real || boxForm.price_real <= 0) newErrors.price_real = 'Le prix réel doit être supérieur à 0';
     return newErrors;
   };
   
@@ -300,16 +357,16 @@ const AdminPage = () => {
     const newErrors: Record<string, string> = {};
     if (!itemForm.name.trim()) newErrors.name = 'Le nom est requis';
     if (!itemForm.image_url.trim()) newErrors.image_url = 'L\'image est requise';
-    if (!itemForm.value || itemForm.value <= 0) newErrors.value = 'La valeur doit être supérieure à 0';
+    if (!itemForm.market_value || itemForm.market_value <= 0) newErrors.market_value = 'La valeur doit être supérieure à 0';
     return newErrors;
   };
   
   const validateBoxItemForm = () => {
     const newErrors: Record<string, string> = {};
     if (!boxItemForm.item_id) newErrors.item_id = 'Sélectionnez un item';
-    const dropRate = parseFloat(boxItemForm.drop_rate);
-    if (!boxItemForm.drop_rate || dropRate <= 0 || dropRate > 100) {
-      newErrors.drop_rate = 'Le pourcentage doit être entre 0.01 et 100';
+    const probability = parseFloat(boxItemForm.probability);
+    if (!boxItemForm.probability || probability <= 0 || probability > 100) {
+      newErrors.probability = 'Le pourcentage doit être entre 0.01 et 100';
     }
     return newErrors;
   };
@@ -324,25 +381,35 @@ const AdminPage = () => {
     
     setSubmitting(true);
     try {
+      // Préparer les données pour l'insertion
+      const boxData = {
+        name: boxForm.name.trim(),
+        description: boxForm.description?.trim() || null,
+        image_url: boxForm.image_url.trim(),
+        price_virtual: boxForm.price_virtual,
+        is_active: boxForm.is_active
+      };
+
       const { data, error } = await supabase
         .from('loot_boxes')
-        .insert([boxForm])
+        .insert([boxData])
         .select()
         .single();
 
       if (error) {
         console.error('Erreur création box:', error);
-        setErrors({ general: 'Erreur lors de la création de la box' });
+        setErrors({ general: `Erreur lors de la création: ${error.message}` });
         return;
       }
 
+      console.log('Box créée avec succès:', data);
       await loadBoxes(); // Recharger la liste
-      setBoxForm({ name: '', description: '', image_url: '', price_virtual: 100, is_active: true });
+      setBoxForm({ name: '', description: '', image_url: '', price_virtual: 100, price_real: 9.99, is_active: true, is_daily_free: false });
       setShowBoxModal(false);
       setErrors({});
     } catch (error) {
-      console.error('Erreur:', error);
-      setErrors({ general: 'Erreur lors de la création' });
+      console.error('Erreur inattendue:', error);
+      setErrors({ general: 'Erreur inattendue lors de la création' });
     } finally {
       setSubmitting(false);
     }
@@ -355,7 +422,9 @@ const AdminPage = () => {
       description: box.description || '',
       image_url: box.image_url,
       price_virtual: box.price_virtual || 100,
-      is_active: box.is_active
+      price_real: box.price_real || 9.99,
+      is_active: box.is_active,
+      is_daily_free: box.is_daily_free
     });
     setShowBoxModal(true);
   };
@@ -384,7 +453,7 @@ const AdminPage = () => {
 
       await loadBoxes();
       setSelectedBox(null);
-      setBoxForm({ name: '', description: '', image_url: '', price_virtual: 100, is_active: true });
+                setBoxForm({ name: '', description: '', image_url: '', price_virtual: 100, price_real: 9.99, is_active: true, is_daily_free: false });
       setShowBoxModal(false);
       setErrors({});
     } catch (error) {
@@ -438,7 +507,7 @@ const AdminPage = () => {
       }
 
       await loadItems();
-      setItemForm({ name: '', description: '', image_url: '', value: 10, rarity: 'common' });
+      setItemForm({ name: '', description: '', image_url: '', market_value: 10, rarity: 'common' });
       setShowItemModal(false);
       setErrors({});
     } catch (error) {
@@ -455,7 +524,7 @@ const AdminPage = () => {
       name: item.name,
       description: item.description || '',
       image_url: item.image_url,
-      value: item.value,
+      market_value: item.market_value,
       rarity: item.rarity
     });
     setShowItemModal(true);
@@ -485,7 +554,7 @@ const AdminPage = () => {
 
       await loadItems();
       setSelectedItem(null);
-      setItemForm({ name: '', description: '', image_url: '', value: 10, rarity: 'common' });
+      setItemForm({ name: '', description: '', image_url: '', market_value: 10, rarity: 'common' });
       setShowItemModal(false);
       setErrors({});
     } catch (error) {
@@ -526,7 +595,7 @@ const AdminPage = () => {
   const getTotalDropRate = (boxId: string) => {
     return boxItems
       .filter(bi => bi.loot_box_id === boxId)
-      .reduce((total, bi) => total + bi.drop_rate, 0);
+      .reduce((total, bi) => total + bi.probability, 0);
   };
   
   const handleAddBoxItem = async () => {
@@ -539,10 +608,10 @@ const AdminPage = () => {
     }
     
     const currentTotal = getTotalDropRate(selectedBox.id);
-    const newDropRate = parseFloat(boxItemForm.drop_rate);
+    const newProbability = parseFloat(boxItemForm.probability);
     
-    if (currentTotal + newDropRate > 100) {
-      setErrors({ drop_rate: `Le total des pourcentages dépasserait 100% (actuellement ${currentTotal.toFixed(2)}%)` });
+    if (currentTotal + newProbability > 100) {
+      setErrors({ probability: `Le total des pourcentages dépasserait 100% (actuellement ${currentTotal.toFixed(2)}%)` });
       return;
     }
     
@@ -558,26 +627,30 @@ const AdminPage = () => {
     
     setSubmitting(true);
     try {
+      // Préparer les données pour l'insertion
+      const boxItemData = {
+        loot_box_id: selectedBox.id,
+        item_id: boxItemForm.item_id,
+        probability: newProbability
+      };
+
       const { error } = await supabase
         .from('loot_box_items')
-        .insert([{
-          loot_box_id: selectedBox.id,
-          item_id: boxItemForm.item_id,
-          drop_rate: newDropRate
-        }]);
+        .insert([boxItemData]);
 
       if (error) {
         console.error('Erreur ajout box item:', error);
-        setErrors({ general: 'Erreur lors de l\'ajout de l\'item' });
+        setErrors({ general: `Erreur lors de l'ajout: ${error.message}` });
         return;
       }
 
+      console.log('Item ajouté avec succès à la box');
       await loadData();
-      setBoxItemForm({ item_id: '', drop_rate: '' });
+      setBoxItemForm({ item_id: '', probability: '' });
       setErrors({});
     } catch (error) {
-      console.error('Erreur:', error);
-      setErrors({ general: 'Erreur lors de l\'ajout' });
+      console.error('Erreur inattendue:', error);
+      setErrors({ general: 'Erreur inattendue lors de l\'ajout' });
     } finally {
       setSubmitting(false);
     }
@@ -709,18 +782,25 @@ const AdminPage = () => {
                           <div className="p-4">
                             <div className="flex items-center justify-between mb-2">
                               <h3 className="font-semibold text-gray-900">{box.name}</h3>
-                              <span className={`px-2 py-1 text-xs rounded-full ${
-                                box.is_active 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-gray-100 text-gray-800'
-                              }`}>
-                                {box.is_active ? 'Actif' : 'Inactif'}
-                              </span>
+                              <div className="flex gap-1">
+                                <span className={`px-2 py-1 text-xs rounded-full ${
+                                  box.is_active 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {box.is_active ? 'Actif' : 'Inactif'}
+                                </span>
+                                {box.is_daily_free && (
+                                  <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
+                                    FreeDrop
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             <p className="text-gray-600 text-sm mb-3">{box.description}</p>
                             <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                               <span>{box.items_count} items</span>
-                              <span>{box.price_virtual} coins</span>
+                              <span>{box.is_daily_free ? 'Gratuit' : `${box.price_virtual} coins`}</span>
                             </div>
                             <div className="flex gap-2">
                               <Button 
@@ -796,7 +876,7 @@ const AdminPage = () => {
                           <div className="p-3">
                             <h3 className="font-medium text-gray-900 mb-1 truncate">{item.name}</h3>
                             <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
-                              <span>{item.value}€</span>
+                              <span>{item.market_value}€</span>
                               <span className={`px-2 py-1 text-xs rounded-full capitalize ${
                                 item.rarity === 'legendary' ? 'bg-yellow-100 text-yellow-800' :
                                 item.rarity === 'epic' ? 'bg-purple-100 text-purple-800' :
@@ -842,7 +922,7 @@ const AdminPage = () => {
         onClose={() => {
           setShowBoxModal(false);
           setSelectedBox(null);
-          setBoxForm({ name: '', description: '', image_url: '', price_virtual: 100, is_active: true });
+          setBoxForm({ name: '', description: '', image_url: '', price_virtual: 100, price_real: 9.99, is_active: true, is_daily_free: false });
           setErrors({});
         }}
         title={selectedBox ? 'Modifier la Box' : 'Nouvelle Box'}
@@ -886,9 +966,20 @@ const AdminPage = () => {
             type="number"
             min="1"
             value={boxForm.price_virtual}
-            onChange={(e) => setBoxForm({...boxForm, price_virtual: parseInt(e.target.value)})}
+            onChange={(e) => setBoxForm({...boxForm, price_virtual: parseInt(e.target.value) || 0})}
             placeholder="100"
             error={errors.price_virtual}
+          />
+          
+          <Input
+            label="Prix réel en euros *"
+            type="number"
+            min="0.01"
+            step="0.01"
+            value={boxForm.price_real}
+            onChange={(e) => setBoxForm({...boxForm, price_real: parseFloat(e.target.value) || 0})}
+            placeholder="9.99"
+            error={errors.price_real}
           />
           
           <div className="space-y-1">
@@ -901,6 +992,23 @@ const AdminPage = () => {
               <option value="true">Actif</option>
               <option value="false">Inactif</option>
             </select>
+          </div>
+          
+          <div className="space-y-1">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={boxForm.is_daily_free}
+                onChange={(e) => setBoxForm({...boxForm, is_daily_free: e.target.checked})}
+                className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 focus:ring-2"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                Box FreeDrop (gratuite quotidienne)
+              </span>
+            </label>
+            <p className="text-xs text-gray-500">
+              Si coché, cette box sera disponible gratuitement une fois par jour
+            </p>
           </div>
           
           {boxForm.image_url && (
@@ -994,10 +1102,10 @@ const AdminPage = () => {
             type="number"
             min="0.01"
             step="0.01"
-            value={itemForm.value}
-            onChange={(e) => setItemForm({...itemForm, value: parseFloat(e.target.value)})}
+            value={itemForm.market_value}
+            onChange={(e) => setItemForm({...itemForm, market_value: parseFloat(e.target.value) || 0})}
             placeholder="10.99"
-            error={errors.value}
+            error={errors.market_value}
           />
           
           <div className="space-y-1">
@@ -1061,7 +1169,7 @@ const AdminPage = () => {
         onClose={() => {
           setShowBoxItemsModal(false);
           setSelectedBox(null);
-          setBoxItemForm({ item_id: '', drop_rate: '' });
+          setBoxItemForm({ item_id: '', probability: '' });
           setErrors({});
         }}
         title={selectedBox ? `Gérer les items - ${selectedBox.name}` : ''}
@@ -1139,10 +1247,10 @@ const AdminPage = () => {
                   min="0.01"
                   max="100"
                   step="0.01"
-                  value={boxItemForm.drop_rate}
-                  onChange={(e) => setBoxItemForm({...boxItemForm, drop_rate: e.target.value})}
+                  value={boxItemForm.probability}
+                  onChange={(e) => setBoxItemForm({...boxItemForm, probability: e.target.value})}
                   placeholder="Ex: 25.5"
-                  error={errors.drop_rate}
+                  error={errors.probability}
                 />
                 
                 <div className="flex items-end">
@@ -1193,9 +1301,9 @@ const AdminPage = () => {
                             <div className="flex items-center gap-4 mt-1">
                               <div className="flex items-center gap-1">
                                 <Percent size={14} className="text-gray-400" />
-                                <span className="text-sm text-gray-600">{boxItem.drop_rate}%</span>
+                                <span className="text-sm text-gray-600">{boxItem.probability}%</span>
                               </div>
-                              <span className="text-sm text-gray-600">{boxItem.items?.value}€</span>
+                              <span className="text-sm text-gray-600">{boxItem.items?.market_value}€</span>
                               <span className={`px-2 py-1 text-xs rounded-full capitalize ${
                                 boxItem.items?.rarity === 'legendary' ? 'bg-yellow-100 text-yellow-800' :
                                 boxItem.items?.rarity === 'epic' ? 'bg-purple-100 text-purple-800' :
