@@ -1,549 +1,583 @@
+// app/battles/[id]/page.tsx
 'use client'
 
-import { useAuth } from '../../components/AuthProvider'
-import React, { useState, useEffect } from 'react'
-import { createClient } from '@/utils/supabase/client'
-import { motion, AnimatePresence } from 'framer-motion'
+import { use } from 'react' // Ajout de l'import use
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { 
-  ArrowLeft, Sword, Users, Lock, Globe, Settings, Check,
-  Trophy, Gift, Coins, AlertCircle, CheckCircle,
-  Loader2, Sparkles, X
-} from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { createClient } from '@/utils/supabase/client'
+import { useAuth } from '@/app/components/AuthProvider'
+import { motion, AnimatePresence } from 'framer-motion'
+import { z } from 'zod'
+import type { RealtimeChannel } from '@supabase/supabase-js'
+import { Roulette } from '@/app/components/battle/Roulette'
+import { PlayerPanel } from '@/app/components/battle/PlayerPanel'
+import { AddBotButton } from '@/app/components/battle/AddBotButton'
+import { EndSummaryModal } from '@/app/components/battle/EndSummaryModal'
+import { BattleHeader } from '@/app/components/battle/BattleHeader'
 
-// ✅ TYPES TYPESCRIPT CORRIGES
-interface LootBox {
-  id: string
-  name: string
-  description: string
-  price_virtual: number
-  price_real: number
-  image_url: string
-  category: string
-  rarity: string
-  is_active: boolean
+// === PALETTE ===
+const colors = {
+  bgPrimary: '#13151F',
+  surface: '#1C1F2B',
+  accent: '#4C5BF9',
+  highlight: '#FFC64C',
+  success: '#28FF6A',
+  error: '#FF4C4C',
+  textPrimary: '#FFFFFF',
+  textSecondary: '#9CA3AF'
+} as const
+
+// === REALTIME EVENTS ===
+const REALTIME_EVENTS = {
+  PLAYER_JOINED: 'player_joined',
+  BOT_ADDED: 'bot_added',
+  BATTLE_STARTED: 'battle_started',
+  BOX_OPENED: 'box_opened',
+  BATTLE_ENDED: 'battle_ended'
+} as const
+
+// === TYPES ===
+const PlayerSchema = z.object({
+  id: z.string(),
+  userId: z.string().nullable(),
+  battleId: z.string(),
+  username: z.string(),
+  avatar: z.string(),
+  team: z.enum(['A', 'B']).nullable(),
+  bot: z.boolean(),
+  totalValue: z.number(),
+  loots: z.array(z.object({
+    boxIndex: z.number(),
+    items: z.array(z.object({
+      id: z.string(),
+      name: z.string(),
+      image: z.string(),
+      value: z.number(),
+      rarity: z.string()
+    }))
+  }))
+})
+
+const BattleSchema = z.object({
+  id: z.string(),
+  mode: z.enum(['1v1', '2v2', '1v1v1']),
+  status: z.enum(['waiting', 'in_progress', 'completed']),
+  creatorId: z.string(),
+  boxes: z.array(z.string()),
+  players: z.array(PlayerSchema),
+  winners: z.array(z.string()).nullable(),
+  createdAt: z.string(),
+  startedAt: z.string().nullable(),
+  endedAt: z.string().nullable()
+})
+
+type Battle = z.infer<typeof BattleSchema>
+type Player = z.infer<typeof PlayerSchema>
+
+// === BATTLE STORE ===
+interface BattleStore {
+  battle: Battle | null
+  setBattle: (battle: Battle) => void
+  updatePlayer: (playerId: string, data: Partial<Player>) => void
+  addPlayer: (player: Player) => void
+  setStatus: (status: Battle['status']) => void
+  setWinners: (winners: string[]) => void
 }
 
-interface Profile {
-  id: string
-  username?: string
-  virtual_currency?: number  // ✅ Optionnel
-  loyalty_points?: number    // ✅ Optionnel
+const useBattleStore = (): [BattleStore, (fn: (store: BattleStore) => void) => void] => {
+  const [store, setStore] = useState<BattleStore>({
+    battle: null,
+    setBattle: (battle) => setStore(prev => {
+      // Ne pas mettre à jour si c'est la même battle
+      if (prev.battle?.id === battle.id) return prev
+      return { ...prev, battle }
+    }),
+    updatePlayer: (playerId, data) => setStore(prev => ({
+      ...prev,
+      battle: prev.battle ? {
+        ...prev.battle,
+        players: prev.battle.players.map(p => 
+          p.id === playerId ? { ...p, ...data } : p
+        )
+      } : null
+    })),
+    addPlayer: (player) => setStore(prev => ({
+      ...prev,
+      battle: prev.battle ? {
+        ...prev.battle,
+        players: [...prev.battle.players, player]
+      } : null
+    })),
+    setStatus: (status) => setStore(prev => ({
+      ...prev,
+      battle: prev.battle ? { ...prev.battle, status } : null
+    })),
+    setWinners: (winners) => setStore(prev => ({
+      ...prev,
+      battle: prev.battle ? { ...prev.battle, winners } : null
+    }))
+  })
+
+  const updateStore = useCallback((fn: (store: BattleStore) => void) => {
+    setStore(prev => {
+      const newStore = { ...prev }
+      fn(newStore)
+      return newStore
+    })
+  }, [])
+
+  return [store, updateStore]
 }
 
-interface Notification {
-  type: 'success' | 'error' | 'info'
-  message: string
-}
-
-export default function BoxOpeningPage() {
-  const { user, profile, loading: authLoading, isAuthenticated } = useAuth()
-  const [box, setBox] = useState<LootBox | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [opening, setOpening] = useState(false)
-  const [notification, setNotification] = useState<Notification>({ type: 'info', message: '' })
-  
+// === REALTIME HOOK ===
+const useBattleChannel = (battleId: string, store: BattleStore, updateStore: (fn: (store: BattleStore) => void) => void) => {
+  const [channel, setChannel] = useState<RealtimeChannel | null>(null)
   const supabase = createClient()
-  const router = useRouter()
+  const queryClient = useQueryClient()
 
-  // ✅ FONCTION UTILITAIRE POUR OBTENIR LA CURRENCY DE MANIERE SURE
-  const getUserCurrency = (): number => {
-    if (!profile || typeof profile.virtual_currency !== 'number') {
-      return 0
-    }
-    return profile.virtual_currency
-  }
-
-  // ✅ FONCTION POUR VERIFIER SI L'UTILISATEUR PEUT SE PERMETTRE UNE BOX
-  const canAffordBox = (boxPrice: number): boolean => {
-    return getUserCurrency() >= boxPrice
-  }
-
-  // ✅ FONCTION NOTIFICATION TYPEE
-  const showNotification = (type: Notification['type'], message: string) => {
-    setNotification({ type, message })
-    setTimeout(() => setNotification({ type: 'info', message: '' }), 4000)
-  }
-
-  // Protection de route standard
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push('/login')
-    } else if (!authLoading && isAuthenticated) {
-      loadBox()
-    }
-  }, [authLoading, isAuthenticated, router])
+    if (!battleId) return
 
-  const loadBox = async () => {
-    try {
-      setLoading(true)
-
-      // Récupérer l'ID de la box depuis l'URL
-      const url = window.location.pathname
-      const boxId = url.split('/').pop()
-
-      if (!boxId) {
-        showNotification('error', 'ID de boîte invalide')
-        router.push('/boxes')
-        return
-      }
-
-      // Charger la boîte depuis Supabase
-      const { data: boxData, error } = await supabase
-        .from('loot_boxes')
-        .select('*')
-        .eq('id', boxId)
-        .single()
-
-      if (error) {
-        console.warn('Erreur chargement boîte:', error)
-        
-        // Fallback avec données de test si erreur
-        const fallbackBox: LootBox = {
-          id: boxId,
-          name: 'BLINDSHOT SNEAKERS',
-          description: 'Une sélection exclusive des sneakers les plus recherchées du marché.',
-          price_virtual: 150,
-          price_real: 6.84,
-          image_url: 'https://i.imgur.com/8YwZmtP.png',
-          category: 'sneaker',
-          rarity: 'common',
-          is_active: true
-        }
-        
-        setBox(fallbackBox)
-        showNotification('error', 'Données de test utilisées - Vérifiez votre configuration')
-      } else {
-        setBox(boxData)
-        if (boxData) {
-          showNotification('success', `Boîte "${boxData.name}" chargée`)
-        }
-      }
-
-    } catch (error) {
-      console.error('Erreur chargement boîte:', error)
-      showNotification('error', 'Erreur lors du chargement')
-      
-      // Fallback d'urgence
-      const emergencyBox: LootBox = {
-        id: 'emergency-box',
-        name: 'Caisse Mystère',
-        description: 'Une caisse pleine de surprises !',
-        price_virtual: 100,
-        price_real: 4.99,
-        image_url: 'https://i.imgur.com/8YwZmtP.png',
-        category: 'mystery',
-        rarity: 'common',
-        is_active: true
-      }
-      setBox(emergencyBox)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const openBox = async () => {
-    if (!box || !user) {
-      showNotification('error', 'Erreur: boîte ou utilisateur introuvable')
-      return
-    }
-
-    // ✅ VERIFICATION CORRIGEE AVEC GESTION DES UNDEFINED
-    if (!canAffordBox(box.price_virtual)) {
-      showNotification('error', 'Coins insuffisants')
-      return
-    }
-
-    setOpening(true)
-    try {
-      console.log('🚀 Ouverture de la boîte...', {
-        boxId: box.id,
-        userId: user.id,
-        price: box.price_virtual,
-        userCurrency: getUserCurrency()
+    const battleChannel = supabase.channel(`battle:${battleId}`)
+      .on('broadcast', { event: REALTIME_EVENTS.PLAYER_JOINED }, ({ payload }) => {
+        updateStore(store => store.addPlayer(payload.player))
       })
-
-      // Simulation d'ouverture de boîte
-      setTimeout(() => {
-        // Items possibles avec probabilités
-        const possibleItems = [
-          { name: 'Air Jordan 1 Chicago', value: 500, rarity: 'legendary', probability: 5 },
-          { name: 'Nike Dunk Low Panda', value: 250, rarity: 'rare', probability: 15 },
-          { name: 'Yeezy Boost 350 V2', value: 300, rarity: 'epic', probability: 20 },
-          { name: 'New Balance 550', value: 120, rarity: 'common', probability: 35 },
-          { name: 'Nike SB Dunk High', value: 280, rarity: 'epic', probability: 15 },
-          { name: 'Air Force 1 Triple White', value: 90, rarity: 'common', probability: 10 }
-        ]
-
-        // Sélection aléatoire basée sur les probabilités
-        const random = Math.random() * 100
-        let cumulative = 0
-        let selectedItem = possibleItems[0]
-
-        for (const item of possibleItems) {
-          cumulative += item.probability
-          if (random <= cumulative) {
-            selectedItem = item
-            break
+      .on('broadcast', { event: REALTIME_EVENTS.BOT_ADDED }, ({ payload }) => {
+        updateStore(store => store.addPlayer(payload.bot))
+      })
+      .on('broadcast', { event: REALTIME_EVENTS.BATTLE_STARTED }, () => {
+        updateStore(store => {
+          store.setStatus('in_progress')
+          if (store.battle) {
+            store.setBattle({ ...store.battle, startedAt: new Date().toISOString() })
           }
-        }
+        })
+      })
+      .on('broadcast', { event: REALTIME_EVENTS.BOX_OPENED }, ({ payload }) => {
+        updateStore(store => {
+          const player = store.battle?.players.find(p => p.id === payload.playerId)
+          if (player) {
+            const newLoots = [...player.loots, { boxIndex: payload.boxIndex, items: payload.loot }]
+            const totalValue = newLoots.reduce((sum, loot) => 
+              sum + loot.items.reduce((itemSum, item) => itemSum + item.value, 0), 0
+            )
+            store.updatePlayer(payload.playerId, { loots: newLoots, totalValue })
+          }
+        })
+      })
+      .on('broadcast', { event: REALTIME_EVENTS.BATTLE_ENDED }, ({ payload }) => {
+        updateStore(store => {
+          store.setStatus('completed')
+          store.setWinners(payload.winners)
+          if (store.battle) {
+            store.setBattle({ ...store.battle, endedAt: new Date().toISOString() })
+          }
+        })
+        queryClient.invalidateQueries({ queryKey: ['battle', battleId] })
+      })
+      .subscribe()
 
-        console.log('🎁 Item gagné:', selectedItem)
-        
-        // Déduire les coins (simulation)
-        const newCurrency = Math.max(0, getUserCurrency() - box.price_virtual)
-        
-        showNotification('success', `Vous avez gagné: ${selectedItem.name} (${selectedItem.value} coins)!`)
-        
-        // Redirection vers l'inventaire après un délai
+    setChannel(battleChannel)
+
+    return () => {
+      battleChannel.unsubscribe()
+    }
+  }, [battleId, supabase, updateStore, queryClient])
+
+  return channel
+}
+
+function BattleRoom({ battle, userId }: { battle: Battle; userId: string }) {
+  const [openingBox, setOpeningBox] = useState<{ [playerId: string]: boolean }>({})
+  const [currentBoxIndex, setCurrentBoxIndex] = useState(0)
+  const queryClient = useQueryClient()
+  
+  const isCreator = battle.creatorId === userId
+  const requiredPlayers = battle.mode === '1v1' ? 2 : battle.mode === '2v2' ? 4 : 3
+  const hasEmptySlots = battle.players.length < requiredPlayers
+  
+  // Open box mutation
+  const openBoxMutation = useMutation({
+    mutationFn: async (playerId: string) => {
+      const res = await fetch(`/api/battles/${battle.id}/open`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ boxIndex: currentBoxIndex })
+      })
+      if (!res.ok) throw new Error('Failed to open box')
+      return res.json()
+    }
+  })
+  
+  // End battle mutation
+  const endBattleMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/battles/${battle.id}/end`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      if (!res.ok) throw new Error('Failed to end battle')
+      return res.json()
+    }
+  })
+  
+  const handleOpenBox = async () => {
+    if (battle.status !== 'in_progress') return
+    
+    // All players open simultaneously
+    const openPromises = battle.players.map(async (player) => {
+      setOpeningBox(prev => ({ ...prev, [player.id]: true }))
+      
+      try {
+        const result = await openBoxMutation.mutateAsync(player.id)
+        // Result will be broadcast via realtime
+      } catch (error) {
+        console.error(`Failed to open box for ${player.username}:`, error)
+      } finally {
         setTimeout(() => {
-          router.push('/inventory')
-        }, 3000)
-        
-        setOpening(false)
-      }, 3000) // Animation de 3 secondes
-
-    } catch (error: any) {
-      console.error('💥 Erreur ouverture boîte:', error)
-      showNotification('error', error.message || 'Erreur lors de l\'ouverture de la boîte')
-      setOpening(false)
+          setOpeningBox(prev => ({ ...prev, [player.id]: false }))
+        }, 2500)
+      }
+    })
+    
+    await Promise.all(openPromises)
+    
+    // Check if all boxes opened
+    if (currentBoxIndex + 1 >= battle.boxes.length) {
+      setTimeout(() => {
+        endBattleMutation.mutate()
+      }, 1000)
+    } else {
+      setCurrentBoxIndex(prev => prev + 1)
     }
   }
-
-  // ✅ FONCTIONS UTILITAIRES TYPEES
-  const getRarityColor = (rarity: string): string => {
-    switch (rarity) {
-      case 'legendary': return 'from-yellow-400 to-orange-500'
-      case 'epic': return 'from-purple-400 to-pink-500'
-      case 'rare': return 'from-blue-400 to-cyan-500'
-      default: return 'from-green-400 to-emerald-500'
+  
+  // Get player positions based on mode
+  const getPlayerLayout = () => {
+    if (battle.mode === '1v1') {
+      return {
+        left: battle.players[0],
+        right: battle.players[1]
+      }
+    } else if (battle.mode === '2v2') {
+      const teamA = battle.players.filter(p => p.team === 'A')
+      const teamB = battle.players.filter(p => p.team === 'B')
+      return { teamA, teamB }
+    } else {
+      return { players: battle.players }
     }
   }
-
-  const getRarityBadge = (rarity: string): { color: string; text: string } => {
-    switch (rarity) {
-      case 'legendary': return { color: 'bg-gradient-to-r from-yellow-500 to-orange-500', text: 'MYTHIC' }
-      case 'epic': return { color: 'bg-gradient-to-r from-purple-500 to-pink-500', text: 'EPIC' }
-      case 'rare': return { color: 'bg-gradient-to-r from-blue-500 to-cyan-500', text: 'RARE' }
-      default: return { color: 'bg-gradient-to-r from-green-500 to-emerald-500', text: 'COMMON' }
-    }
-  }
-
-  // Loading state standard
-  if (authLoading || !isAuthenticated || loading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            className="mb-4"
-          >
-            <Loader2 className="h-12 w-12 text-green-500 mx-auto" />
-          </motion.div>
-          <p className="text-gray-600 text-lg">
-            {authLoading ? 'Vérification authentification...' : 'Chargement de la boîte...'}
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!box) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Boîte introuvable</h2>
-          <p className="text-gray-600 mb-6">Cette boîte n'existe pas ou n'est plus disponible.</p>
-          <button
-            onClick={() => router.push('/boxes')}
-            className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-          >
-            Retour aux boîtes
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  const badge = getRarityBadge(box.rarity)
-  const userCurrency = getUserCurrency()
-
+  
+  const layout = getPlayerLayout()
+  
   return (
-    <div className="min-h-screen bg-white">
-      <div className="pt-24 pb-8">
-        <div className="max-w-4xl mx-auto px-4">
-          
-          {/* Notification */}
-          <AnimatePresence>
-            {notification.message && (
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className={`fixed top-24 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg border backdrop-blur-sm ${
-                  notification.type === 'error' 
-                    ? 'bg-red-50 border-red-200 text-red-800' 
-                    : notification.type === 'success'
-                    ? 'bg-green-50 border-green-200 text-green-800'
-                    : 'bg-blue-50 border-blue-200 text-blue-800'
-                }`}
-              >
-                {notification.type === 'error' ? (
-                  <AlertCircle className="h-5 w-5" />
-                ) : notification.type === 'success' ? (
-                  <CheckCircle className="h-5 w-5" />
-                ) : (
-                  <AlertCircle className="h-5 w-5" />
-                )}
-                <span className="text-sm font-medium">{notification.message}</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Header avec retour */}
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.push('/boxes')}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Retour</span>
-              </button>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  Ouverture de Boîte
-                </h1>
-                <p className="text-gray-600 mt-1">
-                  Découvrez ce que contient cette boîte mystère
-                </p>
-              </div>
+    <>
+      <BattleHeader
+        mode={battle.mode}
+        status={battle.status}
+        currentBox={currentBoxIndex}
+        totalBoxes={battle.boxes.length}
+        startedAt={battle.startedAt}
+      />
+      
+      <div className="flex-1 p-6">
+        {/* Waiting room */}
+        {battle.status === 'waiting' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center justify-center h-full"
+          >
+            <div className="text-2xl font-bold text-white mb-4">
+              Waiting for players...
+            </div>
+            <div className="text-lg text-gray-400 mb-8">
+              {battle.players.length} / {requiredPlayers} players joined
             </div>
             
-            {profile && (
-              <div className="bg-gray-100 rounded-lg px-4 py-2">
-                <div className="flex items-center gap-2">
-                  <Coins className="w-5 h-5 text-yellow-500" />
-                  <span className="font-bold text-lg">{userCurrency.toLocaleString()}</span>
-                  <span className="text-gray-600">coins</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Contenu principal */}
-          <div className="grid lg:grid-cols-2 gap-8">
-            
-            {/* Image et animation de la boîte */}
-            <div className="relative">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className={`relative bg-gradient-to-br ${getRarityColor(box.rarity)} p-8 rounded-2xl overflow-hidden`}
-              >
-                {/* Badge de rareté */}
-                <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-bold text-white z-10 ${badge.color}`}>
-                  {badge.text}
-                </div>
-
-                {/* Animation d'ouverture */}
-                <AnimatePresence>
-                  {opening && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="absolute inset-0 bg-white/20 backdrop-blur-sm flex items-center justify-center z-20"
-                    >
-                      <div className="text-center">
-                        <motion.div
-                          animate={{ 
-                            rotate: 360,
-                            scale: [1, 1.2, 1]
-                          }}
-                          transition={{ 
-                            duration: 1,
-                            repeat: Infinity,
-                            ease: "easeInOut"
-                          }}
-                          className="mb-4"
-                        >
-                          <Gift className="h-20 w-20 text-white mx-auto" />
-                        </motion.div>
-                        <div className="text-white font-bold text-xl mb-2">
-                          Ouverture en cours...
-                        </div>
-                        <div className="text-white/80">
-                          Découvrez votre récompense !
+            {/* Player slots */}
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              {Array.from({ length: requiredPlayers }).map((_, index) => {
+                const player = battle.players[index]
+                
+                return (
+                  <motion.div
+                    key={index}
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="w-48 h-24 rounded-lg border-2 border-dashed flex items-center justify-center"
+                    style={{ 
+                      borderColor: player ? '#4C5BF9' : '#374151',
+                      backgroundColor: player ? '#1C1F2B' : 'transparent'
+                    }}
+                  >
+                    {player ? (
+                      <div className="flex items-center gap-3">
+                        <img 
+                          src={player.avatar} 
+                          alt={player.username}
+                          className="w-10 h-10 rounded-full"
+                        />
+                        <div>
+                          <div className="font-semibold text-white">
+                            {player.username}
+                          </div>
+                          {player.bot && (
+                            <div className="text-xs text-gray-400">BOT</div>
+                          )}
                         </div>
                       </div>
-                    </motion.div>
+                    ) : (
+                      <div className="text-gray-500">
+                        Empty Slot
+                      </div>
+                    )}
+                  </motion.div>
+                )
+              })}
+            </div>
+            
+{isCreator && hasEmptySlots && (
+  <AddBotButton battleId={battle.id} />
+)}
+          </motion.div>
+        )}
+        
+        {/* Battle in progress */}
+        {battle.status === 'in_progress' && (
+          <div className="h-full flex flex-col">
+            {/* Battle arena based on mode */}
+            {battle.mode === '1v1' && layout.left && layout.right && (
+              <div className="flex-1 grid grid-cols-3 gap-6">
+                <PlayerPanel 
+                  player={layout.left} 
+                  position="left"
+                  isWinner={battle.winners?.includes(layout.left.id)}
+                />
+                
+                <div className="flex flex-col items-center justify-center">
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="text-6xl font-bold text-gray-600 mb-8"
+                  >
+                    VS
+                  </motion.div>
+                  
+                  {!openingBox[layout.left.id] && !openingBox[layout.right.id] && (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleOpenBox}
+                      className="px-8 py-4 rounded-lg font-bold text-white text-xl"
+                      style={{ backgroundColor: '#4C5BF9' }}
+                    >
+                      Open Box #{currentBoxIndex + 1}
+                    </motion.button>
                   )}
-                </AnimatePresence>
-
-                {/* Image de la boîte */}
-                <div className="relative h-96 flex items-center justify-center">
-                  <motion.img
-                    src={box.image_url}
-                    alt={box.name}
-                    className="max-w-full max-h-full object-contain"
-                    whileHover={{ scale: 1.05 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                    onError={(e) => {
-                      e.currentTarget.src = 'https://i.imgur.com/8YwZmtP.png'
-                    }}
-                  />
                 </div>
-
-                {/* Effets de particules */}
-                <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                  {Array.from({ length: 10 }).map((_, i) => (
-                    <motion.div
-                      key={i}
-                      className="absolute w-2 h-2 bg-white/30 rounded-full"
-                      style={{
-                        left: `${Math.random() * 100}%`,
-                        top: `${Math.random() * 100}%`,
-                      }}
-                      animate={{
-                        y: [-20, -40, -20],
-                        opacity: [0, 1, 0],
-                        scale: [0, 1, 0],
-                      }}
-                      transition={{
-                        duration: 3,
-                        repeat: Infinity,
-                        delay: i * 0.3,
-                      }}
+                
+                <PlayerPanel 
+                  player={layout.right} 
+                  position="right"
+                  isWinner={battle.winners?.includes(layout.right.id)}
+                />
+              </div>
+            )}
+            
+            {battle.mode === '2v2' && layout.teamA && layout.teamB && (
+              <div className="flex-1 grid grid-cols-3 gap-6">
+                <div className="space-y-4">
+                  <div className="text-center text-xl font-bold" style={{ color: '#4C5BF9' }}>
+                    Team A
+                  </div>
+                  {layout.teamA.map(player => (
+                    <PlayerPanel 
+                      key={player.id}
+                      player={player} 
+                      position="left"
+                      isWinner={battle.winners?.includes(player.id)}
                     />
                   ))}
                 </div>
-              </motion.div>
-            </div>
-
-            {/* Informations et actions */}
-            <div className="space-y-6">
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 }}
-              >
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                  {box.name}
-                </h2>
-                <p className="text-gray-600 text-lg leading-relaxed">
-                  {box.description}
-                </p>
-              </motion.div>
-
-              {/* Prix et statistiques */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
-                className="grid grid-cols-2 gap-4"
-              >
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                  <div className="text-sm text-gray-600 mb-1">Prix en coins</div>
-                  <div className="flex items-center gap-2">
-                    <Coins className="w-6 h-6 text-yellow-500" />
-                    <span className="text-2xl font-bold text-gray-900">
-                      {box.price_virtual.toLocaleString()}
-                    </span>
-                  </div>
+                
+                <div className="flex flex-col items-center justify-center">
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="text-6xl font-bold text-gray-600 mb-8"
+                  >
+                    VS
+                  </motion.div>
+                  
+                  {!Object.values(openingBox).some(v => v) && (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleOpenBox}
+                      className="px-8 py-4 rounded-lg font-bold text-white text-xl"
+                      style={{ backgroundColor: '#4C5BF9' }}
+                    >
+                      Open Box #{currentBoxIndex + 1}
+                    </motion.button>
+                  )}
                 </div>
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                  <div className="text-sm text-gray-600 mb-1">Prix réel</div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold text-gray-900">
-                      {box.price_real}€
-                    </span>
+                
+                <div className="space-y-4">
+                  <div className="text-center text-xl font-bold" style={{ color: '#FFC64C' }}>
+                    Team B
                   </div>
-                </div>
-              </motion.div>
-
-              {/* Probabilités (simulées) */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.4 }}
-                className="bg-gray-50 border border-gray-200 rounded-xl p-6"
-              >
-                <h3 className="font-bold text-gray-900 mb-4">Probabilités de drop</h3>
-                <div className="space-y-3">
-                  {[
-                    { rarity: 'Légendaire', probability: '5%', color: 'bg-yellow-500' },
-                    { rarity: 'Épique', probability: '35%', color: 'bg-purple-500' },
-                    { rarity: 'Rare', probability: '35%', color: 'bg-blue-500' },
-                    { rarity: 'Commun', probability: '25%', color: 'bg-gray-500' }
-                  ].map((item, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-4 h-4 rounded-full ${item.color}`} />
-                        <span className="text-gray-700">{item.rarity}</span>
-                      </div>
-                      <span className="font-semibold text-gray-900">{item.probability}</span>
-                    </div>
+                  {layout.teamB.map(player => (
+                    <PlayerPanel 
+                      key={player.id}
+                      player={player} 
+                      position="right"
+                      isWinner={battle.winners?.includes(player.id)}
+                    />
                   ))}
                 </div>
-              </motion.div>
-
-              {/* Bouton d'ouverture */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.5 }}
-                className="pt-4"
-              >
-                <motion.button
-                  onClick={openBox}
-                  disabled={opening || !canAffordBox(box.price_virtual)}
-                  className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-3 ${
-                    opening || !canAffordBox(box.price_virtual)
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-lg hover:shadow-xl'
-                  }`}
-                  whileHover={!opening && canAffordBox(box.price_virtual) ? { scale: 1.02 } : {}}
-                  whileTap={!opening && canAffordBox(box.price_virtual) ? { scale: 0.98 } : {}}
-                >
-                  {opening ? (
-                    <>
-                      <Loader2 className="w-6 h-6 animate-spin" />
-                      <span>Ouverture en cours...</span>
-                    </>
-                  ) : !canAffordBox(box.price_virtual) ? (
-                    <>
-                      <AlertCircle className="w-6 h-6" />
-                      <span>Coins insuffisants</span>
-                    </>
-                  ) : (
-                    <>
-                      <Gift className="w-6 h-6" />
-                      <span>Ouvrir la boîte ({box.price_virtual} coins)</span>
-                      <Sparkles className="w-6 h-6" />
-                    </>
-                  )}
-                </motion.button>
-
-                {/* Message d'aide */}
-                <div className="mt-4 text-center">
-                  {!canAffordBox(box.price_virtual) ? (
-                    <p className="text-red-600 text-sm">
-                      Il vous manque {(box.price_virtual - userCurrency).toLocaleString()} coins pour ouvrir cette boîte
-                    </p>
-                  ) : (
-                    <p className="text-gray-500 text-sm">
-                      Votre solde après ouverture : {(userCurrency - box.price_virtual).toLocaleString()} coins
-                    </p>
-                  )}
+              </div>
+            )}
+            
+            {battle.mode === '1v1v1' && layout.players && (
+              <div className="flex-1 flex flex-col items-center">
+                <div className="grid grid-cols-3 gap-6 mb-8">
+                  {layout.players.map((player, index) => (
+                    <PlayerPanel 
+                      key={player.id}
+                      player={player} 
+                      position="center"
+                      isWinner={battle.winners?.includes(player.id)}
+                    />
+                  ))}
                 </div>
-              </motion.div>
-            </div>
+                
+                {!Object.values(openingBox).some(v => v) && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleOpenBox}
+                    className="px-8 py-4 rounded-lg font-bold text-white text-xl"
+                    style={{ backgroundColor: '#4C5BF9' }}
+                  >
+                    Open Box #{currentBoxIndex + 1}
+                  </motion.button>
+                )}
+              </div>
+            )}
+            
+            {/* Roulette animations */}
+            <AnimatePresence>
+              {battle.players.map(player => openingBox[player.id] && (
+                <motion.div
+                  key={`roulette-${player.id}`}
+                  initial={{ opacity: 0, y: 50 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 50 }}
+                  className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-40"
+                >
+                  <div className="bg-black/90 p-4 rounded-lg">
+                    <div className="text-white text-center mb-2">
+                      {player.username} is opening...
+                    </div>
+                    <Roulette
+                      items={player.loots[currentBoxIndex]?.items || []}
+                      onFinish={() => {}}
+                    />
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
-        </div>
+        )}
       </div>
+      
+      {/* End Summary Modal */}
+      <EndSummaryModal
+        isOpen={battle.status === 'completed'}
+        players={battle.players}
+        winners={battle.winners || []}
+        battleId={battle.id}
+        mode={battle.mode}
+        boxes={battle.boxes}
+      />
+    </>
+  )
+}
+
+// === MAIN COMPONENT ===
+export default function BattleRoomPage({ 
+  params 
+}: { 
+  params: Promise<{ id: string }> // params est maintenant une Promise
+}) {
+  const resolvedParams = use(params) // Résoudre la Promise avec use()
+  const router = useRouter()
+  const { user, isLoading: authLoading } = useAuth()
+  const [store, updateStore] = useBattleStore()
+  const battleId = resolvedParams.id //
+  
+
+  // Auth check
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login')
+    }
+  }, [user, authLoading, router])
+
+  // Fetch initial battle data
+  const { data: initialBattle, isLoading: battleLoading } = useQuery({
+    queryKey: ['battle', battleId],
+    queryFn: async () => {
+      const res = await fetch(`/api/battles/${battleId}`)
+      if (!res.ok) throw new Error('Failed to fetch battle')
+      const data = await res.json()
+      return BattleSchema.parse(data)
+    },
+    enabled: !!user && !!battleId,
+    refetchInterval: 5000 // Fallback polling
+  })
+
+  // Initialize store with battle data
+useEffect(() => {
+  if (initialBattle && (!store.battle || store.battle.id !== initialBattle.id)) {
+    store.setBattle(initialBattle)
+  }
+}, [initialBattle, store.battle?.id]) //
+
+  // Setup realtime subscription
+  const channel = useBattleChannel(battleId, store, updateStore)
+
+  // Check if battle should auto-start
+  useEffect(() => {
+    if (!store.battle) return
+    
+    const { mode, players, status } = store.battle
+    const requiredPlayers = mode === '1v1' ? 2 : mode === '2v2' ? 4 : 3
+    
+    if (status === 'waiting' && players.length === requiredPlayers) {
+      // Auto-start battle
+      fetch(`/api/battles/${battleId}/start`, { method: 'POST' })
+    }
+  }, [store.battle, battleId])
+
+  if (authLoading || battleLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.bgPrimary }}>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2" style={{ borderColor: colors.accent }}></div>
+      </div>
+    )
+  }
+
+  if (!user || !store.battle) return null
+
+  return (
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: colors.bgPrimary }}>
+      {store.battle && user && (
+        <BattleRoom battle={store.battle} userId={user.id} />
+      )}
     </div>
   )
 }

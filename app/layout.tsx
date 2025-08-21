@@ -1,7 +1,9 @@
+// app/layout.tsx
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from './components/AuthProvider'
 import { AuthDebugPanel } from './components/AuthDebugPanel'
+import { Providers } from './providers'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 
@@ -20,15 +22,17 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className={inter.className}>
-        <AuthProvider>
-          <div className="flex flex-col min-h-screen">
-            <Navbar />
-            <main className="flex-1">{children}</main>
-            <Footer />
-          </div>
-          {/* Debug Panel - Visible seulement en développement */}
-          <AuthDebugPanel />
-        </AuthProvider>
+        <Providers>
+          <AuthProvider>
+            <div className="flex flex-col min-h-screen">
+              <Navbar />
+              <main className="flex-1">{children}</main>
+              <Footer />
+            </div>
+            {/* Debug Panel - Visible seulement en développement */}
+            <AuthDebugPanel />
+          </AuthProvider>
+        </Providers>
       </body>
     </html>
   )

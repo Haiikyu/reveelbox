@@ -65,6 +65,7 @@ export default function Navbar() {
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
+const isAdmin = user?.email === 'admin@reveelbox.com';
 
   const navItems: NavItem[] = [
     { href: '/boxes', label: 'Mystery Boxes', icon: Package },
@@ -672,6 +673,16 @@ export default function Navbar() {
                         </Link>
                       )
                     })}
+					
+					{isAdmin && (
+  <Link 
+    href="/admin" 
+    className="flex items-center gap-2 text-gray-700 hover:text-green-600"
+  >
+    <Settings size={20} />
+    Admin
+  </Link>
+)}
                     
                     {isAuthenticated && profile && (
                       <div className="mx-2 mt-2 space-y-2">
