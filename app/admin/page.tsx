@@ -762,25 +762,17 @@ const AdminPage: React.FC = () => {
     return null;
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">Administration ReveelBox</h1>
-          <p className="mt-2 text-gray-600">Gérez vos loot boxes et leurs contenus</p>
-        </div>
-      </div>
-
-      {/* Layout avec sidebar */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex gap-8">
-          {/* Sidebar */}
-          <motion.div 
-            initial={{ x: -50, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            className="w-64 shrink-0"
-          >
+return (
+  <div className="min-h-screen bg-gray-50"> {/* Cette div manquait */}
+    {/* Layout avec sidebar */}
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="flex gap-8">
+        {/* Sidebar */}
+        <motion.div 
+          initial={{ x: -50, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          className="w-64 shrink-0"
+        >
             <Card className="p-4">
               <nav className="space-y-2">
                 {[

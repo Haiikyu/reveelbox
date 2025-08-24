@@ -65,7 +65,8 @@ export default function Navbar() {
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
-const isAdmin = user?.email === 'admin@reveelbox.com';
+  
+  const isAdmin = user?.email === 'admin@reveelbox.com';
 
   const navItems: NavItem[] = [
     { href: '/boxes', label: 'Mystery Boxes', icon: Package },
