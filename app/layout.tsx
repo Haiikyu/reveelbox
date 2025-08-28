@@ -7,7 +7,6 @@ import { Providers } from './providers'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import ChatSystem from './components/chat/ChatSystem'
-import { ThemeToggle } from './components/ThemeToggle'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -35,8 +34,7 @@ export default function RootLayout({
               <div className="flex flex-col min-h-screen">
                 <Navbar />
                 
-                {/* Toggle de thème fixe */}
-                <ThemeToggle size="md" className="fixed top-4 right-4 z-50" />
+                {/* Le ThemeToggle est maintenant intégré dans la Navbar */}
                 
                 <main className="flex-1">
                   {children}

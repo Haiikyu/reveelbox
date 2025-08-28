@@ -1,4 +1,4 @@
-// app/boxes/page.tsx - Version corrigée avec standard ReveelBox
+// app/boxes/page.tsx - Version avec support mode sombre
 
 'use client'
 
@@ -243,7 +243,7 @@ export default function BoxesPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 flex items-center justify-center transition-colors duration-300">
         <LoadingState size="lg" text="Chargement des boîtes..." />
       </div>
     )
@@ -254,7 +254,7 @@ export default function BoxesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 transition-colors duration-300">
       
       {/* Messages de notification */}
       <AnimatePresence>
@@ -289,9 +289,9 @@ export default function BoxesPage() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-6xl font-black text-gray-900 mb-4"
+            className="text-6xl font-black text-gray-900 dark:text-white mb-4 transition-colors"
           >
-            Mystery Boxes
+            Unboxing
           </motion.h1>
           
           {/* Solde utilisateur */}
@@ -300,13 +300,13 @@ export default function BoxesPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1, duration: 0.5 }}
-              className="inline-flex items-center gap-3 bg-white/80 backdrop-blur-sm rounded-2xl px-6 py-3 shadow-lg mb-8"
+              className="inline-flex items-center gap-3 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl px-6 py-3 shadow-lg mb-8 border border-gray-200/50 dark:border-gray-700/50 transition-colors"
             >
               <Coins size={24} className="text-green-600" />
-              <span className="text-2xl font-black text-gray-900">
+              <span className="text-2xl font-black text-gray-900 dark:text-white transition-colors">
                 {profile.virtual_currency || 0}
               </span>
-              <span className="text-gray-600 font-medium">coins</span>
+              <span className="text-gray-600 dark:text-gray-400 font-medium transition-colors">coins</span>
             </motion.div>
           )}
 
@@ -318,13 +318,13 @@ export default function BoxesPage() {
             className="max-w-md mx-auto mb-8"
           >
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 transition-colors" size={20} />
               <input
                 type="text"
                 placeholder="Rechercher..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-lg transition-all duration-300"
+                className="w-full pl-12 pr-4 py-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-lg transition-all duration-300 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
               />
             </div>
           </motion.div>
@@ -336,7 +336,7 @@ export default function BoxesPage() {
             transition={{ delay: 0.3, duration: 0.5 }}
             className="flex justify-center"
           >
-            <div className="flex gap-2 bg-white/80 backdrop-blur-sm rounded-2xl p-2 shadow-lg">
+            <div className="flex gap-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-2 shadow-lg border border-gray-200/50 dark:border-gray-700/50 transition-colors">
               {rarityFilters.map((filter) => (
                 <motion.button
                   key={filter.value}
@@ -347,7 +347,7 @@ export default function BoxesPage() {
                     px-4 py-2 rounded-xl font-semibold text-sm transition-all duration-200
                     ${selectedRarity === filter.value
                       ? 'bg-blue-600 text-white shadow-lg'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                     }
                   `}
                 >
@@ -369,8 +369,8 @@ export default function BoxesPage() {
             className="text-center py-20"
           >
             <div className="text-8xl mb-6">📦</div>
-            <h3 className="text-3xl font-bold text-gray-900 mb-4">Aucune boîte trouvée</h3>
-            <p className="text-gray-600 text-lg mb-8">Modifiez vos critères de recherche</p>
+            <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-4 transition-colors">Aucune boîte trouvée</h3>
+            <p className="text-gray-600 dark:text-gray-400 text-lg mb-8 transition-colors">Modifiez vos critères de recherche</p>
             <Button 
               onClick={() => { 
                 setSearchQuery(''); 
@@ -409,8 +409,8 @@ export default function BoxesPage() {
             transition={{ delay: 0.5, duration: 0.5 }}
             className="text-center mt-20"
           >
-            <div className="inline-flex items-center gap-4 bg-white/80 backdrop-blur-sm rounded-2xl px-8 py-6 shadow-lg">
-              <span className="text-xl text-gray-600">Besoin de plus de coins ?</span>
+            <div className="inline-flex items-center gap-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl px-8 py-6 shadow-lg border border-gray-200/50 dark:border-gray-700/50 transition-colors">
+              <span className="text-xl text-gray-600 dark:text-gray-400 transition-colors">Besoin de plus de coins ?</span>
               <Button 
                 onClick={() => router.push('/buy-coins')}
                 className="bg-green-600 hover:bg-green-700 px-6 py-3 font-bold"
@@ -499,7 +499,7 @@ function FloatingBoxCard({
 
         {/* Ombre dynamique */}
         <motion.div
-          className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-24 h-6 bg-black/10 rounded-full blur-lg"
+          className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-24 h-6 bg-black/10 dark:bg-black/20 rounded-full blur-lg transition-colors"
           animate={{
             scale: isHovered ? 1.5 : 1,
             opacity: isHovered ? 0.3 : 0.1
@@ -534,18 +534,18 @@ function FloatingBoxCard({
           }}
           transition={{ duration: 0.3 }}
         >
-          <h3 className="text-lg font-black text-gray-900 mb-2 truncate">
+          <h3 className="text-lg font-black text-gray-900 dark:text-white mb-2 truncate transition-colors">
             {box.name}
           </h3>
           
-          <p className="text-sm text-gray-600 mb-3 line-clamp-1">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-1 transition-colors">
             {box.description}
           </p>
 
           {/* Prix */}
           <div className="flex items-center justify-center gap-2 mb-4">
             <Coins size={18} style={{ color: glowColor }} />
-            <span className="text-xl font-black text-gray-900">
+            <span className="text-xl font-black text-gray-900 dark:text-white transition-colors">
               {box.price_virtual}
             </span>
           </div>
@@ -563,10 +563,10 @@ function FloatingBoxCard({
             animate={{ opacity: isHovered ? 1 : 0 }}
             className="text-center"
           >
-            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold ${
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
               canAfford && user 
-                ? 'bg-green-100 text-green-700' 
-                : 'bg-gray-100 text-gray-600'
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' 
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
             }`}>
               <ArrowRight size={14} />
               {canAfford && user ? 'Cliquez pour ouvrir' : 'Non disponible'}

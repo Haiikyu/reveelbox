@@ -151,7 +151,7 @@ export default function ContactPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-white pt-20">
+    <div className="min-h-screen bg-white dark:bg-gray-900 pt-20 transition-colors duration-300">
       {/* Notification */}
       {notification.message && (
         <motion.div
@@ -160,8 +160,8 @@ export default function ContactPage() {
           exit={{ opacity: 0, y: -50 }}
           className={`fixed top-24 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg border ${
             notification.type === 'error' 
-              ? 'bg-red-50 border-red-200 text-red-800' 
-              : 'bg-green-50 border-green-200 text-green-800'
+              ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-300' 
+              : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-300'
           }`}
         >
           {notification.type === 'error' ? (
@@ -174,7 +174,7 @@ export default function ContactPage() {
       )}
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-green-50 to-green-100 py-16">
+      <section className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 py-16 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -187,10 +187,10 @@ export default function ContactPage() {
                 <MessageSquare className="h-8 w-8 text-white" />
               </div>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4 transition-colors">
               Contactez-nous
             </h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto transition-colors">
               Une question ? Un problème ? Notre équipe est là pour vous aider !
             </p>
           </motion.div>
@@ -210,12 +210,12 @@ export default function ContactPage() {
               const Icon = info.icon
               return (
                 <div key={index} className="text-center group">
-                  <div className="h-12 w-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 transition-colors">
-                    <Icon className="h-6 w-6 text-green-600" />
+                  <div className="h-12 w-12 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 dark:group-hover:bg-green-800/40 transition-colors">
+                    <Icon className="h-6 w-6 text-green-600 dark:text-green-400" />
                   </div>
-                  <h3 className="font-semibold text-gray-900 mb-2">{info.title}</h3>
-                  <p className="text-gray-700 font-medium mb-1">{info.content}</p>
-                  <p className="text-gray-500 text-sm">{info.description}</p>
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2 transition-colors">{info.title}</h3>
+                  <p className="text-gray-700 dark:text-gray-300 font-medium mb-1 transition-colors">{info.content}</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm transition-colors">{info.description}</p>
                 </div>
               )
             })}
@@ -224,7 +224,7 @@ export default function ContactPage() {
       </section>
 
       {/* Main Content */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 bg-gray-50 dark:bg-gray-800/50 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12">
             {/* Contact Form */}
@@ -233,22 +233,22 @@ export default function ContactPage() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-              <div className="bg-white rounded-2xl shadow-lg p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 border border-gray-200/50 dark:border-gray-700/50 transition-colors">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 transition-colors">
                   Envoyez-nous un message
                 </h2>
                 
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {/* Category */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors">
                       Catégorie
                     </label>
                     <select
                       name="category"
                       value={formData.category}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-gray-50 focus:bg-white"
+                      className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all bg-gray-50 dark:bg-gray-700 focus:bg-white dark:focus:bg-gray-600 text-gray-900 dark:text-white"
                     >
                       <option value="general">Question générale</option>
                       <option value="order">Problème de commande</option>
@@ -261,7 +261,7 @@ export default function ContactPage() {
                   {/* Name & Email */}
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors">
                         Nom complet *
                       </label>
                       <input
@@ -270,13 +270,13 @@ export default function ContactPage() {
                         required
                         value={formData.name}
                         onChange={handleChange}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-gray-50 focus:bg-white"
+                        className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all bg-gray-50 dark:bg-gray-700 focus:bg-white dark:focus:bg-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                         placeholder="Votre nom"
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors">
                         Email *
                       </label>
                       <input
@@ -285,7 +285,7 @@ export default function ContactPage() {
                         required
                         value={formData.email}
                         onChange={handleChange}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-gray-50 focus:bg-white"
+                        className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all bg-gray-50 dark:bg-gray-700 focus:bg-white dark:focus:bg-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                         placeholder="votre@email.com"
                       />
                     </div>
@@ -293,7 +293,7 @@ export default function ContactPage() {
 
                   {/* Subject */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors">
                       Sujet
                     </label>
                     <input
@@ -301,14 +301,14 @@ export default function ContactPage() {
                       name="subject"
                       value={formData.subject}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-gray-50 focus:bg-white"
+                      className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all bg-gray-50 dark:bg-gray-700 focus:bg-white dark:focus:bg-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                       placeholder="Résumé de votre demande"
                     />
                   </div>
 
                   {/* Message */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors">
                       Message *
                     </label>
                     <textarea
@@ -317,7 +317,7 @@ export default function ContactPage() {
                       rows={6}
                       value={formData.message}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-gray-50 focus:bg-white resize-none"
+                      className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all bg-gray-50 dark:bg-gray-700 focus:bg-white dark:focus:bg-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 resize-none"
                       placeholder="Décrivez votre demande en détail..."
                     />
                   </div>
@@ -328,7 +328,7 @@ export default function ContactPage() {
                     whileTap={{ scale: loading ? 1 : 0.98 }}
                     type="submit"
                     disabled={loading}
-                    className="w-full flex justify-center items-center gap-2 py-3 px-6 border border-transparent rounded-xl shadow-sm text-white bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
+                    className="w-full flex justify-center items-center gap-2 py-3 px-6 border border-transparent rounded-xl shadow-sm text-white bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
                   >
                     {loading ? (
                       <>
@@ -354,15 +354,15 @@ export default function ContactPage() {
               className="space-y-8"
             >
               {/* Quick Help */}
-              <div className="bg-white rounded-2xl shadow-lg p-8">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 border border-gray-200/50 dark:border-gray-700/50 transition-colors">
                 <div className="flex items-center gap-3 mb-6">
-                  <HelpCircle className="h-6 w-6 text-green-600" />
-                  <h2 className="text-2xl font-bold text-gray-900">
+                  <HelpCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white transition-colors">
                     Aide rapide
                   </h2>
                 </div>
                 
-                <p className="text-gray-600 mb-6">
+                <p className="text-gray-600 dark:text-gray-400 mb-6 transition-colors">
                   Consultez notre FAQ pour trouver rapidement une réponse à votre question.
                 </p>
 
@@ -374,20 +374,20 @@ export default function ContactPage() {
                         key={index}
                         href={category.href}
                         whileHover={{ scale: 1.02 }}
-                        className="flex items-center gap-4 p-4 border border-gray-200 rounded-xl hover:border-green-300 hover:bg-green-50 transition-all duration-200 group"
+                        className="flex items-center gap-4 p-4 border border-gray-200 dark:border-gray-600 rounded-xl hover:border-green-300 dark:hover:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200 group"
                       >
-                        <div className="h-10 w-10 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-green-100 transition-colors">
-                          <Icon className="h-5 w-5 text-gray-600 group-hover:text-green-600" />
+                        <div className="h-10 w-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center group-hover:bg-green-100 dark:group-hover:bg-green-800/30 transition-colors">
+                          <Icon className="h-5 w-5 text-gray-600 dark:text-gray-400 group-hover:text-green-600 dark:group-hover:text-green-400" />
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-medium text-gray-900 group-hover:text-green-700">
+                          <h4 className="font-medium text-gray-900 dark:text-white group-hover:text-green-700 dark:group-hover:text-green-300 transition-colors">
                             {category.title}
                           </h4>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-gray-500 dark:text-gray-400 transition-colors">
                             {category.description}
                           </p>
                         </div>
-                        <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-green-600 transition-colors" />
+                        <ArrowRight className="h-5 w-5 text-gray-400 dark:text-gray-500 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors" />
                       </motion.a>
                     )
                   })}
@@ -395,17 +395,17 @@ export default function ContactPage() {
               </div>
 
               {/* Emergency Contact */}
-              <div className="bg-gradient-to-br from-red-50 to-orange-50 border border-red-200 rounded-2xl p-6">
-                <h3 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
+              <div className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6 transition-colors">
+                <h3 className="font-semibold text-red-800 dark:text-red-300 mb-2 flex items-center gap-2 transition-colors">
                   <AlertCircle className="h-5 w-5" />
                   Problème urgent ?
                 </h3>
-                <p className="text-red-700 text-sm mb-4">
+                <p className="text-red-700 dark:text-red-400 text-sm mb-4 transition-colors">
                   Pour les problèmes critiques nécessitant une intervention immédiate.
                 </p>
                 <a
                   href="mailto:urgent@reveelbox.fr"
-                  className="inline-flex items-center gap-2 text-red-600 hover:text-red-700 font-medium text-sm"
+                  className="inline-flex items-center gap-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium text-sm transition-colors"
                 >
                   <Mail className="h-4 w-4" />
                   urgent@reveelbox.fr

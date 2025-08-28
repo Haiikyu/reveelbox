@@ -18,10 +18,11 @@ interface Profile {
   privacy_profile: string
   notifications_email: boolean
   notifications_push: boolean
+  role: string  // ← ADD THIS LINE
+  is_admin: boolean  // ← ADD THIS LINE TOO
   created_at: string
   updated_at: string
 }
-
 interface AuthContextType {
   user: User | null
   session: Session | null
