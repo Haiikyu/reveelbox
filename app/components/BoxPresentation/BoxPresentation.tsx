@@ -95,7 +95,7 @@ export function BoxPresentation({
             className="absolute -inset-16 rounded-full blur-3xl opacity-15"
             style={{ backgroundColor: rarity.glow }}
             animate={{
-              scale: [1, 1, 1],
+              scale: [1, 1.2, 1],
               opacity: [0.1, 0.2, 0.1]
             }}
             transition={{
@@ -221,10 +221,20 @@ export function BoxPresentation({
             ) : boxPrice && (
               <div className="flex items-center gap-4 text-white">
                 <motion.div
-                  animate={{ rotate: [0, 360] }}
-                  transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                  animate={{ 
+                    scale: [1, 1.1, 1],
+                    rotate: [0, 360] 
+                  }}
+                  transition={{ 
+                    scale: { duration: 2, repeat: Infinity, ease: "easeInOut" },
+                    rotate: { duration: 20, repeat: Infinity, ease: "linear" }
+                  }}
                 >
-                  <Coins size={32} className="text-yellow-400" />
+                  <img 
+                    src="https://media.discordapp.net/attachments/369204403401392139/1413939657237987358/ChatGPT_Image_6_sept._2025_19_31_10.png?ex=68bdc16c&is=68bc6fec&hm=806ceed4add069224321faea8e476ab163a04f096c62876342e4b8e753eea74b&=&format=webp&quality=lossless&width=1126&height=1126"
+                    alt="REEV Coin"
+                    className="w-11 h-11 object-contain"
+                  />
                 </motion.div>
                 <div className="flex items-baseline gap-2">
                   <span className="text-5xl font-light">{boxPrice.toLocaleString()}</span>
@@ -312,7 +322,7 @@ export function BoxPresentation({
               <div className="text-sm text-gray-400">Rareté</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-white">Premium</div>
+              <div className="text-2xl font-bold text-white">Populaire</div>
               <div className="text-sm text-gray-400">Type</div>
             </div>
           </motion.div>
