@@ -13,7 +13,6 @@ import {
   Mail, 
   User, 
   LogOut, 
-  Settings,
   Coins,
   Menu,
   X,
@@ -75,11 +74,11 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
-  const [activeBets, setActiveBets] = useState<InventoryItem[]>([])
   const [gamesMenuOpen, setGamesMenuOpen] = useState(false)
   const [cartItems, setCartItems] = useState<InventoryItem[]>([])
   const [cartLoading, setCartLoading] = useState(false)
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
+  const [sellAllLoading, setSellAllLoading] = useState(false)
   
   const userMenuRef = useRef<HTMLDivElement | null>(null)
   const cartRef = useRef<HTMLDivElement | null>(null)
@@ -153,88 +152,172 @@ export default function Navbar() {
     })
   }
 
-const handleSellSelected = async () => {
-  if (selectedItems.size === 0) return
-  
-  // Protection null safety - vérifier que user existe
-  if (!user?.id) {
-    console.error('Utilisateur non connecté')
-    return
+  // Fonction pour vendre les objets sélectionnés
+  const handleSellSelected = async () => {
+    if (selectedItems.size === 0) return
+    
+    if (!user?.id) {
+      console.error('Utilisateur non connecté')
+      return
+    }
+    
+    try {
+      // Calculer la valeur totale
+      const totalValue = cartItems
+        .filter(item => selectedItems.has(item.id))
+        .reduce((total, item) => total + (item.items?.market_value || 0), 0)
+      
+      // Récupérer les IDs des items à vendre
+      const itemIds = Array.from(selectedItems)
+      
+      // 1. Mettre à jour l'inventaire - marquer les items comme vendus
+      const { error: inventoryError } = await supabase
+        .from('user_inventory')
+        .update({ is_sold: true })
+        .in('id', itemIds)
+      
+      if (inventoryError) {
+        console.error('Erreur mise à jour inventaire:', inventoryError)
+        return
+      }
+      
+      // 2. Ajouter les coins à l'utilisateur
+      const { data: currentProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('virtual_currency')
+        .eq('id', user.id)
+        .single()
+      
+      if (profileError) {
+        console.error('Erreur récupération profil:', profileError)
+        return
+      }
+      
+      const newCoins = (currentProfile.virtual_currency || 0) + totalValue
+      
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ virtual_currency: newCoins })
+        .eq('id', user.id)
+      
+      if (updateError) {
+        console.error('Erreur mise à jour coins:', updateError)
+        return
+      }
+      
+      // 3. Enregistrer la transaction
+      const { error: transactionError } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: user.id,
+          type: 'item_sale',
+          virtual_amount: totalValue,
+          description: `Vente de ${selectedItems.size} objet(s)`,
+          created_at: new Date().toISOString()
+        })
+      
+      if (transactionError) {
+        console.error('Erreur enregistrement transaction:', transactionError)
+      }
+      
+      // 4. Rafraîchir les données
+      await refreshProfile()
+      
+      // Reset des sélections et fermeture
+      setSelectedItems(new Set())
+      setCartOpen(false)
+      
+      console.log(`Vente réussie: +${totalValue} coins`)
+      
+    } catch (error) {
+      console.error('Erreur lors de la vente:', error)
+    }
   }
-  
-  try {
-    // Calculer la valeur totale
-    const totalValue = cartItems
-      .filter(item => selectedItems.has(item.id))
-      .reduce((total, item) => total + (item.items?.market_value || 0), 0)
+
+  // Nouvelle fonction pour vendre tout l'inventaire
+  const handleSellAll = async () => {
+    if (cartItems.length === 0) return
     
-    // Récupérer les IDs des items à vendre
-    const itemIds = Array.from(selectedItems)
-    
-    // 1. Mettre à jour l'inventaire - marquer les items comme vendus
-    const { error: inventoryError } = await supabase
-      .from('user_inventory')
-      .update({ is_sold: true })
-      .in('id', itemIds)
-    
-    if (inventoryError) {
-      console.error('Erreur mise à jour inventaire:', inventoryError)
+    if (!user?.id) {
+      console.error('Utilisateur non connecté')
       return
     }
     
-    // 2. Ajouter les coins à l'utilisateur
-    const { data: currentProfile, error: profileError } = await supabase
-      .from('profiles')
-      .select('virtual_currency')
-      .eq('id', user.id) // Maintenant sûr car on a vérifié user?.id
-      .single()
-    
-    if (profileError) {
-      console.error('Erreur récupération profil:', profileError)
-      return
+    try {
+      setSellAllLoading(true)
+      
+      // Calculer la valeur totale de tous les items
+      const totalValue = cartItems.reduce((total, item) => total + (item.items?.market_value || 0), 0)
+      
+      // Récupérer les IDs de tous les items
+      const allItemIds = cartItems.map(item => item.id)
+      
+      // 1. Mettre à jour l'inventaire - marquer tous les items comme vendus
+      const { error: inventoryError } = await supabase
+        .from('user_inventory')
+        .update({ is_sold: true })
+        .in('id', allItemIds)
+      
+      if (inventoryError) {
+        console.error('Erreur mise à jour inventaire:', inventoryError)
+        return
+      }
+      
+      // 2. Ajouter les coins à l'utilisateur
+      const { data: currentProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('virtual_currency')
+        .eq('id', user.id)
+        .single()
+      
+      if (profileError) {
+        console.error('Erreur récupération profil:', profileError)
+        return
+      }
+      
+      const newCoins = (currentProfile.virtual_currency || 0) + totalValue
+      
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ virtual_currency: newCoins })
+        .eq('id', user.id)
+      
+      if (updateError) {
+        console.error('Erreur mise à jour coins:', updateError)
+        return
+      }
+      
+      // 3. Enregistrer la transaction
+      const { error: transactionError } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: user.id,
+          type: 'item_sale',
+          virtual_amount: totalValue,
+          description: `Vente complète de l'inventaire (${cartItems.length} objet(s))`,
+          created_at: new Date().toISOString()
+        })
+      
+      if (transactionError) {
+        console.error('Erreur enregistrement transaction:', transactionError)
+      }
+      
+      // 4. Rafraîchir les données
+      await refreshProfile()
+      
+      // Reset des sélections et fermeture
+      setSelectedItems(new Set())
+      setCartOpen(false)
+      
+      console.log(`Vente complète réussie: +${totalValue} coins pour ${cartItems.length} objets`)
+      
+    } catch (error) {
+      console.error('Erreur lors de la vente complète:', error)
+    } finally {
+      setSellAllLoading(false)
     }
-    
-    const newCoins = (currentProfile.virtual_currency || 0) + totalValue
-    
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({ virtual_currency: newCoins })
-      .eq('id', user.id) // Sûr
-    
-    if (updateError) {
-      console.error('Erreur mise à jour coins:', updateError)
-      return
-    }
-    
-    // 3. Enregistrer la transaction
-    const { error: transactionError } = await supabase
-      .from('transactions')
-      .insert({
-        user_id: user.id, // Sûr
-        type: 'item_sale',
-        virtual_amount: totalValue,
-        description: `Vente de ${selectedItems.size} objet(s)`,
-        created_at: new Date().toISOString()
-      })
-    
-    if (transactionError) {
-      console.error('Erreur enregistrement transaction:', transactionError)
-    }
-    
-    // 4. Rafraîchir les données
-    await refreshProfile()
-    
-    // Reset des sélections et fermeture
-    setSelectedItems(new Set())
-    setCartOpen(false)
-    
-    // Message de succès (optionnel - vous pouvez ajouter un système de notification)
-    console.log(`Vente réussie: +${totalValue} coins`)
-    
-  } catch (error) {
-    console.error('Erreur lors de la vente:', error)
   }
-}
+
   // Click-outside handler
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -503,9 +586,6 @@ const handleSellSelected = async () => {
                               exit={{ opacity: 0, scale: 0.95, y: -10 }}
                               className="absolute top-full mt-2 left-0 w-72 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 py-2 overflow-hidden"
                             >
-                              <div className="">
-                              </div>
-                              
                               {gamesDropdownItems.map((gameItem) => {
                                 const GameIcon = gameItem.icon
                                 return (
@@ -515,7 +595,6 @@ const handleSellSelected = async () => {
                                     onClick={() => {
                                       setGamesMenuOpen(false)
                                       if (gameItem.isComingSoon) {
-                                        // Optionnel: Montrer une notification "bientôt disponible"
                                         return
                                       }
                                     }}
@@ -740,7 +819,7 @@ const handleSellSelected = async () => {
                                 </div>
                                 
                                 <div className="p-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
-                                  <div className="grid grid-cols-2 gap-3">
+                                  <div className="grid grid-cols-2 gap-3 mb-3">
                                     <button 
                                       onClick={() => {
                                         setCartOpen(false)
@@ -766,6 +845,24 @@ const handleSellSelected = async () => {
                                     </button>
                                   </div>
                                   
+                                  {/* Nouveau bouton Tout Vendre */}
+                                  <button 
+                                    onClick={handleSellAll}
+                                    disabled={cartItems.length === 0 || sellAllLoading}
+                                    className={`w-full py-2.5 rounded-xl transition-colors text-sm font-bold flex items-center justify-center gap-2 ${
+                                      cartItems.length > 0 && !sellAllLoading
+                                        ? 'bg-red-500 hover:bg-red-600 text-white'
+                                        : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                                    }`}
+                                  >
+                                    {sellAllLoading ? (
+                                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                      <Coins className="h-4 w-4" />
+                                    )}
+                                    {sellAllLoading ? 'Vente en cours...' : `Tout Vendre (${cartItems.length})`}
+                                  </button>
+                                  
                                   {selectedItems.size > 0 && (
                                     <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-700">
                                       <div className="flex items-center justify-between text-sm">
@@ -778,6 +875,23 @@ const handleSellSelected = async () => {
                                             {cartItems
                                               .filter(item => selectedItems.has(item.id))
                                               .reduce((total, item) => total + (item.items?.market_value || 0), 0)} coins
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Affichage de la valeur totale pour "Tout Vendre" */}
+                                  {cartItems.length > 0 && selectedItems.size === 0 && (
+                                    <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-700">
+                                      <div className="flex items-center justify-between text-sm">
+                                        <span className="text-red-700 dark:text-red-300 font-medium">
+                                          Valeur totale:
+                                        </span>
+                                        <div className="flex items-center gap-1">
+                                          <Coins className="h-4 w-4 text-yellow-600" />
+                                          <span className="text-red-900 dark:text-red-100 font-bold">
+                                            {cartItems.reduce((total, item) => total + (item.items?.market_value || 0), 0)} coins
                                           </span>
                                         </div>
                                       </div>
@@ -851,7 +965,7 @@ const handleSellSelected = async () => {
                         </div>
                       </motion.button>
 
-                      {/* User Dropdown */}
+                      {/* User Dropdown - Paramètres supprimé */}
                       <AnimatePresence>
                         {userMenuOpen && (
                           <motion.div
@@ -906,15 +1020,6 @@ const handleSellSelected = async () => {
                               )}
                             </Link>
                             
-                            <Link
-                              href="/settings"
-                              className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                              onClick={() => setUserMenuOpen(false)}
-                            >
-                              <Settings className="h-4 w-4" />
-                              Paramètres
-                            </Link>
-                            
                             {/* Toggle de thème dans le menu utilisateur */}
                             <div className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                               <div className="flex items-center justify-between">
@@ -923,7 +1028,6 @@ const handleSellSelected = async () => {
                                   <span>Apparence</span>
                                 </div>
                                 
-                                {/* Toggle Switch - Zone cliquable isolée */}
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation()
@@ -974,37 +1078,6 @@ const handleSellSelected = async () => {
                                         )}
                                       </AnimatePresence>
                                     </motion.div>
-                                    
-                                    {/* Décorations d'arrière-plan */}
-                                    <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
-                                      {resolvedTheme === 'dark' ? (
-                                        <>
-                                          <motion.div
-                                            className="absolute top-1.5 left-2 w-1 h-1 bg-white rounded-full opacity-60"
-                                            animate={{ opacity: [0.3, 1, 0.3] }}
-                                            transition={{ duration: 2, repeat: Infinity }}
-                                          />
-                                          <motion.div
-                                            className="absolute top-2.5 left-4 w-0.5 h-0.5 bg-white rounded-full opacity-40"
-                                            animate={{ opacity: [0.2, 0.8, 0.2] }}
-                                            transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }}
-                                          />
-                                        </>
-                                      ) : (
-                                        <>
-                                          <motion.div
-                                            className="absolute top-1 right-2 w-2 h-1 bg-white/30 rounded-full"
-                                            animate={{ x: [-5, 5, -5] }}
-                                            transition={{ duration: 4, repeat: Infinity }}
-                                          />
-                                          <motion.div
-                                            className="absolute top-3 right-4 w-1.5 h-0.5 bg-white/20 rounded-full"
-                                            animate={{ x: [5, -3, 5] }}
-                                            transition={{ duration: 3, repeat: Infinity, delay: 1 }}
-                                          />
-                                        </>
-                                      )}
-                                    </div>
                                   </motion.div>
                                 </button>
                               </div>

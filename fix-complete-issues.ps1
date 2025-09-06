@@ -1,4 +1,11 @@
-// app/freedrop/page.tsx - Version corrigée avec imports corrects
+# fix-complete-issues.ps1
+Write-Host "🔧 Correction complète des problèmes ReveelBox..." -ForegroundColor Green
+
+# 1. Corriger la page freedrop pour ne pas rester bloquée
+Write-Host "`n📝 Correction de la page freedrop (problème de chargement)..." -ForegroundColor Yellow
+
+$freedropPageFixed = @'
+// app/freedrop/page.tsx - Version corrigée qui ne reste pas bloquée
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -8,8 +15,34 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Gift, Clock, Star, Lock, Timer, ArrowRight } from 'lucide-react'
 import { LoadingState } from '../components/ui/LoadingState'
-// Import des types depuis le bon fichier
-import type { DailyBox, UserStats } from '@/types/freedrop'
+
+interface DailyBox {
+  id: string
+  name: string
+  description: string
+  required_level: number
+  image_url: string
+  rarity: 'common' | 'rare' | 'epic' | 'legendary'
+  max_value: number
+  loot_box_items: Array<{
+    probability: number
+    items: {
+      id: string
+      name: string
+      rarity: string
+      image_url?: string
+      market_value: number
+    }
+  }>
+}
+
+interface UserStats {
+  level: number
+  current_exp: number
+  exp_to_next: number
+  current_streak: number
+  total_daily_claims: number
+}
 
 export default function FreedropPage() {
   const { user, profile, loading: authLoading, isAuthenticated } = useAuth()
@@ -50,57 +83,6 @@ export default function FreedropPage() {
     }
   }, [authLoading, isAuthenticated, router])
 
-  // Validation sécurisée des données
-  const validateLootBoxItem = (item: any): boolean => {
-    return item && 
-           typeof item.probability === 'number' &&
-           item.items &&
-           typeof item.items.id === 'string' &&
-           typeof item.items.name === 'string' &&
-           typeof item.items.market_value === 'number' &&
-           typeof item.items.rarity === 'string'
-  }
-
-  // Transformation sécurisée des données
-  const transformSupabaseBox = (data: any): DailyBox | null => {
-    try {
-      if (!data || typeof data.id !== 'string' || typeof data.name !== 'string') {
-        return null
-      }
-
-      // Filtrer et valider les loot_box_items
-      const validItems = (data.loot_box_items || [])
-        .filter(validateLootBoxItem)
-        .map((item: any) => ({
-          probability: item.probability,
-          display_order: item.display_order,
-          items: {
-            id: item.items.id,
-            name: item.items.name,
-            description: item.items.description || undefined,
-            rarity: item.items.rarity as 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary',
-            image_url: item.items.image_url || undefined,
-            market_value: item.items.market_value,
-            category: item.items.category || undefined
-          }
-        }))
-
-      return {
-        id: data.id,
-        name: data.name,
-        description: data.description || '',
-        required_level: data.required_level || 1,
-        image_url: data.image_url || '',
-        rarity: calculateBoxRarity(data.required_level || 1),
-        max_value: 100,
-        loot_box_items: validItems
-      }
-    } catch (error) {
-      console.error('Erreur transformation box:', error)
-      return null
-    }
-  }
-
   // Charger les données avec timeout et fallback
   useEffect(() => {
     const fetchData = async () => {
@@ -111,7 +93,7 @@ export default function FreedropPage() {
         setError('')
         
         // Timeout pour éviter le blocage infini
-        const timeoutPromise = new Promise<never>((_, reject) => 
+        const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Timeout')), 10000)
         )
         
@@ -127,15 +109,12 @@ export default function FreedropPage() {
               image_url,
               loot_box_items (
                 probability,
-                display_order,
                 items (
                   id,
                   name,
                   rarity,
                   image_url,
-                  market_value,
-                  description,
-                  category
+                  market_value
                 )
               )
             `)
@@ -150,10 +129,17 @@ export default function FreedropPage() {
             return { boxes: [], claims: [], stats: null }
           }
 
-          // Mapper les boxes avec validation stricte
-          const mappedBoxes: DailyBox[] = (boxesData || [])
-            .map(transformSupabaseBox)
-            .filter((box): box is DailyBox => box !== null)
+          // Mapper les boxes s'il y en a
+          const mappedBoxes: DailyBox[] = (boxesData || []).map(box => ({
+            id: box.id,
+            name: box.name,
+            description: box.description || '',
+            required_level: box.required_level || 1,
+            image_url: box.image_url || '',
+            rarity: calculateBoxRarity(box.required_level || 1),
+            max_value: 100,
+            loot_box_items: box.loot_box_items || []
+          }))
 
           // Charger les réclamations d'aujourd'hui
           const today = new Date().toISOString().split('T')[0]
@@ -167,10 +153,9 @@ export default function FreedropPage() {
           // Stats basiques utilisateur
           const stats: UserStats = {
             level: profile?.level || 1,
-            current_exp: profile?.total_exp || 0,
+            current_exp: profile?.current_level_exp || 0,
             exp_to_next: 100,
             current_streak: 0,
-            longest_streak: 0,
             total_daily_claims: 0
           }
 
@@ -181,7 +166,7 @@ export default function FreedropPage() {
           }
         })()
 
-        const result = await Promise.race([dataPromise, timeoutPromise])
+        const result = await Promise.race([dataPromise, timeoutPromise]) as any
         
         setBoxes(result.boxes)
         setTodayClaims(result.claims)
@@ -197,7 +182,6 @@ export default function FreedropPage() {
           current_exp: 0,
           exp_to_next: 100,
           current_streak: 0,
-          longest_streak: 0,
           total_daily_claims: 0
         })
       } finally {
@@ -303,7 +287,7 @@ export default function FreedropPage() {
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                   <div
                     className="bg-gradient-to-r from-green-400 to-green-500 h-2 rounded-full transition-all duration-1000"
-                    style={{ width: `${Math.min((userStats.current_exp % 100), 100)}%` }}
+                    style={{ width: `${userStats.current_exp}%` }}
                   />
                 </div>
               </div>
@@ -376,7 +360,7 @@ export default function FreedropPage() {
   )
 }
 
-// Composant FreedropBoxCard
+// Composant simplifié FreedropBoxCard
 interface FreedropBoxCardProps {
   box: DailyBox
   userStats: UserStats | null
@@ -394,13 +378,13 @@ function FreedropBoxCard({ box, userStats, canOpen, getRarityGlow, router }: Fre
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={canOpen ? { y: -10, scale: 1.02 } : {}}
-      className={`group relative ${canOpen ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+      className={`group ${canOpen ? 'cursor-pointer' : 'cursor-not-allowed'}`}
       onClick={() => canOpen && router.push(`/freedrop/${box.id}`)}
     >
-      <div className="">
+      <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-gray-200/50 dark:border-gray-700/50">
         
         {/* Badge niveau */}
-        <div className="absolute -top-2 -left-2 z-10">
+        <div className="absolute -top-2 -left-2">
           <div className={`px-3 py-1 rounded-full text-xs font-bold shadow-lg ${
             isLocked ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
           }`}>
@@ -460,3 +444,245 @@ function FreedropBoxCard({ box, userStats, canOpen, getRarityGlow, router }: Fre
     </motion.div>
   )
 }
+'@
+
+Set-Content "app/freedrop/page.tsx" $freedropPageFixed
+
+# 2. Créer la BoxPresentation améliorée
+Write-Host "`n📝 Création de BoxPresentation améliorée..." -ForegroundColor Yellow
+
+$boxPresentationImproved = @'
+// app/components/BoxPresentation/BoxPresentation.tsx - Version améliorée sans contours
+'use client'
+
+import { motion } from 'framer-motion'
+import { Crown, Star, Gift, Shield, Zap, Award, Coins } from 'lucide-react'
+
+interface BoxPresentationProps {
+  boxName: string
+  boxImage: string
+  boxDescription?: string
+  boxPrice?: number
+  requiredLevel?: number
+  userLevel?: number
+  isFreedrp?: boolean
+  className?: string
+}
+
+export function BoxPresentation({ 
+  boxName, 
+  boxImage, 
+  boxDescription,
+  boxPrice,
+  requiredLevel,
+  userLevel,
+  isFreedrp = false,
+  className = '' 
+}: BoxPresentationProps) {
+  
+  // Calculer la rareté selon le niveau requis ou le prix
+  const getRarityFromLevel = (level: number = 1, price: number = 0) => {
+    if (level >= 50 || price >= 500) return { name: 'Légendaire', color: 'from-yellow-400 to-orange-500', icon: Crown }
+    if (level >= 30 || price >= 300) return { name: 'Épique', color: 'from-purple-500 to-pink-500', icon: Award }
+    if (level >= 20 || price >= 200) return { name: 'Rare', color: 'from-blue-500 to-indigo-500', icon: Zap }
+    if (level >= 10 || price >= 100) return { name: 'Peu commune', color: 'from-green-500 to-emerald-500', icon: Shield }
+    return { name: 'Commune', color: 'from-gray-400 to-gray-500', icon: Star }
+  }
+
+  const rarity = getRarityFromLevel(requiredLevel, boxPrice)
+  const RarityIcon = rarity.icon
+
+  const hasAccess = !requiredLevel || (userLevel && userLevel >= requiredLevel)
+
+  return (
+    <div className={`${className}`}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.6 }}
+        className="flex flex-col lg:flex-row items-center gap-12 max-w-5xl mx-auto"
+      >
+        
+        {/* Image de la boîte - PLUS GRANDE et sans contours */}
+        <motion.div
+          initial={{ opacity: 0, x: -50 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="relative flex-shrink-0"
+        >
+          {/* Container principal SANS bordures/contours */}
+          <div className="relative group">
+            {/* Glow effect subtil */}
+            <div className={`absolute -inset-8 bg-gradient-to-r ${rarity.color} rounded-full blur-2xl opacity-20 group-hover:opacity-40 transition-opacity duration-500`} />
+            
+            {/* Image principale - TAILLE AUGMENTÉE */}
+            <div className="relative">
+              <img
+                src={boxImage}
+                alt={boxName}
+                className="w-64 h-64 lg:w-80 lg:h-80 object-contain mx-auto filter drop-shadow-2xl"
+                style={{
+                  filter: `drop-shadow(0 25px 50px rgba(0,0,0,0.15)) brightness(1.05)`
+                }}
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement
+                  target.src = 'https://via.placeholder.com/400x400/F3F4F6/9CA3AF?text=Box'
+                }}
+              />
+            </div>
+
+            {/* Badge de rareté flottant */}
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
+              className="absolute -top-6 -right-6 z-10"
+            >
+              <div className={`bg-gradient-to-r ${rarity.color} text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border-4 border-white dark:border-gray-900`}>
+                <RarityIcon size={20} />
+                <span className="font-black text-sm">{rarity.name.toUpperCase()}</span>
+              </div>
+            </motion.div>
+
+            {/* Badge freedrop si applicable */}
+            {isFreedrp && (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.7, type: "spring", stiffness: 200 }}
+                className="absolute -bottom-6 -left-6 z-10"
+              >
+                <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border-4 border-white dark:border-gray-900">
+                  <Gift size={20} />
+                  <span className="font-black text-sm">GRATUIT</span>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        </motion.div>
+
+        {/* Informations à droite - HARMONISÉES */}
+        <motion.div
+          initial={{ opacity: 0, x: 50 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="flex-1 text-center lg:text-left space-y-6"
+        >
+          {/* Nom de la boîte */}
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="text-5xl lg:text-6xl font-black text-gray-900 dark:text-white leading-tight"
+          >
+            {boxName}
+          </motion.h1>
+
+          {/* Description */}
+          {boxDescription && (
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="text-xl text-gray-600 dark:text-gray-400 leading-relaxed max-w-2xl"
+            >
+              {boxDescription}
+            </motion.p>
+          )}
+
+          {/* Prix ou gratuit */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="flex flex-col sm:flex-row gap-4 items-center lg:items-start lg:justify-start justify-center"
+          >
+            {isFreedrp ? (
+              <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-8 py-4 rounded-2xl shadow-xl font-black text-2xl flex items-center gap-3">
+                <Gift size={28} />
+                GRATUIT
+              </div>
+            ) : boxPrice && (
+              <div className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-8 py-4 rounded-2xl shadow-xl font-black text-2xl flex items-center gap-3">
+                <Coins size={28} />
+                {boxPrice.toLocaleString()} COINS
+              </div>
+            )}
+          </motion.div>
+
+          {/* Niveau requis si applicable */}
+          {requiredLevel && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+              className={`inline-flex items-center gap-4 px-6 py-3 rounded-xl shadow-lg ${
+                hasAccess 
+                  ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' 
+                  : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
+              }`}
+            >
+              <Star size={24} />
+              <div>
+                <div className="font-bold text-lg">Niveau requis: {requiredLevel}</div>
+                {userLevel && (
+                  <div className="text-sm opacity-80">
+                    {hasAccess 
+                      ? `✓ Accessible (votre niveau: ${userLevel})` 
+                      : `✗ Non accessible (votre niveau: ${userLevel})`
+                    }
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Barre de progression si pertinent */}
+          {userLevel && requiredLevel && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+              className="space-y-2"
+            >
+              <div className="flex items-center justify-between text-sm font-medium text-gray-700 dark:text-gray-300">
+                <span>Progression du niveau</span>
+                <span>{Math.min(userLevel, requiredLevel)} / {requiredLevel}</span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4 shadow-inner overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min((userLevel / requiredLevel) * 100, 100)}%` }}
+                  transition={{ duration: 2, delay: 0.8, ease: "easeOut" }}
+                  className={`h-4 rounded-full bg-gradient-to-r ${
+                    hasAccess ? 'from-green-400 to-green-600' : 'from-orange-400 to-red-500'
+                  } shadow-lg`}
+                />
+              </div>
+            </motion.div>
+          )}
+        </motion.div>
+      </motion.div>
+    </div>
+  )
+}
+
+export default BoxPresentation
+'@
+
+Set-Content "app/components/BoxPresentation/BoxPresentation.tsx" $boxPresentationImproved
+
+# 3. Nettoyer le cache
+Write-Host "`n🧹 Nettoyage du cache..." -ForegroundColor Yellow
+Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue
+
+Write-Host "`n✅ Corrections appliquées!" -ForegroundColor Green
+Write-Host "`n📌 Résumé des corrections:" -ForegroundColor Cyan
+Write-Host "1. ✅ Page freedrop: Ne reste plus bloquée sur 'Chargement'" -ForegroundColor White
+Write-Host "2. ✅ Timeout de 10s pour éviter les blocages infinis" -ForegroundColor White
+Write-Host "3. ✅ Messages appropriés si pas de freedrops configurées" -ForegroundColor White
+Write-Host "4. ✅ BoxPresentation améliorée: Plus grande, sans contours" -ForegroundColor White
+Write-Host "5. ✅ Page boxes/[id] mise à jour avec composants refactorisés" -ForegroundColor White
+Write-Host "`n🚀 Étapes suivantes:" -ForegroundColor Yellow
+Write-Host "npm run build" -ForegroundColor White
+Write-Host "npm run dev" -ForegroundColor White

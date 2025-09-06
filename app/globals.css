@@ -409,3 +409,680 @@ body {
   background-color: rgb(var(--primary) / 0.2);
   color: rgb(var(--text-primary));
 }
+
+/* Ajoutez ce CSS dans votre fichier globals.css */
+
+/* Élimination du clignotement blanc et amélioration des transitions */
+.admin-panel {
+  background: linear-gradient(135deg, 
+    rgb(249, 250, 251) 0%, 
+    rgb(255, 255, 255) 50%, 
+    rgb(249, 250, 251) 100%
+  );
+  min-height: 100vh;
+  transition: background-color 0.3s ease-in-out;
+}
+
+.dark .admin-panel {
+  background: linear-gradient(135deg, 
+    rgb(17, 24, 39) 0%, 
+    rgb(31, 41, 55) 50%, 
+    rgb(17, 24, 39) 100%
+  );
+}
+
+/* Prévenir le flash de contenu non stylisé (FOUC) */
+html {
+  visibility: visible;
+  opacity: 1;
+}
+
+html:not(.dark):not(.light) {
+  visibility: hidden;
+  opacity: 0;
+}
+
+/* Transitions fluides pour les cartes */
+.admin-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, box-shadow;
+}
+
+.admin-card:hover {
+  transform: translateY(-2px);
+}
+
+/* Animations d'entrée pour les grilles d'items */
+.items-grid {
+  animation: fadeInGrid 0.5s ease-out;
+}
+
+@keyframes fadeInGrid {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Optimisation des rendus pour les images */
+.item-image, .box-image {
+  transition: transform 0.3s ease-out;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.item-image:hover, .box-image:hover {
+  transform: scale(1.1);
+}
+
+/* Suppression du clignotement des skeleton loaders */
+.skeleton {
+  background: linear-gradient(90deg, 
+    rgb(241, 245, 249) 25%, 
+    rgb(226, 232, 240) 50%, 
+    rgb(241, 245, 249) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+.dark .skeleton {
+  background: linear-gradient(90deg, 
+    rgb(55, 65, 81) 25%, 
+    rgb(75, 85, 99) 50%, 
+    rgb(55, 65, 81) 75%
+  );
+  background-size: 200% 100%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Optimisation des scrollbars */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgb(243, 244, 246);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgb(156, 163, 175);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(107, 114, 128);
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-track {
+  background: rgb(55, 65, 81);
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgb(107, 114, 128);
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(156, 163, 175);
+}
+
+/* Réduction du motion pour les utilisateurs qui le préfèrent */
+@media (prefers-reduced-motion: reduce) {
+  .admin-card,
+  .item-image,
+  .box-image {
+    transition: none;
+  }
+  
+  .items-grid {
+    animation: none;
+  }
+  
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* Amélioration de la performance pour les grandes listes */
+.items-container {
+  contain: layout style paint;
+}
+
+.item-card {
+  contain: layout style paint;
+}
+
+/* Effet de focus amélioré pour l'accessibilité */
+.focus-ring:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.5);
+}
+
+.dark .focus-ring:focus {
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.6);
+}
+
+/* Optimisation de l'affichage des badges de rareté */
+.rarity-legendary {
+  animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+  from {
+    box-shadow: 0 0 5px rgba(234, 179, 8, 0.5);
+  }
+  to {
+    box-shadow: 0 0 20px rgba(234, 179, 8, 0.8), 0 0 30px rgba(234, 179, 8, 0.6);
+  }
+}
+
+/* Optimisation pour les écrans haute densité */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .item-image, .box-image {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: optimize-contrast;
+  }
+}
+
+/* Styles pour le drag and drop */
+.dragging {
+  opacity: 0.5;
+  transform: rotate(5deg);
+  z-index: 1000;
+}
+
+.drop-zone {
+  background-color: rgba(34, 197, 94, 0.1);
+  border: 2px dashed rgb(34, 197, 94);
+}
+
+.dark .drop-zone {
+  background-color: rgba(34, 197, 94, 0.2);
+}
+
+/* Amélioration des transitions de thème */
+* {
+  transition: background-color 0.3s ease-in-out, 
+              border-color 0.3s ease-in-out, 
+              color 0.3s ease-in-out;
+}
+
+/* Optimisations CSS pour la roue et les animations - À ajouter dans globals.css */
+
+/* Optimisation GPU pour la roue */
+.wheel-container {
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+.wheel-items {
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+}
+
+/* Réduction des reflows pour les items */
+.wheel-item {
+  contain: layout style paint;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Animations fluides avec hardware acceleration */
+.wheel-spinning {
+  animation: wheel-spin-optimized 4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.wheel-spinning-fast {
+  animation: wheel-spin-optimized 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes wheel-spin-optimized {
+  0% {
+    transform: translate3d(0px, 0, 0);
+  }
+  100% {
+    transform: translate3d(var(--final-position), 0, 0);
+  }
+}
+
+/* Optimisation des images */
+.wheel-item img {
+  image-rendering: optimizeSpeed;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: optimize-contrast;
+  transform: translateZ(0);
+}
+
+/* Gradients performants */
+.fade-left {
+  background: linear-gradient(
+    to right,
+    rgba(17, 24, 39, 1) 0%,
+    rgba(17, 24, 39, 0.8) 40%,
+    rgba(17, 24, 39, 0) 100%
+  );
+  pointer-events: none;
+}
+
+.fade-right {
+  background: linear-gradient(
+    to left,
+    rgba(17, 24, 39, 1) 0%,
+    rgba(17, 24, 39, 0.8) 40%,
+    rgba(17, 24, 39, 0) 100%
+  );
+  pointer-events: none;
+}
+
+/* États de chargement optimisés */
+.loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 25%,
+    #e0e0e0 50%,
+    #f0f0f0 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Optimisation des ombres */
+.optimized-shadow {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.15s ease-in-out;
+}
+
+.optimized-shadow:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* Réduction de la complexité des animations hover */
+.simple-hover {
+  transition: transform 0.15s ease-out;
+}
+
+.simple-hover:hover {
+  transform: translateY(-2px);
+}
+
+/* Optimisation des modals */
+.modal-backdrop {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Réduction des repaints pour les boutons */
+.btn-optimized {
+  contain: layout style;
+  will-change: transform;
+  transition: transform 0.15s ease-out;
+}
+
+.btn-optimized:hover {
+  transform: translateY(-1px);
+}
+
+.btn-optimized:active {
+  transform: translateY(0);
+}
+
+/* Optimisation des grilles de loot */
+.loot-grid {
+  contain: layout;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.loot-item {
+  contain: layout style paint;
+  will-change: transform;
+}
+
+/* Animations de rareté simplifiées */
+.rarity-glow-common {
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+}
+
+.rarity-glow-rare {
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+}
+
+.rarity-glow-epic {
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+}
+
+.rarity-glow-legendary {
+  box-shadow: 0 0 25px rgba(251, 191, 36, 0.6);
+  animation: legendary-pulse 2s ease-in-out infinite;
+}
+
+@keyframes legendary-pulse {
+  0%, 100% {
+    box-shadow: 0 0 25px rgba(251, 191, 36, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(251, 191, 36, 0.8);
+  }
+}
+
+/* Optimisation du scroll */
+.smooth-scroll {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Préchargement d'images */
+.preload-images {
+  content: url('/placeholder-item.png');
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  visibility: hidden;
+}
+
+/* Réduction de la complexité des animations de particules */
+.particle {
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+/* CSS pour la gestion mémoire */
+.memory-efficient {
+  transform: translateZ(0);
+  will-change: auto;
+}
+
+/* Media queries pour les performances mobiles */
+@media (max-width: 768px) {
+  .wheel-container {
+    transform: none;
+    will-change: auto;
+  }
+  
+  .complex-animation {
+    animation: none;
+  }
+  
+  .particle {
+    display: none;
+  }
+}
+
+/* Réduction des animations sur les appareils lents */
+@media (prefers-reduced-motion: reduce) {
+  .wheel-spinning,
+  .wheel-spinning-fast,
+  .legendary-pulse,
+  .shimmer {
+    animation: none;
+  }
+  
+  .simple-hover:hover {
+    transform: none;
+  }
+}
+
+/* Styles pour la roue harmonisée - À ajouter dans globals.css */
+
+/* Harmonisation avec le thème du site */
+.wheel-container {
+  background: linear-gradient(135deg, 
+    rgba(249, 250, 251, 0.8) 0%, 
+    rgba(243, 244, 246, 0.9) 100%
+  );
+}
+
+.dark .wheel-container {
+  background: linear-gradient(135deg, 
+    rgba(31, 41, 55, 0.5) 0%, 
+    rgba(17, 24, 39, 0.7) 100%
+  );
+}
+
+/* Effets hover pour les items de la roue */
+.wheel-item {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.wheel-item:hover {
+  transform: translateY(-4px) scale(1.05);
+}
+
+/* Halos de rareté optimisés */
+.rarity-halo-common {
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.3) 0%, transparent 70%);
+}
+
+.rarity-halo-uncommon {
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.3) 0%, transparent 70%);
+}
+
+.rarity-halo-rare {
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, transparent 70%);
+}
+
+.rarity-halo-epic {
+  background: radial-gradient(circle, rgba(217, 70, 239, 0.4) 0%, transparent 70%);
+}
+
+.rarity-halo-legendary {
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.5) 0%, transparent 70%);
+  animation: legendary-pulse 2s ease-in-out infinite;
+}
+
+/* Animation de pulsation pour les légendaires */
+@keyframes legendary-pulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+}
+
+/* Animation de flottement pour l'objet gagnant */
+@keyframes float-winner {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  33% {
+    transform: translateY(-8px) scale(1.02);
+  }
+  66% {
+    transform: translateY(-4px) scale(1.01);
+  }
+}
+
+.winner-float {
+  animation: float-winner 3s ease-in-out infinite;
+}
+
+/* Rotation 3D pour l'objet gagnant */
+@keyframes rotate-3d {
+  0% {
+    transform: rotateY(0deg);
+  }
+  100% {
+    transform: rotateY(360deg);
+  }
+}
+
+.winner-rotate {
+  animation: rotate-3d 4s linear infinite;
+  transform-style: preserve-3d;
+}
+
+/* Particules flottantes pour les objets rares */
+.floating-particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: float-up 1.5s ease-out infinite;
+}
+
+@keyframes float-up {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-20px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-40px) scale(0);
+  }
+}
+
+/* Gradients de fade harmonisés */
+.fade-gradient-left {
+  background: linear-gradient(
+    to right,
+    rgba(249, 250, 251, 1) 0%,
+    rgba(249, 250, 251, 0.8) 50%,
+    transparent 100%
+  );
+}
+
+.dark .fade-gradient-left {
+  background: linear-gradient(
+    to right,
+    rgba(31, 41, 55, 0.9) 0%,
+    rgba(31, 41, 55, 0.6) 50%,
+    transparent 100%
+  );
+}
+
+.fade-gradient-right {
+  background: linear-gradient(
+    to left,
+    rgba(249, 250, 251, 1) 0%,
+    rgba(249, 250, 251, 0.8) 50%,
+    transparent 100%
+  );
+}
+
+.dark .fade-gradient-right {
+  background: linear-gradient(
+    to left,
+    rgba(31, 41, 55, 0.9) 0%,
+    rgba(31, 41, 55, 0.6) 50%,
+    transparent 100%
+  );
+}
+
+/* Optimisations pour les performances */
+.wheel-optimized {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Bordures subtiles pour la roue */
+.wheel-border {
+  border: 1px solid rgba(229, 231, 235, 0.5);
+}
+
+.dark .wheel-border {
+  border: 1px solid rgba(55, 65, 81, 0.5);
+}
+
+/* États de chargement avec shimmer effect */
+.wheel-loading {
+  background: linear-gradient(
+    90deg,
+    rgba(243, 244, 246, 0.5) 0%,
+    rgba(229, 231, 235, 0.8) 50%,
+    rgba(243, 244, 246, 0.5) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.dark .wheel-loading {
+  background: linear-gradient(
+    90deg,
+    rgba(31, 41, 55, 0.5) 0%,
+    rgba(55, 65, 81, 0.8) 50%,
+    rgba(31, 41, 55, 0.5) 100%
+  );
+  background-size: 200% 100%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Responsive - Réduction des effets sur mobile */
+@media (max-width: 768px) {
+  .wheel-item:hover {
+    transform: none;
+  }
+  
+  .rarity-halo-legendary {
+    animation: none;
+  }
+  
+  .floating-particle {
+    display: none;
+  }
+  
+  .winner-rotate {
+    animation-duration: 6s;
+  }
+}
+
+/* Réduction des animations pour les préférences système */
+@media (prefers-reduced-motion: reduce) {
+  .legendary-pulse,
+  .float-winner,
+  .rotate-3d,
+  .float-up,
+  .shimmer {
+    animation: none;
+  }
+  
+  .wheel-item:hover {
+    transform: translateY(-2px);
+    transition: transform 0.1s ease;
+  }
+}

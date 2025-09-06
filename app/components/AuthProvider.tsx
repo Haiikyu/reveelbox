@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import type { User, Session } from '@supabase/supabase-js'
+import { calculateLevel } from '@/lib/xp-system' // Import du système centralisé
 
 interface Profile {
   id: string
@@ -18,11 +19,17 @@ interface Profile {
   privacy_profile: string
   notifications_email: boolean
   notifications_push: boolean
-  role: string  // ← ADD THIS LINE
-  is_admin: boolean  // ← ADD THIS LINE TOO
+  role: string
+  is_admin: boolean
   created_at: string
   updated_at: string
+  // Propriétés calculées avec le système XP centralisé
+  level?: number
+  current_level_exp?: number
+  exp_to_next?: number
+  progress_percentage?: number
 }
+
 interface AuthContextType {
   user: User | null
   session: Session | null
@@ -49,7 +56,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const initializingRef = useRef(false)
   const profileCacheRef = useRef<{ userId: string, profile: Profile } | null>(null)
 
-  // ✅ SOLUTION 1: Fonction de chargement du profil avec cache
+  // Fonction utilitaire pour enrichir le profil avec les données XP calculées
+  const enrichProfileWithXP = (profileData: any): Profile => {
+    if (!profileData) return profileData
+    
+    const totalExp = profileData.total_exp || 0
+    const level = calculateLevel(totalExp)
+    const currentLevelExp = totalExp % 100
+    const expToNext = 100 - currentLevelExp
+    const progressPercentage = Math.round((currentLevelExp / 100) * 100)
+    
+    return {
+      ...profileData,
+      level,
+      current_level_exp: currentLevelExp,
+      exp_to_next: expToNext,
+      progress_percentage: progressPercentage
+    }
+  }
+
+  // Fonction de chargement du profil avec cache et XP enrichie
   const loadProfile = useCallback(async (userId: string, forceRefresh = false) => {
     // Utiliser le cache si disponible et pas de refresh forcé
     if (!forceRefresh && profileCacheRef.current?.userId === userId) {
@@ -70,8 +96,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(null)
         profileCacheRef.current = null
       } else if (data) {
-        setProfile(data)
-        profileCacheRef.current = { userId, profile: data }
+        // Enrichir le profil avec les calculs XP centralisés
+        const enrichedProfile = enrichProfileWithXP(data)
+        setProfile(enrichedProfile)
+        profileCacheRef.current = { userId, profile: enrichedProfile }
       }
     } catch (error) {
       console.error('Erreur loadProfile:', error)
@@ -82,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // ✅ SOLUTION 2: Initialisation robuste avec protection contre les boucles
+  // Initialisation robuste avec protection contre les boucles
   const initializeAuth = useCallback(async () => {
     if (initializingRef.current) return
     initializingRef.current = true
@@ -127,11 +155,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [loadProfile])
 
-  // ✅ SOLUTION 3: Effet d'initialisation avec cleanup
+  // Effet d'initialisation avec cleanup
   useEffect(() => {
     initializeAuth()
 
-    // ✅ SOLUTION 4: Listener d'authentification avec debounce
+    // Listener d'authentification avec debounce
     let timeoutId: NodeJS.Timeout | null = null
     
     const { data: { subscription } } = supabaseRef.current.auth.onAuthStateChange(
@@ -140,7 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (timeoutId) clearTimeout(timeoutId)
         
         timeoutId = setTimeout(async () => {
-          console.log('🔐 Auth state change:', event, newSession?.user?.id)
+          console.log('🔍 Auth state change:', event, newSession?.user?.id)
           
           if (event === 'SIGNED_OUT' || !newSession?.user) {
             setUser(null)
@@ -162,7 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     )
 
-    // ✅ SOLUTION 5: Cleanup proper
+    // Cleanup proper
     return () => {
       if (timeoutId) clearTimeout(timeoutId)
       subscription.unsubscribe()
@@ -170,26 +198,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [initializeAuth, loadProfile])
 
-  // ✅ SOLUTION 6: Refresh profile avec gestion d'erreurs
+  // Refresh profile avec gestion d'erreurs et recalcul XP
   const refreshProfile = useCallback(async () => {
     if (!user) return
-    await loadProfile(user.id, true) // Force refresh
+    await loadProfile(user.id, true) // Force refresh avec recalcul XP
   }, [user, loadProfile])
 
-  // ✅ SOLUTION 7: Update profile optimiste avec rollback
+  // Update profile optimiste avec rollback et recalcul XP
   const updateProfile = useCallback(async (updates: Partial<Profile>) => {
     if (!user || !profile) return
 
+    // Si on met à jour l'XP, recalculer les propriétés dérivées
+    const updatedData = updates.total_exp !== undefined 
+      ? enrichProfileWithXP({ ...profile, ...updates })
+      : { ...profile, ...updates }
+
     // Mise à jour optimiste
     const previousProfile = profile
-    const updatedProfile = { ...profile, ...updates }
-    setProfile(updatedProfile)
-    profileCacheRef.current = { userId: user.id, profile: updatedProfile }
+    setProfile(updatedData)
+    profileCacheRef.current = { userId: user.id, profile: updatedData }
 
     try {
+      // Ne sauvegarder que les champs de base (pas les calculés)
+      const { level, current_level_exp, exp_to_next, progress_percentage, ...dbUpdates } = updates
+      
       const { error } = await supabaseRef.current
         .from('profiles')
-        .update(updates)
+        .update(dbUpdates)
         .eq('id', user.id)
 
       if (error) {
@@ -204,7 +239,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, profile])
 
-  // ✅ SOLUTION 8: SignOut avec cleanup complet
+  // SignOut avec cleanup complet
   const signOut = useCallback(async () => {
     try {
       setLoading(true)
@@ -233,7 +268,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // ✅ SOLUTION 9: Valeur du contexte mémorisée
+  // Valeur du contexte mémorisée
   const contextValue = useCallback(() => ({
     user,
     session,
@@ -253,7 +288,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
-// ✅ SOLUTION 10: Hook useAuth avec vérification
+// Hook useAuth avec vérification
 export function useAuth() {
   const context = useContext(AuthContext)
   if (context === undefined) {
@@ -262,7 +297,7 @@ export function useAuth() {
   return context
 }
 
-// ✅ SOLUTION 11: Hook de vérification de session
+// Hook de vérification de session
 export function useAuthCheck() {
   const { user, loading } = useAuth()
   const [isValidating, setIsValidating] = useState(false)

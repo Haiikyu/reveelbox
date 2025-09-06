@@ -1,5 +1,4 @@
-// app/boxes/page.tsx - Version avec support mode sombre
-
+// app/boxes/page.tsx - Version corrigée TypeScript
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -24,6 +23,7 @@ interface LootBox {
   limited?: boolean
   popular?: boolean
   new?: boolean
+  items_count?: number
 }
 
 // Variantes d'animation optimisées avec types corrects
@@ -79,7 +79,7 @@ export default function BoxesPage() {
   const showMessage = (message: string, type: 'success' | 'error') => {
     if (type === 'error') {
       setError(message)
-      setTimeout(() => setError(''), 3000)
+      setTimeout(() => setError(''), 5000)
     } else {
       setSuccess(message)
       setTimeout(() => setSuccess(''), 3000)
@@ -93,113 +93,82 @@ export default function BoxesPage() {
     }
   }, [authLoading, isAuthenticated, router])
 
-  // Charger les données depuis Supabase
+  // Charger les données depuis Supabase avec fallback
   useEffect(() => {
     const fetchBoxes = async () => {
+      if (!isAuthenticated) return
+
       try {
         setLoading(true)
+        setError('')
         
-        // Charger toutes les boîtes actives depuis Supabase
-        const { data: boxesData, error } = await supabase
+        console.log('Fetching loot boxes from Supabase...')
+
+        // Charger toutes les boîtes actives depuis Supabase avec comptage des items
+        const { data: boxesData, error: boxesError } = await supabase
           .from('loot_boxes')
-          .select('*')
+          .select(`
+            id,
+            name,
+            description,
+            price_virtual,
+            price_real,
+            image_url,
+            is_active,
+            banner_url,
+            loot_box_items!inner (
+              id
+            )
+          `)
           .eq('is_active', true)
           .neq('is_daily_free', true) // Exclure les freedrop
           .order('price_virtual', { ascending: false })
 
-        if (error) {
-          console.error('Erreur lors du chargement des boîtes:', error)
-          
-          // Fallback avec données de test si aucune boîte en DB
-          const testBoxes: LootBox[] = [
-            {
-              id: 'test-1',
-              name: 'MYSTERY TECH BOX',
-              description: 'Gadgets et accessoires tech surprises',
-              price_virtual: 200,
-              price_real: 19.99,
-              image_url: 'https://i.imgur.com/8YwZmtP.png',
-              is_active: true,
-              rarity: calculateRarityFromPrice(200),
-              limited: false,
-              popular: true,
-              new: false
-            },
-            {
-              id: 'test-2', 
-              name: 'GAMING TREASURE',
-              description: 'Objets collector pour gamers',
-              price_virtual: 500,
-              price_real: 49.99,
-              image_url: 'https://i.imgur.com/8YwZmtP.png',
-              is_active: true,
-              rarity: calculateRarityFromPrice(500),
-              limited: true,
-              popular: false,
-              new: true
-            }
-          ]
-          
-          setBoxes(testBoxes)
-          showMessage('Mode démo - Données de test affichées', 'success')
-          setLoading(false)
-          return
+        console.log('Supabase query result:', { boxesData, boxesError })
+
+        if (boxesError) {
+          console.error('Erreur lors du chargement des boîtes:', boxesError)
+          throw boxesError
         }
 
         if (!boxesData || boxesData.length === 0) {
           console.log('Aucune boîte trouvée en base')
-          
-          // Fallback avec données de test
-          const testBoxes: LootBox[] = [
-            {
-              id: 'test-1',
-              name: 'MYSTERY TECH BOX',
-              description: 'Gadgets et accessoires tech surprises',
-              price_virtual: 200,
-              price_real: 19.99,
-              image_url: 'https://i.imgur.com/8YwZmtP.png',
-              is_active: true,
-              rarity: calculateRarityFromPrice(200),
-              limited: false,
-              popular: true,
-              new: false
-            },
-            {
-              id: 'test-2', 
-              name: 'GAMING TREASURE',
-              description: 'Objets collector pour gamers',
-              price_virtual: 500,
-              price_real: 49.99,
-              image_url: 'https://i.imgur.com/8YwZmtP.png',
-              is_active: true,
-              rarity: calculateRarityFromPrice(500),
-              limited: true,
-              popular: false,
-              new: true
-            }
-          ]
-          
-          setBoxes(testBoxes)
-          showMessage('Mode démo activé', 'success')
+          showMessage('Aucune boîte disponible pour le moment', 'error')
+          setBoxes([])
           setLoading(false)
           return
         }
 
-        // Mapper les données et calculer la rareté selon le prix
-        const mappedBoxes: LootBox[] = boxesData.map(box => ({
-          ...box,
-          rarity: calculateRarityFromPrice(box.price_virtual),
-          limited: box.price_virtual >= 350,
-          popular: [320, 220, 150].includes(box.price_virtual),
-          new: ['FRESH ARRIVALS', 'EXCLUSIVE DROP'].includes(box.name)
-        }))
+        // Mapper les données et calculer les propriétés
+        const mappedBoxes: LootBox[] = boxesData.map((box: any) => {
+          const itemsCount = box.loot_box_items?.length || 0
+          const rarity = calculateRarityFromPrice(box.price_virtual)
+          
+          return {
+            id: box.id,
+            name: box.name,
+            description: box.description || '',
+            price_virtual: box.price_virtual,
+            price_real: box.price_real || 0,
+            image_url: box.image_url || '',
+            is_active: box.is_active,
+            items_count: itemsCount,
+            rarity,
+            limited: box.price_virtual >= 350,
+            popular: [320, 220, 150].includes(box.price_virtual),
+            new: box.name.toLowerCase().includes('new') || box.name.toLowerCase().includes('fresh')
+          }
+        })
         
+        console.log('Processed boxes:', mappedBoxes)
         setBoxes(mappedBoxes)
-        showMessage('Boîtes chargées avec succès', 'success')
-        setLoading(false)
+        showMessage(`${mappedBoxes.length} boîtes chargées avec succès`, 'success')
+
       } catch (error) {
-        console.error('Erreur:', error)
-        showMessage('Erreur lors du chargement', 'error')
+        console.error('Erreur critique:', error)
+        showMessage('Erreur lors du chargement des boîtes', 'error')
+        setBoxes([]) // S'assurer que la liste est vide en cas d'erreur
+      } finally {
         setLoading(false)
       }
     }
@@ -220,13 +189,15 @@ export default function BoxesPage() {
 
   // Filtrer les boîtes
   const filteredBoxes = boxes.filter(box => {
-    const matchesSearch = box.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesSearch = box.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         box.description.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesRarity = selectedRarity === 'all' || box.rarity === selectedRarity
     return matchesSearch && matchesRarity && box.is_active
   })
 
   // Naviguer vers l'ouverture au clic sur la boîte
   const handleBoxClick = (boxId: string) => {
+    console.log('Navigating to box:', boxId)
     router.push(`/boxes/${boxId}`)
   }
 
@@ -321,7 +292,7 @@ export default function BoxesPage() {
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 transition-colors" size={20} />
               <input
                 type="text"
-                placeholder="Rechercher..."
+                placeholder="Rechercher une boîte..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-12 pr-4 py-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-lg transition-all duration-300 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
@@ -334,7 +305,7 @@ export default function BoxesPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.5 }}
-            className="flex justify-center"
+            className="flex justify-center mb-8"
           >
             <div className="flex gap-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-2 shadow-lg border border-gray-200/50 dark:border-gray-700/50 transition-colors">
               {rarityFilters.map((filter) => (
@@ -344,7 +315,7 @@ export default function BoxesPage() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   className={`
-                    px-4 py-2 rounded-xl font-semibold text-sm transition-all duration-200
+                    px-4 py-2 rounded-xl font-semibold text-sm transition-all duration-200 relative
                     ${selectedRarity === filter.value
                       ? 'bg-blue-600 text-white shadow-lg'
                       : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -352,6 +323,11 @@ export default function BoxesPage() {
                   `}
                 >
                   {filter.label}
+                  {filter.count > 0 && (
+                    <span className="ml-1 text-xs opacity-70">
+                      ({filter.count})
+                    </span>
+                  )}
                 </motion.button>
               ))}
             </div>
@@ -369,17 +345,26 @@ export default function BoxesPage() {
             className="text-center py-20"
           >
             <div className="text-8xl mb-6">📦</div>
-            <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-4 transition-colors">Aucune boîte trouvée</h3>
-            <p className="text-gray-600 dark:text-gray-400 text-lg mb-8 transition-colors">Modifiez vos critères de recherche</p>
-            <Button 
-              onClick={() => { 
-                setSearchQuery(''); 
-                setSelectedRarity('all'); 
-              }}
-              className="bg-blue-600 hover:bg-blue-700 px-8 py-4 text-lg font-bold"
-            >
-              Voir toutes les boîtes
-            </Button>
+            <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-4 transition-colors">
+              {boxes.length === 0 ? 'Aucune boîte disponible' : 'Aucune boîte trouvée'}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 text-lg mb-8 transition-colors">
+              {boxes.length === 0 
+                ? 'Les boîtes seront bientôt disponibles. Revenez plus tard !'
+                : 'Modifiez vos critères de recherche pour voir plus de boîtes'
+              }
+            </p>
+            {filteredBoxes.length === 0 && boxes.length > 0 && (
+              <Button 
+                onClick={() => { 
+                  setSearchQuery(''); 
+                  setSelectedRarity('all'); 
+                }}
+                className="bg-blue-600 hover:bg-blue-700 px-8 py-4 text-lg font-bold"
+              >
+                Voir toutes les boîtes
+              </Button>
+            )}
           </motion.div>
         ) : (
           <motion.div
@@ -388,10 +373,11 @@ export default function BoxesPage() {
             animate="visible"
             className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-12"
           >
-            {filteredBoxes.map((box) => (
+            {filteredBoxes.map((box, index) => (
               <FloatingBoxCard
                 key={box.id}
                 box={box}
+                index={index}
                 user={user}
                 profile={profile}
                 onBoxClick={handleBoxClick}
@@ -402,7 +388,7 @@ export default function BoxesPage() {
         )}
 
         {/* CTA pour acheter des coins */}
-        {user && (
+        {user && boxes.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -429,6 +415,7 @@ export default function BoxesPage() {
 // Composant FloatingBoxCard
 interface FloatingBoxCardProps {
   box: LootBox
+  index: number
   user: any
   profile: any
   onBoxClick: (boxId: string) => void
@@ -437,6 +424,7 @@ interface FloatingBoxCardProps {
 
 function FloatingBoxCard({ 
   box, 
+  index,
   user, 
   profile, 
   onBoxClick, 
@@ -469,7 +457,7 @@ function FloatingBoxCard({
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              transition={{ delay: 0.3 }}
+              transition={{ delay: 0.3 + index * 0.05 }}
               className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg"
             >
               LIMITED
@@ -479,7 +467,7 @@ function FloatingBoxCard({
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              transition={{ delay: 0.4 }}
+              transition={{ delay: 0.4 + index * 0.05 }}
               className="bg-gradient-to-r from-green-500 to-green-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg"
             >
               NEW
@@ -489,7 +477,7 @@ function FloatingBoxCard({
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              transition={{ delay: 0.5 }}
+              transition={{ delay: 0.5 + index * 0.05 }}
               className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg"
             >
               HOT
@@ -538,16 +526,24 @@ function FloatingBoxCard({
             {box.name}
           </h3>
           
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-1 transition-colors">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2 transition-colors">
             {box.description}
           </p>
+
+          {/* Statistiques discrètes */}
+          {box.items_count && (
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+              {box.items_count} objets disponibles
+            </div>
+          )}
 
           {/* Prix */}
           <div className="flex items-center justify-center gap-2 mb-4">
             <Coins size={18} style={{ color: glowColor }} />
             <span className="text-xl font-black text-gray-900 dark:text-white transition-colors">
-              {box.price_virtual}
+              {box.price_virtual.toLocaleString()}
             </span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">coins</span>
           </div>
 
           {/* Indicateur de disponibilité */}
@@ -574,7 +570,7 @@ function FloatingBoxCard({
           </motion.div>
         </motion.div>
 
-        {/* Indicateur de rareté */}
+        {/* Indicateur de rareté animé */}
         <motion.div
           className="absolute top-2 left-2 w-3 h-3 rounded-full"
           style={{ backgroundColor: glowColor }}
@@ -587,6 +583,50 @@ function FloatingBoxCard({
             repeat: isHovered ? Infinity : 0 
           }}
         />
+
+        {/* Effet de particules pour les boîtes rares - CORRIGÉ */}
+        {(box.rarity === 'legendary' || box.rarity === 'epic') && isHovered && (
+          <motion.div
+            className="absolute inset-0 pointer-events-none"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            {Array.from({ length: 6 }).map((_, i) => {
+              const angle = (i * 60) * (Math.PI / 180)
+              const distance = 20
+              
+              return (
+                <motion.div
+                  key={i}
+                  className="absolute w-1 h-1 rounded-full"
+                  style={{ 
+                    backgroundColor: glowColor,
+                    left: '50%',
+                    top: '50%'
+                  }}
+                  initial={{ 
+                    x: 0, 
+                    y: 0, 
+                    opacity: 0, 
+                    scale: 0 
+                  }}
+                  animate={{
+                    x: Math.cos(angle) * distance,
+                    y: Math.sin(angle) * distance,
+                    opacity: [0, 1, 0],
+                    scale: [0, 1, 0],
+                  }}
+                  transition={{
+                    duration: 2,
+                    delay: i * 0.1,
+                    repeat: Infinity,
+                    repeatDelay: 1
+                  }}
+                />
+              )
+            })}
+          </motion.div>
+        )}
       </motion.div>
     </motion.div>
   )

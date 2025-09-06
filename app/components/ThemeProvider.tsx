@@ -29,13 +29,14 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
 
 export function ThemeProvider({
   children,
-  defaultTheme = 'system',
+  defaultTheme = 'light', // Forcer le mode clair par défaut
   storageKey = 'reveelbox-theme',
   ...props
 }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== 'undefined') {
-      return (localStorage.getItem(storageKey) as Theme) || defaultTheme
+      const stored = localStorage.getItem(storageKey) as Theme
+      return stored || defaultTheme
     }
     return defaultTheme
   })
@@ -80,7 +81,7 @@ export function ThemeProvider({
     setTheme(newTheme)
   }
 
-  // Marquer comme monté après hydration
+  // Marquer comme monté après hydratation
   useEffect(() => {
     setMounted(true)
   }, [])

@@ -917,6 +917,7 @@ export type Database = {
       loot_boxes: {
         Row: {
           animation_url: string | null
+          banner_url: string | null
           category: string | null
           created_at: string | null
           description: string | null
@@ -938,6 +939,7 @@ export type Database = {
         }
         Insert: {
           animation_url?: string | null
+          banner_url?: string | null
           category?: string | null
           created_at?: string | null
           description?: string | null
@@ -959,6 +961,7 @@ export type Database = {
         }
         Update: {
           animation_url?: string | null
+          banner_url?: string | null
           category?: string | null
           created_at?: string | null
           description?: string | null
@@ -1047,12 +1050,14 @@ export type Database = {
           avatar_url: string | null
           bio: string | null
           birth_date: string | null
+          coins_balance: number | null
           consecutive_days: number | null
           created_at: string | null
           email: string | null
           id: string
           is_admin: boolean
           last_freedrop_claim: string | null
+          level: number | null
           location: string | null
           loyalty_points: number
           notifications_email: boolean | null
@@ -1069,12 +1074,14 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           birth_date?: string | null
+          coins_balance?: number | null
           consecutive_days?: number | null
           created_at?: string | null
           email?: string | null
           id: string
           is_admin?: boolean
           last_freedrop_claim?: string | null
+          level?: number | null
           location?: string | null
           loyalty_points?: number
           notifications_email?: boolean | null
@@ -1091,12 +1098,14 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           birth_date?: string | null
+          coins_balance?: number | null
           consecutive_days?: number | null
           created_at?: string | null
           email?: string | null
           id?: string
           is_admin?: boolean
           last_freedrop_claim?: string | null
+          level?: number | null
           location?: string | null
           loyalty_points?: number
           notifications_email?: boolean | null
@@ -1302,6 +1311,7 @@ export type Database = {
           sold_at: string | null
           source: string | null
           tracking_number: string | null
+          updated_at: string | null
           user_id: string | null
         }
         Insert: {
@@ -1321,6 +1331,7 @@ export type Database = {
           sold_at?: string | null
           source?: string | null
           tracking_number?: string | null
+          updated_at?: string | null
           user_id?: string | null
         }
         Update: {
@@ -1340,6 +1351,7 @@ export type Database = {
           sold_at?: string | null
           source?: string | null
           tracking_number?: string | null
+          updated_at?: string | null
           user_id?: string | null
         }
         Relationships: [
@@ -1408,6 +1420,21 @@ export type Database = {
       }
     }
     Views: {
+      admin_stats: {
+        Row: {
+          active_boxes: number | null
+          avg_level: number | null
+          featured_boxes: number | null
+          total_boxes: number | null
+          total_coins: number | null
+          total_items: number | null
+          total_revenue: number | null
+          total_transactions: number | null
+          total_users: number | null
+          users_with_coins: number | null
+        }
+        Relationships: []
+      }
       daily_claim_stats: {
         Row: {
           avg_item_value: number | null
@@ -1466,6 +1493,10 @@ export type Database = {
         Args: { p_friendship_id: string }
         Returns: boolean
       }
+      add_experience: {
+        Args: { p_exp_amount: number; p_user_id: string }
+        Returns: Json
+      }
       add_friend: {
         Args: { p_friend_username: string }
         Returns: Json
@@ -1474,6 +1505,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      calculate_level_from_exp: {
+        Args: { experience: number }
+        Returns: number
+      }
       calculate_user_level: {
         Args: { user_exp: number }
         Returns: number
@@ -1481,6 +1516,10 @@ export type Database = {
       can_claim_daily_box: {
         Args: { p_box_id: string; p_required_level: number; p_user_id: string }
         Returns: boolean
+      }
+      check_daily_claim_status: {
+        Args: { p_box_id: string; p_user_id: string }
+        Returns: Json
       }
       check_total_probability: {
         Args: { box_id: string }
@@ -1491,6 +1530,14 @@ export type Database = {
         Returns: boolean
       }
       claim_daily_box: {
+        Args: { p_box_id: string; p_item_id: string; p_user_id: string }
+        Returns: Json
+      }
+      claim_daily_box_fixed: {
+        Args: { p_box_id: string; p_item_id: string; p_user_id: string }
+        Returns: Json
+      }
+      claim_daily_freedrop: {
         Args: { p_box_id: string; p_item_id: string; p_user_id: string }
         Returns: Json
       }
@@ -1616,7 +1663,22 @@ export type Database = {
           users_with_referral: number
         }[]
       }
+      get_user_daily_claims: {
+        Args: { p_date?: string; p_user_id: string }
+        Returns: {
+          box_id: string
+          box_name: string
+          claimed_at: string
+          item_id: string
+          item_name: string
+          item_value: number
+        }[]
+      }
       get_user_daily_stats: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
+      get_user_freedrop_stats: {
         Args: { p_user_id: string }
         Returns: Json
       }
@@ -1626,6 +1688,10 @@ export type Database = {
       }
       get_user_stats: {
         Args: { p_user_id: string }
+        Returns: Json
+      }
+      initialize_user_profile: {
+        Args: { p_email?: string; p_user_id: string }
         Returns: Json
       }
       join_battle: {
@@ -1660,8 +1726,8 @@ export type Database = {
       }
       process_box_opening: {
         Args: {
-          p_cost?: number
-          p_item_id?: string
+          p_cost: number
+          p_item_id: string
           p_loot_box_id: string
           p_user_id: string
         }
@@ -1700,11 +1766,19 @@ export type Database = {
         Args: { p_inventory_item_id: string; p_sell_price?: number }
         Returns: Json
       }
+      sell_inventory_item_fixed: {
+        Args: { p_inventory_item_id: string }
+        Returns: Json
+      }
       sell_inventory_item_simple: {
         Args: { p_inventory_item_id: string; p_sell_price?: number }
         Returns: Json
       }
       sell_multiple_items: {
+        Args: { p_inventory_item_ids: string[] }
+        Returns: Json
+      }
+      sell_multiple_items_fixed: {
         Args: { p_inventory_item_ids: string[] }
         Returns: Json
       }

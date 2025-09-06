@@ -1,902 +1,413 @@
+// app/boxes/[id]/page.tsx - Version corrigée complète
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Star, Coins, Gift, Play, Trophy } from 'lucide-react'
-import { useAuth } from '../../components/AuthProvider'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useAuth } from '@/app/components/AuthProvider'
 import { createClient } from '@/utils/supabase/client'
-import { use } from 'react' // Import pour Next.js 15
+import { useRouter, useParams } from 'next/navigation'
+import { LoadingState } from '@/app/components/ui/LoadingState'
+import { Package } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
-// Interfaces
-interface LootBoxItem {
+// Import des composants optimisés
+import { BoxPresentation } from '@/app/components/BoxPresentation/BoxPresentation'
+import { Wheel } from '@/app/components/Wheel/Wheel'
+import { WinningResult } from '@/app/components/WinningResult/WinningResult'
+import { OpeningButtons } from '@/app/components/OpeningButtons/OpeningButtons'
+import { LootList } from '@/app/components/LootList/LootList'
+
+interface LootItem {
   id: string
   name: string
-  rarity: 'common' | 'rare' | 'epic' | 'legendary'
-  probability: number
   image_url: string
   market_value: number
-  description?: string
+  rarity: string
+  probability: number
 }
 
 interface LootBox {
   id: string
   name: string
-  description: string
-  price_virtual: number
-  price_real: number
+  description?: string
   image_url: string
-  is_active: boolean
-  times_opened?: number
-  created_at: string
-  loot_box_items?: Array<{
-    probability: number
-    items: LootBoxItem
-  }>
+  price_virtual: number
+  items: LootItem[]
 }
 
-// ✅ INTERFACE PROFILE CORRIGEE
-interface Profile {
-  id: string
-  username?: string
-  virtual_currency?: number  // ✅ Optionnel
-  loyalty_points?: number    // ✅ Optionnel
-}
-
-// Types pour Next.js 15
-interface PageProps {
-  params: Promise<{ id: string }>
-}
-
-export default function BoxOpeningPage({ params }: PageProps) {
-  // Unwrap params using React.use() for Next.js 15
-  const resolvedParams = use(params)
-  const { id } = resolvedParams
-
-  const { user, profile, loading, isAuthenticated, refreshProfile } = useAuth()
-  const [box, setBox] = useState<LootBox | null>(null)
-  const [items, setItems] = useState<LootBoxItem[]>([])
-  const [boxLoading, setBoxLoading] = useState(true)
-  const [error, setError] = useState<string>('')
-  const [success, setSuccess] = useState<string>('')
-  
-  // États roulette
-  const [isSpinning, setIsSpinning] = useState(false)
-  const [wonItem, setWonItem] = useState<LootBoxItem | null>(null)
-  const [showResult, setShowResult] = useState(false)
-  const [wheelItems, setWheelItems] = useState<LootBoxItem[]>([])
-  const [finalPosition, setFinalPosition] = useState(0)
-  
-  // États mode
-  const [openMode, setOpenMode] = useState<'single' | 'demo'>('single')
-
-  const wheelRef = useRef<HTMLDivElement>(null)
-  const animationRef = useRef<number | null>(null)
-  
+export default function BoxOpeningPage() {
+  const { user, profile, loading: authLoading, isAuthenticated, refreshProfile } = useAuth()
   const router = useRouter()
+  const params = useParams()
   const supabase = createClient()
 
-  // ✅ FONCTION UTILITAIRE POUR OBTENIR LA CURRENCY DE MANIERE SURE
-  const getUserCurrency = (): number => {
-    if (!profile || typeof profile.virtual_currency !== 'number') {
-      return 0
-    }
-    return profile.virtual_currency
-  }
+  // États optimisés
+  const [box, setBox] = useState<LootBox | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [isSpinning, setIsSpinning] = useState(false)
+  const [winningItem, setWinningItem] = useState<LootItem | null>(null)
+  const [fastMode, setFastMode] = useState(false)
+  const [showResult, setShowResult] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
 
-  // ✅ FONCTION POUR VERIFIER SI L'UTILISATEUR PEUT SE PERMETTRE UNE BOX
-  const canAffordBox = (boxPrice: number): boolean => {
-    return getUserCurrency() >= boxPrice
-  }
+  const boxId = params?.id as string
 
-  // Protection de route selon le standard
-  useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      router.push('/login')
-    }
-  }, [loading, isAuthenticated, router])
-
-  // Messages de notification
-  const showMessage = (message: string, type: 'success' | 'error') => {
+  // Mémorisation des messages pour éviter les re-renders
+  const showMessage = useCallback((message: string, type: 'success' | 'error') => {
     if (type === 'error') {
       setError(message)
-      setTimeout(() => setError(''), 4000)
+      setTimeout(() => setError(''), 5000)
     } else {
       setSuccess(message)
-      setTimeout(() => setSuccess(''), 4000)
+      setTimeout(() => setSuccess(''), 3000)
     }
-  }
+  }, [])
 
-  // Charger la boîte depuis Supabase
+  // Protection de route optimisée
   useEffect(() => {
-    if (!isAuthenticated || !user || !id) return
+    if (!authLoading && !isAuthenticated) {
+      router.push('/login')
+    }
+  }, [authLoading, isAuthenticated, router])
 
-    const fetchBoxAndItems = async () => {
+  // Chargement optimisé avec cache et timeout CORRIGÉ
+  useEffect(() => {
+    if (!isAuthenticated || !boxId) return
+
+    let isCancelled = false
+    let timeoutId: NodeJS.Timeout
+
+    const loadBoxData = async () => {
       try {
-        setBoxLoading(true)
+        setLoading(true)
+        setError('')
 
-        // Gestion des requêtes avec fallback selon le standard
-        let boxData = null
-        let itemsList = []
-
-        try {
-          // Essayer d'abord requête avec jointures
-          const { data: joinedData, error: joinError } = await supabase
-            .from('loot_boxes')
-            .select(`
-              *,
-              loot_box_items (
-                probability,
-                items (
-                  id,
-                  name,
-                  description,
-                  rarity,
-                  image_url,
-                  market_value
-                )
-              )
-            `)
-            .eq('id', id)
-            .eq('is_active', true)
-            .single()
-
-          if (joinError) {
-            console.warn('Erreur jointure, fallback:', joinError)
-            
-            // Fallback : requête simple
-            const { data: simpleData, error: simpleError } = await supabase
-              .from('loot_boxes')
-              .select('*')
-              .eq('id', id)
-              .eq('is_active', true)
-              .single()
-
-            if (simpleError) throw simpleError
-            boxData = simpleData
-            
-            // Charger les items séparément si fallback
-            if (boxData) {
-              const { data: boxItems } = await supabase
-                .from('loot_box_items')
-                .select(`
-                  probability,
-                  items (*)
-                `)
-                .eq('loot_box_id', boxData.id)
-
-              if (boxItems && boxItems.length > 0) {
-                itemsList = boxItems.map((lbi: any) => ({
-                  ...lbi.items,
-                  probability: lbi.probability
-                }))
-              }
-            }
-          } else {
-            boxData = joinedData
-            if (boxData?.loot_box_items && boxData.loot_box_items.length > 0) {
-              itemsList = boxData.loot_box_items.map((lbi: any) => ({
-                ...lbi.items,
-                probability: lbi.probability
-              }))
-            }
+        // Timeout pour éviter les blocages - SANS abortSignal
+        timeoutId = setTimeout(() => {
+          if (!isCancelled) {
+            isCancelled = true
+            showMessage('Timeout: Chargement trop long', 'error')
+            setLoading(false)
           }
+        }, 10000)
 
-        } catch (fetchError) {
-          console.error('Erreur chargement box:', fetchError)
-          showMessage('Boîte introuvable', 'error')
-          router.push('/boxes')
+        const { data: boxData, error: boxError } = await supabase
+          .from('loot_boxes')
+          .select(`
+            id,
+            name,
+            description,
+            image_url,
+            price_virtual,
+            loot_box_items!inner (
+              probability,
+              display_order,
+              items!inner (
+                id,
+                name,
+                image_url,
+                market_value,
+                rarity
+              )
+            )
+          `)
+          .eq('id', boxId)
+          .eq('is_active', true)
+          .neq('is_daily_free', true)
+          .single()
+
+        // Nettoyer le timeout si la requête réussit
+        clearTimeout(timeoutId)
+
+        if (isCancelled) return
+
+        if (boxError) {
+          console.error('Erreur chargement boîte:', boxError)
+          if (boxError.code === 'PGRST116') {
+            showMessage('Cette boîte n\'existe pas ou n\'est plus disponible', 'error')
+          } else {
+            showMessage('Erreur lors du chargement de la boîte', 'error')
+          }
+          setTimeout(() => router.push('/boxes'), 2000)
           return
         }
 
-        if (!boxData) {
-          showMessage('Boîte introuvable', 'error')
-          router.push('/boxes')
+        if (!boxData?.loot_box_items?.length) {
+          showMessage('Cette boîte ne contient aucun objet', 'error')
+          setTimeout(() => router.push('/boxes'), 2000)
           return
         }
 
-        setBox(boxData)
+        // Traitement optimisé des items - TYPE SAFE
+        const processedItems = boxData.loot_box_items
+          .filter((item: any) => item?.items?.id) // Filtrer les éléments valides
+          .sort((a: any, b: any) => {
+            // Tri par display_order ou par valeur
+            if (a.display_order !== null && b.display_order !== null) {
+              return a.display_order - b.display_order
+            }
+            const aValue = a.items?.market_value || 0
+            const bValue = b.items?.market_value || 0
+            return bValue - aValue
+          })
+          .map((item: any) => ({
+            id: item.items.id,
+            name: item.items.name,
+            image_url: item.items.image_url || '',
+            market_value: item.items.market_value,
+            rarity: item.items.rarity,
+            probability: item.probability
+          })) as LootItem[]
 
-        if (itemsList.length > 0) {
-          setItems(itemsList)
-          createWheelItems(itemsList)
-        } else {
-          showMessage('Aucun item trouvé pour cette boîte', 'error')
-          router.push('/boxes')
-          return
-        }
+        setBox({
+          id: boxData.id,
+          name: boxData.name,
+          description: boxData.description || '',
+          image_url: boxData.image_url || '',
+          price_virtual: boxData.price_virtual,
+          items: processedItems
+        })
 
-      } catch (error) {
-        console.error('Erreur:', error)
-        showMessage('Erreur lors du chargement', 'error')
+        showMessage('Boîte chargée avec succès', 'success')
+
+      } catch (error: any) {
+        if (isCancelled) return
+        
+        console.error('Erreur critique:', error)
+        showMessage('Erreur inattendue lors du chargement', 'error')
+        setTimeout(() => router.push('/boxes'), 2000)
       } finally {
-        setBoxLoading(false)
+        if (!isCancelled) {
+          setLoading(false)
+        }
       }
     }
 
-    fetchBoxAndItems()
-  }, [id, isAuthenticated, user, router, supabase])
+    loadBoxData()
 
-  // Créer les items pour la roulette (50 items basés sur probabilités)
-  const createWheelItems = (baseItems: LootBoxItem[]) => {
-    const wheelArray: LootBoxItem[] = []
-    
-    for (let i = 0; i < 50; i++) {
-      const randomItem = selectRandomItemByProbability(baseItems)
-      wheelArray.push({
-        ...randomItem,
-        id: `wheel-${i}-${randomItem.id}`
-      })
+    return () => {
+      isCancelled = true
+      if (timeoutId) clearTimeout(timeoutId)
     }
-    
-    setWheelItems(wheelArray)
-    setFinalPosition(0)
-    
-    if (wheelRef.current) {
-      wheelRef.current.style.transform = 'translateX(0px)'
-    }
-  }
+  }, [isAuthenticated, boxId, supabase, router, showMessage])
 
-  // Sélection selon probabilités
-  const selectRandomItemByProbability = (baseItems: LootBoxItem[]): LootBoxItem => {
-    const random = Math.random() * 100
-    let cumulative = 0
+  // Sélection d'item optimisée avec mémorisation
+  const selectRandomItem = useCallback((items: LootItem[]): LootItem => {
+    const totalProbability = items.reduce((sum, item) => sum + item.probability, 0)
+    let random = Math.random() * totalProbability
     
-    for (const item of baseItems) {
-      cumulative += item.probability
-      if (random <= cumulative) {
+    for (const item of items) {
+      random -= item.probability
+      if (random <= 0) {
         return item
       }
     }
     
-    return baseItems[baseItems.length - 1]
-  }
+    return items[0]
+  }, [])
 
-  // ✅ FONCTION D'OUVERTURE CORRIGEE AVEC GESTION DES UNDEFINED
-  const openLootBox = async (): Promise<LootBoxItem> => {
-    if (!user || !box) throw new Error('Utilisateur non connecté')
+  // Ouverture de boîte optimisée
+  const handleOpenBox = useCallback(async () => {
+    if (!box || !profile || !user?.id || isSpinning) return
 
-    try {
-      // ✅ VERIFICATION CORRIGEE
-      if (!canAffordBox(box.price_virtual)) {
-        throw new Error('Coins insuffisants')
-      }
-
-      // Sélectionner un item gagnant
-      const wonItem = selectRandomItemByProbability(items)
-
-      // ✅ DEDUCTION COINS CORRIGEE
-      const currentCurrency = getUserCurrency()
-      const newCurrency = currentCurrency - box.price_virtual
-
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ 
-          virtual_currency: Math.max(0, newCurrency)
-        })
-        .eq('id', user.id)
-
-      if (updateError) throw updateError
-
-      // Ajouter à l'inventaire
-      const { error: inventoryError } = await supabase
-        .from('user_inventory')
-        .insert({
-          user_id: user.id,
-          item_id: wonItem.id,
-          quantity: 1,
-          obtained_at: new Date().toISOString()
-        })
-
-      if (inventoryError) throw inventoryError
-
-      // Enregistrer la transaction
-      const { error: transactionError } = await supabase
-        .from('transactions')
-        .insert({
-          user_id: user.id,
-          type: 'open_box',
-          virtual_amount: box.price_virtual,
-          loot_box_id: box.id,
-          item_id: wonItem.id,
-          created_at: new Date().toISOString()
-        })
-
-      if (transactionError) throw transactionError
-
-      // Rafraîchir le profil selon les standards
-      if (refreshProfile) {
-        await refreshProfile()
-      }
-
-      return wonItem
-    } catch (error) {
-      console.error('Error opening box:', error)
-      throw error
-    }
-  }
-
-  // Animation fluide de la roulette
-  const animateWheel = (duration: number, distance: number, winningItem: LootBoxItem) => {
-    if (!wheelRef.current) return
-
-    const start = performance.now()
-    const startPosition = 0
-
-    const animate = (currentTime: number) => {
-      const elapsed = currentTime - start
-      const progress = Math.min(elapsed / duration, 1)
-      
-      // Easing plus fluide
-      const easeOut = 1 - Math.pow(1 - progress, 4)
-      const currentPosition = startPosition - (distance * easeOut)
-      
-      if (wheelRef.current) {
-        wheelRef.current.style.transform = `translateX(${currentPosition}px)`
-      }
-      
-      if (progress < 1) {
-        animationRef.current = requestAnimationFrame(animate)
-      } else {
-        setFinalPosition(currentPosition)
-      }
-    }
-    
-    animationRef.current = requestAnimationFrame(animate)
-  }
-
-  // Lancer l'animation de spin
-  const performSpin = async () => {
-    let winningItem: LootBoxItem
-
-    if (openMode === 'single') {
-      try {
-        winningItem = await openLootBox()
-      } catch (error: any) {
-        showMessage(error.message || 'Erreur lors de l\'ouverture', 'error')
-        setIsSpinning(false)
-        return
-      }
-    } else {
-      winningItem = selectRandomItemByProbability(items)
+    const currentBalance = profile.virtual_currency || 0
+    if (currentBalance < box.price_virtual) {
+      showMessage(`Il vous manque ${box.price_virtual - currentBalance} coins`, 'error')
+      return
     }
 
-    // Calculer la distance pour centrer l'item gagnant
-    const itemWidth = 200 // Largeur d'un item
-    const winningIndex = Math.floor(Math.random() * 10) + 20 // Position aléatoire au centre
-    const finalDistance = winningIndex * itemWidth
-    const duration = 3500
-
-    // Remplacer l'item à la position gagnante
-    const newWheelItems = [...wheelItems]
-    newWheelItems[winningIndex] = {
-      ...winningItem,
-      id: `winning-${winningIndex}-${winningItem.id}`
-    }
-    setWheelItems(newWheelItems)
-
-    animateWheel(duration, finalDistance, winningItem)
-
-    setTimeout(() => {
-      setWonItem(winningItem)
-      setIsSpinning(false)
-      
-      setTimeout(() => {
-        setShowResult(true)
-      }, 500)
-      
-    }, duration + 500)
-  }
-
-  // ✅ FONCTION DE SPIN CORRIGEE
-  const spinWheel = () => {
-    if (isSpinning) return
-
+    // Pré-sélection de l'item pour une animation fluide
+    const selectedItem = selectRandomItem(box.items)
+    setWinningItem(selectedItem)
     setIsSpinning(true)
     setShowResult(false)
-    setWonItem(null)
+    setError('')
 
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current)
-    }
+    try {
+      const { data, error } = await supabase.rpc('process_box_opening', {
+        p_user_id: user.id,
+        p_loot_box_id: box.id,
+        p_item_id: selectedItem.id,
+        p_cost: box.price_virtual
+      })
 
-    if (openMode === 'single') {
-      if (!user) {
-        showMessage('Connectez-vous pour jouer', 'error')
+      if (error) {
+        console.error('Erreur RPC:', error)
+        showMessage(`Erreur: ${error.message}`, 'error')
         setIsSpinning(false)
+        setWinningItem(null)
         return
       }
+
+      if (data && !data.success) {
+        showMessage(`Erreur: ${data.error}`, 'error')
+        setIsSpinning(false)
+        setWinningItem(null)
+        return
+      }
+
+      showMessage(`Vous avez gagné ${selectedItem.name}!`, 'success')
       
-      // ✅ VERIFICATION CORRIGEE
-      if (!canAffordBox(box!.price_virtual)) {
-        showMessage('Coins insuffisants', 'error')
-        setIsSpinning(false)
-        return
-      }
-    }
-    
-    performSpin()
-  }
+      // Refresh différé pour ne pas bloquer l'animation
+      setTimeout(async () => {
+        try {
+          await refreshProfile?.()
+        } catch (error) {
+          console.error('Erreur refresh:', error)
+        }
+      }, 3000)
 
-  // Reset de la roulette
-  const resetWheel = () => {
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current)
+    } catch (error) {
+      console.error('Erreur critique:', error)
+      showMessage('Erreur inattendue lors de l\'ouverture', 'error')
+      setIsSpinning(false)
+      setWinningItem(null)
     }
-    
-    if (wheelRef.current) {
-      wheelRef.current.style.transform = 'translateX(0px)'
-    }
-    
-    setIsSpinning(false)
+  }, [box, profile, user?.id, isSpinning, selectRandomItem, supabase, showMessage, refreshProfile])
+
+  // Essai gratuit optimisé
+  const handleTryFree = useCallback(() => {
+    if (!box || isSpinning) return
+
+    const selectedItem = selectRandomItem(box.items)
+    setWinningItem(selectedItem)
+    setIsSpinning(true)
     setShowResult(false)
-    setWonItem(null)
-    setFinalPosition(0)
-    createWheelItems(items)
-  }
+  }, [box, isSpinning, selectRandomItem])
 
-  // Styles selon rareté
-  const getRarityStyles = (rarity: string) => {
-    const styles = {
-      common: {
-        gradient: 'from-gray-400 to-gray-600',
-        glow: '#9ca3af',
-        border: 'border-gray-300',
-        bg: 'bg-gray-50'
-      },
-      rare: {
-        gradient: 'from-blue-400 to-blue-600',
-        glow: '#3b82f6',
-        border: 'border-blue-300',
-        bg: 'bg-blue-50'
-      },
-      epic: {
-        gradient: 'from-purple-400 to-purple-600',
-        glow: '#8b5cf6',
-        border: 'border-purple-300',
-        bg: 'bg-purple-50'
-      },
-      legendary: {
-        gradient: 'from-yellow-400 to-orange-500',
-        glow: '#f59e0b',
-        border: 'border-yellow-300',
-        bg: 'bg-yellow-50'
-      }
-    }
-    return styles[rarity as keyof typeof styles] || styles.common
-  }
+  // Toggle fast mode mémorisé
+  const handleToggleFastMode = useCallback(() => {
+    setFastMode(prev => !prev)
+  }, [])
 
-  if (loading || !box) {
+  // Fin d'animation optimisée
+  const handleAnimationFinish = useCallback(() => {
+    setIsSpinning(false)
+    setShowResult(true)
+  }, [])
+
+  // Vente d'item optimisée
+  const handleSellItem = useCallback((item: LootItem) => {
+    showMessage(`${item.name} vendu pour ${item.market_value} coins`, 'success')
+    // TODO: Implémenter la vente réelle
+  }, [showMessage])
+
+  // Mémorisation des propriétés pour éviter les re-renders
+  const canAfford = useMemo(() => {
+    return profile ? profile.virtual_currency >= (box?.price_virtual || 0) : false
+  }, [profile?.virtual_currency, box?.price_virtual])
+
+  if (authLoading || loading || !isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
-        <div className="text-center">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            className="w-16 h-16 border-4 border-white border-t-transparent rounded-full mx-auto mb-6"
-          />
-          <p className="text-white text-xl font-bold">Chargement...</p>
+      <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
+        <LoadingState text="Chargement de la boîte..." />
+      </div>
+    )
+  }
+
+  if (!box) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center text-gray-500 dark:text-gray-400">
+          <Package className="w-16 h-16 mx-auto mb-4" />
+          <h2 className="text-xl font-bold mb-2">Boîte introuvable</h2>
+          <p>Cette boîte n'existe pas ou n'est plus disponible.</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 relative">
+    <div className="min-h-screen bg-white dark:bg-gray-900 pt-20 transition-colors duration-300">
       
-      {/* Messages de notification */}
-      <AnimatePresence>
+      {/* Messages optimisés */}
+      <AnimatePresence mode="wait">
         {error && (
           <motion.div
+            key="error"
             initial={{ opacity: 0, y: -50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
-            className="fixed top-6 right-6 bg-red-500 text-white px-6 py-4 rounded-xl shadow-lg z-50 font-medium"
+            className="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-xl shadow-lg z-50"
           >
             {error}
           </motion.div>
         )}
         {success && (
           <motion.div
+            key="success"
             initial={{ opacity: 0, y: -50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
-            className="fixed top-6 right-6 bg-green-500 text-white px-6 py-4 rounded-xl shadow-lg z-50 font-medium"
+            className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg z-50"
           >
             {success}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Header avec bouton retour */}
-      <motion.div 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="absolute top-6 left-6 z-10"
-      >
-        <button
-          onClick={() => router.push('/boxes')}
-          className="flex items-center gap-2 bg-white/10 backdrop-blur-md text-white px-4 py-2 rounded-lg hover:bg-white/20 transition-all"
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        
+        {/* Présentation */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-12"
         >
-          <ArrowLeft size={20} />
-          <span className="font-medium">Retour</span>
-        </button>
-      </motion.div>
+          <BoxPresentation
+            boxName={box.name}
+            boxImage={box.image_url}
+            boxDescription={box.description}
+            boxPrice={box.price_virtual}
+            isFreedrp={false}
+          />
+        </motion.div>
 
-      {/* Contenu principal */}
-      <div className="pt-20 pb-12 px-6">
-        <div className="max-w-7xl mx-auto">
-          
-          {/* En-tête de la boîte */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-12"
-          >
-            <motion.div
-              className="relative inline-block mb-8"
-              whileHover={{ scale: 1.05 }}
-            >
-              <img 
-                src={box.image_url}
-                alt={box.name}
-                className="w-48 h-48 object-contain drop-shadow-xl"
-              />
-            </motion.div>
-            
-            <h1 className="text-4xl font-bold text-white mb-4">
-              {box.name}
-            </h1>
-            
-            <p className="text-lg text-gray-300 max-w-2xl mx-auto mb-8">
-              {box.description}
-            </p>
+        {/* Roue optimisée */}
+        <div className="mb-12">
+          <Wheel
+            items={box.items}
+            winningItem={winningItem}
+            fastMode={fastMode}
+            onFinish={handleAnimationFinish}
+            isSpinning={isSpinning}
+          />
+        </div>
 
-            {/* Stats */}
-            <div className="flex justify-center gap-8 mb-8">
-              <div className="text-center bg-white/10 backdrop-blur-md rounded-xl p-4">
-                <div className="text-2xl font-bold text-green-400">
-                  {getUserCurrency()}
-                </div>
-                <div className="text-white/70 text-sm">Vos coins</div>
-              </div>
-              
-              <div className="text-center bg-white/10 backdrop-blur-md rounded-xl p-4">
-                <div className="text-2xl font-bold text-yellow-400">
-                  {box.price_virtual}
-                </div>
-                <div className="text-white/70 text-sm">Prix</div>
-              </div>
-              
-              <div className="text-center bg-white/10 backdrop-blur-md rounded-xl p-4">
-                <div className="text-2xl font-bold text-purple-400">
-                  {items.length}
-                </div>
-                <div className="text-white/70 text-sm">Objets</div>
-              </div>
-            </div>
+        {/* Résultat */}
+        <AnimatePresence>
+          {showResult && winningItem && (
+            <WinningResult 
+              item={winningItem}
+              isOpen={showResult}
+              onClose={() => setShowResult(false)}
+              onSell={handleSellItem}
+            />
+          )}
+        </AnimatePresence>
 
-            {/* Sélecteur de mode */}
-            <div className="flex justify-center mb-8">
-              <div className="bg-white/10 backdrop-blur-md rounded-xl p-1 flex gap-1">
-                <button
-                  onClick={() => setOpenMode('single')}
-                  className={`px-6 py-2 rounded-lg font-medium transition-all ${
-                    openMode === 'single'
-                      ? 'bg-green-500 text-white'
-                      : 'text-white/70 hover:text-white'
-                  }`}
-                >
-                  Mode Réel
-                </button>
-                <button
-                  onClick={() => setOpenMode('demo')}
-                  className={`px-6 py-2 rounded-lg font-medium transition-all ${
-                    openMode === 'demo'
-                      ? 'bg-blue-500 text-white'
-                      : 'text-white/70 hover:text-white'
-                  }`}
-                >
-                  Mode Démo
-                </button>
-              </div>
-            </div>
-          </motion.div>
+        {/* Boutons d'action */}
+        <div className="mb-12">
+          <OpeningButtons
+            boxPrice={box.price_virtual}
+            userCoins={profile?.virtual_currency || 0}
+            onOpenBox={handleOpenBox}
+            onTryFree={handleTryFree}
+            onToggleFastMode={handleToggleFastMode}
+            fastMode={fastMode}
+            isLoading={isSpinning}
+            disabled={isSpinning}
+          />
+        </div>
 
-          {/* GRANDE ROULETTE - Section principale */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="mb-12"
-          >
-            
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">
-                Roulette
-              </h2>
-              <p className="text-gray-300">
-                {isSpinning ? "En cours..." : "Lancez pour découvrir votre gain"}
-              </p>
-            </div>
-
-            {/* Container roulette ÉLARGI */}
-            <div className="relative mb-8 bg-white/5 backdrop-blur-md rounded-3xl p-8 border border-white/10">
-              
-              {/* Indicateur central élégant */}
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
-                <div className="w-1 h-48 bg-gradient-to-b from-yellow-400 to-orange-500 shadow-2xl rounded-full"></div>
-                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-yellow-400 rounded-full shadow-xl border-2 border-white">
-                  <div className="absolute inset-1 bg-white rounded-full opacity-40"></div>
-                </div>
-              </div>
-              
-              {/* Container de la roulette AGRANDI */}
-              <div className="relative h-64 overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border border-white/20">
-                
-                {/* Gradients de fade subtils */}
-                <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-slate-900 via-slate-900/80 to-transparent z-10"></div>
-                <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-slate-900 via-slate-900/80 to-transparent z-10"></div>
-
-                {/* Items de la roulette AGRANDIS */}
-                <div 
-                  ref={wheelRef}
-                  className="flex absolute h-full items-center transition-transform ease-out"
-                  style={{
-                    transform: 'translateX(0px)',
-                    paddingLeft: '50%',
-                    willChange: 'transform'
-                  }}
-                >
-                  {wheelItems.map((item, index) => {
-                    const rarityStyles = getRarityStyles(item.rarity)
-                    
-                    return (
-                      <motion.div
-                        key={item.id}
-                        className="flex-shrink-0 w-48 h-56 mx-3"
-                        whileHover={{ scale: 1.05, y: -5 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        <div className={`
-                          w-full h-full rounded-2xl border-3 p-4 flex flex-col items-center justify-between
-                          bg-white/10 backdrop-blur-md ${rarityStyles.border}
-                          hover:bg-white/20 transition-all duration-300
-                        `}>
-                          
-                          {/* Badge de rareté */}
-                          <div className={`px-3 py-1 rounded-xl text-xs font-bold bg-gradient-to-r ${rarityStyles.gradient} text-white shadow-lg`}>
-                            {item.rarity === 'legendary' ? 'LEGENDARY' :
-                             item.rarity === 'epic' ? 'EPIC' :
-                             item.rarity === 'rare' ? 'RARE' : 'COMMON'}
-                          </div>
-
-                          {/* Image */}
-                          <div className="flex-1 flex items-center justify-center p-2">
-                            <img
-                              src={item.image_url}
-                              alt={item.name}
-                              className="w-28 h-28 object-contain filter drop-shadow-lg"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement
-                                target.src = '/api/placeholder/150/150'
-                              }}
-                            />
-                          </div>
-                          
-                          {/* Nom de l'item */}
-                          <div className="text-white text-sm font-bold text-center px-2 leading-tight">
-                            {item.name}
-                          </div>
-                          
-                          {/* Valeur */}
-                          <div className="flex items-center gap-1 text-yellow-400 bg-black/30 px-2 py-1 rounded-lg">
-                            <Coins size={14} />
-                            <span className="font-bold text-sm">{item.market_value}</span>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Bouton de lancement */}
-            <div className="text-center">
-              <motion.button
-                onClick={spinWheel}
-                disabled={isSpinning || (openMode === 'single' && !canAffordBox(box.price_virtual))}
-                className={`px-16 py-5 text-2xl font-bold rounded-2xl shadow-2xl transition-all duration-300 ${
-                  isSpinning 
-                    ? 'bg-gray-600 cursor-not-allowed' 
-                    : openMode === 'single'
-                      ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white hover:shadow-green-500/30'
-                      : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white hover:shadow-blue-500/30'
-                } ${!canAffordBox(box.price_virtual) && openMode === 'single' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                whileHover={!isSpinning ? { scale: 1.05 } : {}}
-                whileTap={!isSpinning ? { scale: 0.95 } : {}}
-              >
-                <div className="flex items-center gap-4">
-                  {isSpinning ? (
-                    <>
-                      <motion.div 
-                        className="w-7 h-7 border-3 border-white border-t-transparent rounded-full"
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      />
-                      En cours...
-                    </>
-                  ) : (
-                    <>
-                      <Play size={28} />
-                      {openMode === 'demo' ? 'Essai gratuit' : `Lancer (${box.price_virtual} coins)`}
-                    </>
-                  )}
-                </div>
-              </motion.button>
-              
-              {/* Message d'erreur pour coins insuffisants */}
-              {!canAffordBox(box.price_virtual) && openMode === 'single' && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-6 bg-red-500/20 border border-red-500/30 rounded-2xl p-6 backdrop-blur-md"
-                >
-                  <p className="text-red-300 font-bold text-lg">
-                    Coins insuffisants
-                    <span className="ml-3 bg-red-500/30 px-3 py-1 rounded-full text-sm">
-                      {box.price_virtual - getUserCurrency()} coins manquants
-                    </span>
-                  </p>
-                  <button
-                    onClick={() => router.push('/buy-coins')}
-                    className="mt-4 bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-6 py-3 rounded-xl transition-colors"
-                  >
-                    Recharger
-                  </button>
-                </motion.div>
-              )}
-            </div>
-          </motion.div>
-
-          {/* Aperçu des objets - Section secondaire */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="bg-white/5 backdrop-blur-md rounded-2xl p-6 border border-white/10"
-          >
-            <h3 className="text-xl font-bold text-white text-center mb-6">
-              Objets disponibles
-            </h3>
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {items.map((item, index) => {
-                const rarityStyles = getRarityStyles(item.rarity)
-                
-                return (
-                  <motion.div
-                    key={item.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 + index * 0.1 }}
-                    whileHover={{ scale: 1.05, y: -5 }}
-                    className={`bg-white/10 backdrop-blur-md rounded-xl p-3 border-2 ${rarityStyles.border} relative overflow-hidden`}
-                  >
-                    <div className={`absolute -top-1 -right-1 bg-gradient-to-r ${rarityStyles.gradient} text-white px-2 py-0.5 rounded-lg text-xs font-bold`}>
-                      {item.rarity === 'legendary' ? 'LEG' :
-                       item.rarity === 'epic' ? 'EPI' :
-                       item.rarity === 'rare' ? 'RAR' : 'COM'}
-                    </div>
-
-                    <img
-                      src={item.image_url}
-                      alt={item.name}
-                      className="w-full h-16 object-contain mb-2"
-                    />
-                    
-                    <h4 className="text-white font-medium text-xs text-center mb-1 line-clamp-2">
-                      {item.name}
-                    </h4>
-                    
-                    <div className="flex items-center justify-center gap-1 text-yellow-400 text-xs">
-                      <Coins size={10} />
-                      <span className="font-bold">{item.market_value}</span>
-                    </div>
-                    
-                    <div className="text-center text-white/60 text-xs mt-1">
-                      {item.probability}%
-                    </div>
-                  </motion.div>
-                )
-              })}
-            </div>
-          </motion.div>
+        {/* Liste des objets */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 text-center">
+            Contenu de la boîte
+          </h2>
+          <LootList items={box.items} />
         </div>
       </div>
-
-      {/* Modal de résultat */}
-      <AnimatePresence>
-        {showResult && wonItem && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6"
-          >
-            <motion.div
-              initial={{ y: 50 }}
-              animate={{ y: 0 }}
-              className={`max-w-md w-full rounded-2xl p-8 border-2 ${getRarityStyles(wonItem.rarity).border} bg-slate-900/90 backdrop-blur-md relative`}
-            >
-              
-              <button
-                onClick={() => setShowResult(false)}
-                className="absolute top-4 right-4 text-white/70 hover:text-white text-xl"
-              >
-                ✕
-              </button>
-              
-              <div className="text-center">
-                
-                <div className="mb-6">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-green-500 rounded-full mb-4">
-                    <Trophy className="w-8 h-8 text-white" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-white mb-2">
-                    Félicitations !
-                  </h2>
-                  <p className="text-gray-300">
-                    Vous avez gagné un objet{' '}
-                    <span className={`font-bold bg-gradient-to-r ${getRarityStyles(wonItem.rarity).gradient} bg-clip-text text-transparent`}>
-                      {wonItem.rarity.toUpperCase()}
-                    </span>
-                  </p>
-                </div>
-
-                <div className={`p-6 rounded-xl border-2 ${getRarityStyles(wonItem.rarity).border} bg-white/5 mb-6`}>
-                  <img 
-                    src={wonItem.image_url} 
-                    alt={wonItem.name}
-                    className="w-32 h-32 object-contain mx-auto mb-4"
-                  />
-                  
-                  <h3 className="text-xl font-bold text-white mb-2">
-                    {wonItem.name}
-                  </h3>
-                  
-                  <div className="flex items-center justify-center gap-2 bg-black/40 rounded-lg p-2">
-                    <Coins className="text-yellow-400" size={20} />
-                    <span className="text-white font-bold text-lg">
-                      {wonItem.market_value}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <button 
-                    onClick={() => router.push('/inventory')}
-                    className="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-xl font-bold transition-colors"
-                  >
-                    Voir l'inventaire
-                  </button>
-                  
-                  <button 
-                    onClick={() => {
-                      setShowResult(false)
-                      resetWheel()
-                    }}
-                    className="flex-1 bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-xl font-bold transition-colors"
-                  >
-                    Rejouer
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }
