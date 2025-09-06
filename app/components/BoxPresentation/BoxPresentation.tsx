@@ -1,4 +1,4 @@
-// BoxPresentation.tsx - Version compacte pour éviter les superpositions
+// BoxPresentation.tsx - Version minimaliste avec particules élégantes
 
 'use client'
 
@@ -30,11 +30,11 @@ export function BoxPresentation({
 }: BoxPresentationProps) {
   
   const getRarityFromLevel = (level: number = 1, price: number = 0) => {
-    if (level >= 50 || price >= 500) return { name: 'Legendary', color: 'from-yellow-400 to-orange-500', icon: Crown }
-    if (level >= 30 || price >= 300) return { name: 'Epic', color: 'from-purple-500 to-pink-500', icon: Award }
-    if (level >= 20 || price >= 200) return { name: 'Rare', color: 'from-blue-500 to-indigo-500', icon: Zap }
-    if (level >= 10 || price >= 100) return { name: 'Uncommon', color: 'from-green-500 to-emerald-500', icon: Shield }
-    return { name: 'Common', color: 'from-gray-400 to-gray-500', icon: Star }
+    if (level >= 50 || price >= 500) return { name: 'Legendary', color: 'from-yellow-400 to-orange-500', icon: Crown, glow: '#f59e0b' }
+    if (level >= 30 || price >= 300) return { name: 'Epic', color: 'from-purple-500 to-pink-500', icon: Award, glow: '#d946ef' }
+    if (level >= 20 || price >= 200) return { name: 'Rare', color: 'from-blue-500 to-indigo-500', icon: Zap, glow: '#3b82f6' }
+    if (level >= 10 || price >= 100) return { name: 'Uncommon', color: 'from-green-500 to-emerald-500', icon: Shield, glow: '#10b981' }
+    return { name: 'Common', color: 'from-gray-400 to-gray-500', icon: Star, glow: '#6b7280' }
   }
 
   const rarity = getRarityFromLevel(requiredLevel, boxPrice)
@@ -42,165 +42,215 @@ export function BoxPresentation({
   const hasAccess = !requiredLevel || (userLevel && userLevel >= requiredLevel)
 
   return (
-    <div className={`relative ${className}`}>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8 }}
+      className={`relative w-full ${className}`}
+    >
       
-      {/* Bannière en arrière-plan */}
-      {bannerUrl && (
-        <div className="absolute inset-0 rounded-3xl overflow-hidden -z-10">
-          <img
-            src={bannerUrl}
-            alt="Background banner"
-            className="w-full h-full object-cover opacity-20"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement
-              target.style.display = 'none'
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-white via-white/80 to-transparent" />
-        </div>
-      )}
+      {/* Particules flottantes - dispersées sur toute la zone */}
+      {Array.from({ length: 20 }).map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute w-1 h-1 rounded-full"
+          style={{
+            backgroundColor: i % 4 === 0 ? rarity.glow : 'rgba(255,255,255,0.3)',
+            left: `${Math.random() * 100}%`,
+            top: `${Math.random() * 100}%`,
+            zIndex: 1
+          }}
+          animate={{
+            y: [0, -30, 0],
+            x: [0, Math.random() * 20 - 10, 0],
+            opacity: [0.2, 1, 0.2],
+            scale: [1, 1.5, 1]
+          }}
+          transition={{
+            duration: 4 + Math.random() * 3,
+            repeat: Infinity,
+            delay: Math.random() * 4,
+            ease: "easeInOut"
+          }}
+        />
+      ))}
 
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.6 }}
-        className="flex flex-col lg:flex-row items-center gap-8 max-w-5xl mx-auto py-8" // Réduit gap et padding
+        className="flex flex-col lg:flex-row items-center gap-12 max-w-7xl mx-auto py-16 px-8 relative z-10"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6, delay: 0.2 }}
       >
         
-        {/* Image de la boîte - Plus compacte */}
+        {/* Section image - Design épuré */}
         <motion.div
-          initial={{ opacity: 0, x: -50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
+          initial={{ opacity: 0, scale: 0.8, rotateY: -30 }}
+          animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+          transition={{ duration: 0.8, delay: 0.3 }}
           className="relative flex-shrink-0"
         >
-          <div className="relative">
-            <motion.img
-              src={boxImage}
-              alt={boxName}
-              className="w-64 h-64 lg:w-72 lg:h-72 object-contain mx-auto filter drop-shadow-2xl" // Réduit de 96 à 72
-              style={{
-                filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.15))'
-              }}
-              animate={{
-                y: [0, -6, 0],
-                rotateY: [0, 2, 0]
-              }}
-              transition={{
-                duration: 6,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-              onError={(e) => {
-                const target = e.target as HTMLImageElement
-                target.src = 'https://via.placeholder.com/400x400/F3F4F6/9CA3AF?text=Box'
-              }}
-            />
+          
+          {/* Halo subtil en arrière-plan */}
+          <motion.div 
+            className="absolute -inset-16 rounded-full blur-3xl opacity-15"
+            style={{ backgroundColor: rarity.glow }}
+            animate={{
+              scale: [1, 1, 1],
+              opacity: [0.1, 0.2, 0.1]
+            }}
+            transition={{
+              duration: 5,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+          />
+          
+          {/* Image principale avec rotation douce */}
+          <motion.img
+            src={boxImage}
+            alt={boxName}
+            className="w-80 h-80 object-contain filter drop-shadow-2xl relative z-10"
+            style={{
+              filter: `drop-shadow(0 20px 40px ${rarity.glow}30)`
+            }}
+            animate={{
+              y: [0, -10, 0],
+              rotateY: [0, 5, 0]
+            }}
+            transition={{
+              duration: 8,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            onError={(e) => {
+              const target = e.target as HTMLImageElement
+              target.src = 'https://via.placeholder.com/400x400/F3F4F6/9CA3AF?text=Box'
+            }}
+          />
 
-            {/* Lueur subtile - Plus petite */}
-            <div 
-              className={`absolute -inset-8 bg-gradient-to-r ${rarity.color} rounded-full blur-2xl opacity-10`} // Réduit inset
-            />
-          </div>
-
-          {/* Badge de rareté flottant - Plus petit */}
+          {/* Badges flottants repositionnés */}
           <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
-            className="absolute -top-2 -right-4 z-10"
+            initial={{ scale: 0, y: -20 }}
+            animate={{ scale: 1, y: 0 }}
+            transition={{ delay: 0.6, type: "spring", stiffness: 150 }}
+            className="absolute -top-6 -right-8 z-20"
           >
-            <div className={`bg-gradient-to-r ${rarity.color} text-white px-3 py-1.5 rounded-lg shadow-lg flex items-center gap-2`}>
+            <motion.div
+              className={`bg-gradient-to-r ${rarity.color} text-white px-3 py-2 rounded-xl shadow-xl flex items-center gap-2`}
+              whileHover={{ scale: 1.1, y: -3 }}
+              animate={{
+                boxShadow: [`0 5px 15px ${rarity.glow}30`, `0 8px 25px ${rarity.glow}50`, `0 5px 15px ${rarity.glow}30`]
+              }}
+              transition={{ duration: 3, repeat: Infinity }}
+            >
               <RarityIcon size={14} />
               <span className="font-bold text-xs">{rarity.name}</span>
-            </div>
+            </motion.div>
           </motion.div>
 
-          {/* Badge freedrop - Plus petit */}
           {isFreedrp && (
             <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.7, type: "spring", stiffness: 200 }}
-              className="absolute -bottom-2 -left-4 z-10"
+              initial={{ scale: 0, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              transition={{ delay: 0.8, type: "spring", stiffness: 150 }}
+              className="absolute -bottom-6 -left-8 z-20"
             >
-              <div className="bg-green-500 text-white px-3 py-1.5 rounded-lg shadow-lg flex items-center gap-2">
+              <motion.div
+                className="bg-gradient-to-r from-green-400 to-emerald-500 text-white px-3 py-2 rounded-xl shadow-xl flex items-center gap-2"
+                whileHover={{ scale: 1.1, y: -3 }}
+              >
                 <Gift size={14} />
                 <span className="font-bold text-xs">FREE</span>
-              </div>
+              </motion.div>
             </motion.div>
           )}
         </motion.div>
 
-        {/* Informations - Layout compacte */}
+        {/* Section informations - Layout épuré */}
         <motion.div
           initial={{ opacity: 0, x: 50 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="flex-1 text-center lg:text-left space-y-4" // Réduit space
+          transition={{ duration: 0.8, delay: 0.4 }}
+          className="flex-1 text-center lg:text-left space-y-8"
         >
-          {/* Nom - Plus petit */}
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="text-4xl lg:text-5xl font-black text-gray-900 dark:text-white leading-none" // Réduit taille
-          >
-            {boxName}
-          </motion.h1>
-
-          {/* Description - Plus compacte */}
-          {boxDescription && (
-            <motion.p
+          
+          {/* Titre avec animation de typing */}
+          <motion.div className="space-y-4">
+            <motion.h1 
+              className="text-6xl lg:text-7xl font-black text-white leading-none"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="text-lg text-gray-600 dark:text-gray-400 leading-relaxed max-w-xl" // Réduit taille
+              transition={{ delay: 0.5, duration: 0.6 }}
+            >
+              {boxName}
+            </motion.h1>
+            
+            {/* Ligne décorative animée */}
+            <motion.div 
+              className={`h-1 bg-gradient-to-r ${rarity.color} rounded-full mx-auto lg:mx-0`}
+              initial={{ width: 0 }}
+              animate={{ width: "120px" }}
+              transition={{ delay: 0.8, duration: 1, ease: "easeOut" }}
+            />
+          </motion.div>
+
+          {/* Description simple */}
+          {boxDescription && (
+            <motion.p
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+              className="text-xl text-gray-300 leading-relaxed max-w-2xl"
             >
               {boxDescription}
             </motion.p>
           )}
 
-          {/* Prix - Design compact */}
+          {/* Prix avec design minimaliste */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="inline-block"
+            transition={{ delay: 0.8 }}
+            className="space-y-2"
           >
             {isFreedrp ? (
-              <div className="flex items-center gap-2 text-green-600">
-                <Gift size={24} />
-                <span className="text-2xl font-light">GRATUIT</span>
+              <div className="flex items-center gap-4 text-green-400">
+                <Gift size={32} />
+                <span className="text-4xl font-light">GRATUIT</span>
               </div>
             ) : boxPrice && (
-              <div className="flex items-center gap-3 text-gray-900 dark:text-white">
-                <Coins size={24} className="text-yellow-500" />
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-light">{boxPrice.toLocaleString()}</span> {/* Réduit taille */}
-                  <span className="text-base font-medium text-gray-500">coins</span>
+              <div className="flex items-center gap-4 text-white">
+                <motion.div
+                  animate={{ rotate: [0, 360] }}
+                  transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                >
+                  <Coins size={32} className="text-yellow-400" />
+                </motion.div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-5xl font-light">{boxPrice.toLocaleString()}</span>
+                  <span className="text-xl font-medium text-gray-400">coins</span>
                 </div>
               </div>
             )}
           </motion.div>
 
-          {/* Niveau requis - Compact */}
+          {/* Niveau requis - design épuré */}
           {requiredLevel && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-              className="inline-flex items-center gap-3"
+              transition={{ delay: 0.9 }}
+              className="flex items-center gap-4"
             >
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl ${
+              <div className={`flex items-center gap-3 px-4 py-2 rounded-2xl transition-all ${
                 hasAccess 
-                  ? 'text-green-600 bg-green-50' 
-                  : 'text-red-600 bg-red-50'
+                  ? 'text-green-400 bg-green-400/10' 
+                  : 'text-red-400 bg-red-400/10'
               }`}>
-                <Star size={16} />
-                <span className="font-medium text-sm">Level {requiredLevel}</span>
+                <Star size={18} />
+                <span className="font-medium">Level {requiredLevel}</span>
                 {userLevel && (
-                  <span className="text-xs opacity-70">
+                  <span className="text-sm opacity-70">
                     ({userLevel}/{requiredLevel})
                   </span>
                 )}
@@ -208,29 +258,67 @@ export function BoxPresentation({
             </motion.div>
           )}
 
-          {/* Barre de progression compacte */}
+          {/* Barre de progression minimaliste */}
           {userLevel && requiredLevel && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
-              className="w-full max-w-sm" // Réduit largeur
+              transition={{ delay: 1.0 }}
+              className="w-full max-w-md space-y-2"
             >
-              <div className="h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div className="flex justify-between text-sm text-gray-400">
+                <span>Progression</span>
+                <span>{Math.min(userLevel, requiredLevel)}/{requiredLevel}</span>
+              </div>
+              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min((userLevel / requiredLevel) * 100, 100)}%` }}
-                  transition={{ duration: 1.5, delay: 0.8, ease: "easeOut" }}
-                  className={`h-1 bg-gradient-to-r ${
+                  transition={{ duration: 1.5, delay: 1.2, ease: "easeOut" }}
+                  className={`h-full bg-gradient-to-r ${
                     hasAccess ? 'from-green-400 to-green-500' : 'from-red-400 to-red-500'
-                  }`}
-                />
+                  } rounded-full relative overflow-hidden`}
+                >
+                  <motion.div
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                    animate={{ x: [-100, 200] }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      repeatDelay: 2,
+                      ease: "easeInOut"
+                    }}
+                  />
+                </motion.div>
               </div>
             </motion.div>
           )}
+
+          {/* Stats en ligne simple */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.1 }}
+            className="flex gap-8 text-center lg:text-left"
+          >
+            <div>
+              <div className="text-2xl font-bold text-white">10+</div>
+              <div className="text-sm text-gray-400">Items</div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold" style={{ color: rarity.glow }}>
+                {rarity.name}
+              </div>
+              <div className="text-sm text-gray-400">Rareté</div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-white">Premium</div>
+              <div className="text-sm text-gray-400">Type</div>
+            </div>
+          </motion.div>
         </motion.div>
       </motion.div>
-    </div>
+    </motion.div>
   )
 }
 

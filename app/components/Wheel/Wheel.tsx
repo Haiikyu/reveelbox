@@ -310,7 +310,7 @@ export function Wheel({
       ref={containerRef}
       // ✅ OVERFLOW DYNAMIQUE BASÉ SUR L'ÉTAT
       className={`relative w-full ${shouldShowOverflow ? 'overflow-visible' : 'overflow-hidden'}`}
-      style={{ height: 310 }}
+      style={{ height: 285 }}
     >
       {/* Gradients de fade - seulement quand overflow est hidden */}
       {!shouldShowOverflow && (
@@ -327,7 +327,7 @@ export function Wheel({
             <motion.div
               key="winner-display"
               initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
+              animate={{ opacity: 1, scale: 0.92 }}
               className="flex items-center justify-center h-full"
             >
               <WinnerDisplay 
@@ -371,7 +371,7 @@ const WinnerDisplay = ({ item, rarityColors }: WinnerDisplayProps) => {
   
   return (
     <motion.div 
-      className="flex flex-col items-center gap-1 p-12" 
+      className="flex flex-col items-center gap-4 p-12" 
       animate={{ 
         y: [0, -12, 0], 
         scale: [1, 1.03, 1]
@@ -385,10 +385,10 @@ const WinnerDisplay = ({ item, rarityColors }: WinnerDisplayProps) => {
       <div className="relative">
         {/* ✅ HALO ÉNORME POUR DÉBORDER DU CONTAINER */}
         <div 
-          className="absolute inset-0 rounded-full blur-3xl opacity-50" 
+          className="absolute inset-0 rounded-full blur-3xl opacity-50 " 
           style={{ 
             backgroundColor: glowColor,
-            transform: 'scale(0.5)' // Halo encore plus grand pour déborder
+            transform: 'scale(0.9)' // Halo encore plus grand pour déborder
           }}
         />
         
