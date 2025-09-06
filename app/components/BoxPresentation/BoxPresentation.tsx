@@ -1,4 +1,5 @@
-// app/components/BoxPresentation/BoxPresentation.tsx - Avec bannière et prix épuré
+// BoxPresentation.tsx - Version compacte pour éviter les superpositions
+
 'use client'
 
 import { motion } from 'framer-motion'
@@ -12,7 +13,7 @@ interface BoxPresentationProps {
   requiredLevel?: number
   userLevel?: number
   isFreedrp?: boolean
-  bannerUrl?: string // Nouvelle prop pour la bannière
+  bannerUrl?: string
   className?: string
 }
 
@@ -28,7 +29,6 @@ export function BoxPresentation({
   className = '' 
 }: BoxPresentationProps) {
   
-  // Calculer la rareté selon le niveau requis ou le prix
   const getRarityFromLevel = (level: number = 1, price: number = 0) => {
     if (level >= 50 || price >= 500) return { name: 'Legendary', color: 'from-yellow-400 to-orange-500', icon: Crown }
     if (level >= 30 || price >= 300) return { name: 'Epic', color: 'from-purple-500 to-pink-500', icon: Award }
@@ -64,27 +64,26 @@ export function BoxPresentation({
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.6 }}
-        className="flex flex-col lg:flex-row items-center gap-16 max-w-6xl mx-auto py-12"
+        className="flex flex-col lg:flex-row items-center gap-8 max-w-5xl mx-auto py-8" // Réduit gap et padding
       >
         
-        {/* Image de la boîte - Épurée et grande */}
+        {/* Image de la boîte - Plus compacte */}
         <motion.div
           initial={{ opacity: 0, x: -50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
           className="relative flex-shrink-0"
         >
-          {/* Image principale sans container */}
           <div className="relative">
             <motion.img
               src={boxImage}
               alt={boxName}
-              className="w-80 h-80 lg:w-96 lg:h-96 object-contain mx-auto filter drop-shadow-2xl"
+              className="w-64 h-64 lg:w-72 lg:h-72 object-contain mx-auto filter drop-shadow-2xl" // Réduit de 96 à 72
               style={{
-                filter: 'drop-shadow(0 30px 60px rgba(0,0,0,0.15))'
+                filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.15))'
               }}
               animate={{
-                y: [0, -8, 0],
+                y: [0, -6, 0],
                 rotateY: [0, 2, 0]
               }}
               transition={{
@@ -98,71 +97,71 @@ export function BoxPresentation({
               }}
             />
 
-            {/* Lueur subtile */}
+            {/* Lueur subtile - Plus petite */}
             <div 
-              className={`absolute -inset-12 bg-gradient-to-r ${rarity.color} rounded-full blur-3xl opacity-10`}
+              className={`absolute -inset-8 bg-gradient-to-r ${rarity.color} rounded-full blur-2xl opacity-10`} // Réduit inset
             />
           </div>
 
-          {/* Badge de rareté flottant */}
+          {/* Badge de rareté flottant - Plus petit */}
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
-            className="absolute -top-4 -right-6 z-10"
+            className="absolute -top-2 -right-4 z-10"
           >
-            <div className={`bg-gradient-to-r ${rarity.color} text-white px-4 py-2 rounded-xl shadow-lg flex items-center gap-2`}>
-              <RarityIcon size={16} />
-              <span className="font-bold text-sm">{rarity.name}</span>
+            <div className={`bg-gradient-to-r ${rarity.color} text-white px-3 py-1.5 rounded-lg shadow-lg flex items-center gap-2`}>
+              <RarityIcon size={14} />
+              <span className="font-bold text-xs">{rarity.name}</span>
             </div>
           </motion.div>
 
-          {/* Badge freedrop */}
+          {/* Badge freedrop - Plus petit */}
           {isFreedrp && (
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.7, type: "spring", stiffness: 200 }}
-              className="absolute -bottom-4 -left-6 z-10"
+              className="absolute -bottom-2 -left-4 z-10"
             >
-              <div className="bg-green-500 text-white px-4 py-2 rounded-xl shadow-lg flex items-center gap-2">
-                <Gift size={16} />
-                <span className="font-bold text-sm">FREE</span>
+              <div className="bg-green-500 text-white px-3 py-1.5 rounded-lg shadow-lg flex items-center gap-2">
+                <Gift size={14} />
+                <span className="font-bold text-xs">FREE</span>
               </div>
             </motion.div>
           )}
         </motion.div>
 
-        {/* Informations - Layout épuré */}
+        {/* Informations - Layout compacte */}
         <motion.div
           initial={{ opacity: 0, x: 50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="flex-1 text-center lg:text-left space-y-8"
+          className="flex-1 text-center lg:text-left space-y-4" // Réduit space
         >
-          {/* Nom */}
+          {/* Nom - Plus petit */}
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="text-5xl lg:text-7xl font-black text-gray-900 dark:text-white leading-none"
+            className="text-4xl lg:text-5xl font-black text-gray-900 dark:text-white leading-none" // Réduit taille
           >
             {boxName}
           </motion.h1>
 
-          {/* Description */}
+          {/* Description - Plus compacte */}
           {boxDescription && (
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="text-xl text-gray-600 dark:text-gray-400 leading-relaxed max-w-2xl"
+              className="text-lg text-gray-600 dark:text-gray-400 leading-relaxed max-w-xl" // Réduit taille
             >
               {boxDescription}
             </motion.p>
           )}
 
-          {/* Prix - Design épuré et minimaliste */}
+          {/* Prix - Design compact */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -170,38 +169,38 @@ export function BoxPresentation({
             className="inline-block"
           >
             {isFreedrp ? (
-              <div className="flex items-center gap-3 text-green-600">
-                <Gift size={32} />
-                <span className="text-4xl font-light"></span>
+              <div className="flex items-center gap-2 text-green-600">
+                <Gift size={24} />
+                <span className="text-2xl font-light">GRATUIT</span>
               </div>
             ) : boxPrice && (
-              <div className="flex items-center gap-4 text-gray-900 dark:text-white">
-                <Coins size={28} className="text-yellow-500" />
+              <div className="flex items-center gap-3 text-gray-900 dark:text-white">
+                <Coins size={24} className="text-yellow-500" />
                 <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-light">{boxPrice.toLocaleString()}</span>
-                  <span className="text-lg font-medium text-gray-500">coins</span>
+                  <span className="text-3xl font-light">{boxPrice.toLocaleString()}</span> {/* Réduit taille */}
+                  <span className="text-base font-medium text-gray-500">coins</span>
                 </div>
               </div>
             )}
           </motion.div>
 
-          {/* Niveau requis - Design épuré */}
+          {/* Niveau requis - Compact */}
           {requiredLevel && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
-              className="inline-flex items-center gap-4"
+              className="inline-flex items-center gap-3"
             >
-              <div className={`flex items-center gap-3 px-4 py-2 rounded-2xl ${
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl ${
                 hasAccess 
                   ? 'text-green-600 bg-green-50' 
                   : 'text-red-600 bg-red-50'
               }`}>
-                <Star size={20} />
-                <span className="font-medium">Level {requiredLevel}</span>
+                <Star size={16} />
+                <span className="font-medium text-sm">Level {requiredLevel}</span>
                 {userLevel && (
-                  <span className="text-sm opacity-70">
+                  <span className="text-xs opacity-70">
                     ({userLevel}/{requiredLevel})
                   </span>
                 )}
@@ -209,13 +208,13 @@ export function BoxPresentation({
             </motion.div>
           )}
 
-          {/* Barre de progression minimaliste */}
+          {/* Barre de progression compacte */}
           {userLevel && requiredLevel && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.7 }}
-              className="w-full max-w-md"
+              className="w-full max-w-sm" // Réduit largeur
             >
               <div className="h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                 <motion.div

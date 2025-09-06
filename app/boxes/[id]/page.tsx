@@ -317,97 +317,97 @@ export default function BoxOpeningPage() {
     )
   }
 
-  return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 pt-20 transition-colors duration-300">
+return (
+  <div className="min-h-screen bg-white dark:bg-gray-900 pt-20 transition-colors duration-300">
+    
+    {/* Messages */}
+    <AnimatePresence mode="wait">
+      {error && (
+        <motion.div
+          key="error"
+          initial={{ opacity: 0, y: -50 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -50 }}
+          className="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-xl shadow-lg z-50"
+        >
+          {error}
+        </motion.div>
+      )}
+      {success && (
+        <motion.div
+          key="success"
+          initial={{ opacity: 0, y: -50 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -50 }}
+          className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg z-50"
+        >
+          {success}
+        </motion.div>
+      )}
+    </AnimatePresence>
+
+    <div className="max-w-7xl mx-auto px-6 py-8">
       
-      {/* Messages optimisés */}
-      <AnimatePresence mode="wait">
-        {error && (
-          <motion.div
-            key="error"
-            initial={{ opacity: 0, y: -50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            className="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-xl shadow-lg z-50"
-          >
-            {error}
-          </motion.div>
-        )}
-        {success && (
-          <motion.div
-            key="success"
-            initial={{ opacity: 0, y: -50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg z-50"
-          >
-            {success}
-          </motion.div>
+      {/* Présentation */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-16" // Espace normal
+      >
+        <BoxPresentation
+          boxName={box.name}
+          boxImage={box.image_url}
+          boxDescription={box.description}
+          boxPrice={box.price_virtual}
+          isFreedrp={false}
+        />
+      </motion.div>
+
+      {/* Roue avec overflow visible pour le halo */}
+      <div className="mb-16 overflow-visible"> {/* overflow-visible ajouté */}
+        <Wheel
+          items={box.items}
+          winningItem={winningItem}
+          fastMode={fastMode}
+          onFinish={handleAnimationFinish}
+          isSpinning={isSpinning}
+        />
+      </div>
+
+      {/* Résultat */}
+      <AnimatePresence>
+        {showResult && winningItem && (
+          <WinningResult 
+            item={winningItem}
+            isOpen={showResult}
+            onClose={() => setShowResult(false)}
+            onSell={handleSellItem}
+          />
         )}
       </AnimatePresence>
+	  
+	        {/* Boutons d'action */}
+      <div className="mb-16 -mt-8"> {/* Superposition légère avec -mt-8 */}
+        <OpeningButtons
+          boxPrice={box.price_virtual}
+          userCoins={profile?.virtual_currency || 0}
+          onOpenBox={handleOpenBox}
+          onTryFree={handleTryFree}
+          onToggleFastMode={handleToggleFastMode}
+          fastMode={fastMode}
+          isLoading={isSpinning}
+          disabled={isSpinning}
+        />
+      </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        
-        {/* Présentation */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-12"
-        >
-          <BoxPresentation
-            boxName={box.name}
-            boxImage={box.image_url}
-            boxDescription={box.description}
-            boxPrice={box.price_virtual}
-            isFreedrp={false}
-          />
-        </motion.div>
-
-        {/* Roue optimisée */}
-        <div className="mb-12">
-          <Wheel
-            items={box.items}
-            winningItem={winningItem}
-            fastMode={fastMode}
-            onFinish={handleAnimationFinish}
-            isSpinning={isSpinning}
-          />
-        </div>
-
-        {/* Résultat */}
-        <AnimatePresence>
-          {showResult && winningItem && (
-            <WinningResult 
-              item={winningItem}
-              isOpen={showResult}
-              onClose={() => setShowResult(false)}
-              onSell={handleSellItem}
-            />
-          )}
-        </AnimatePresence>
-
-        {/* Boutons d'action */}
-        <div className="mb-12">
-          <OpeningButtons
-            boxPrice={box.price_virtual}
-            userCoins={profile?.virtual_currency || 0}
-            onOpenBox={handleOpenBox}
-            onTryFree={handleTryFree}
-            onToggleFastMode={handleToggleFastMode}
-            fastMode={fastMode}
-            isLoading={isSpinning}
-            disabled={isSpinning}
-          />
-        </div>
-
-        {/* Liste des objets */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 text-center">
-            Contenu de la boîte
-          </h2>
-          <LootList items={box.items} />
-        </div>
+      {/* Liste des objets */}
+      <div className="mb-12">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 text-center">
+          Contenu de la boîte
+        </h2>
+        <LootList items={box.items} />
       </div>
     </div>
-  )
+  </div>
+)
 }

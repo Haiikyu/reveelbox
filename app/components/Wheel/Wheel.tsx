@@ -1,5 +1,5 @@
 // ========================================
-// app/components/Wheel/Wheel.tsx - Import corrigé
+// app/components/Wheel/Wheel.tsx - Container overflow dynamique
 // ========================================
 
 'use client'
@@ -33,10 +33,10 @@ interface WheelItemProps {
 
 // Configuration finale optimisée
 const WHEEL_CONFIG = {
-  ITEM_WIDTH: 200,
+  ITEM_WIDTH: 180,
   ITEM_HEIGHT: 200,
   TOTAL_ITEMS: 60,
-  WINNING_POSITION: 35,
+  WINNING_POSITION: 40,
 } as const
 
 export function Wheel({ 
@@ -50,6 +50,9 @@ export function Wheel({
   const [isReady, setIsReady] = useState(false)
   const [showOnlyWinner, setShowOnlyWinner] = useState(false)
   const [centerItemIndex, setCenterItemIndex] = useState(-1)
+  
+  // ✅ NOUVEL ÉTAT POUR GÉRER L'OVERFLOW DYNAMIQUE
+  const [shouldShowOverflow, setShouldShowOverflow] = useState(false)
   
   const containerRef = useRef<HTMLDivElement>(null)
   const wheelRef = useRef<HTMLDivElement>(null)
@@ -154,7 +157,7 @@ export function Wheel({
     return Math.max(0, Math.min(itemIndex, wheelSequence.length - 1))
   }, [wheelSequence.length])
 
-  // Animation optimisée avec démarrage fluide
+  // ✅ ANIMATION OPTIMISÉE AVEC GESTION OVERFLOW DYNAMIQUE
   const animateWheel = useCallback((targetPosition: number, duration: number) => {
     if (!wheelRef.current || isAnimatingRef.current) return
 
@@ -162,6 +165,9 @@ export function Wheel({
     const startTime = performance.now()
     const startPosition = 0
     const distance = targetPosition
+
+    // ✅ MASQUER L'OVERFLOW PENDANT L'ANIMATION
+    setShouldShowOverflow(false)
 
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime
@@ -194,9 +200,15 @@ export function Wheel({
       } else {
         isAnimatingRef.current = false
         setCenterItemIndex(-1)
+        
+        // ✅ DÉLAI POUR AFFICHER LE WINNER AVEC OVERFLOW
         setTimeout(() => {
           setShowOnlyWinner(true)
-          onFinish()
+          // Délai supplémentaire pour laisser la roue disparaître avant overflow visible
+          setTimeout(() => {
+            setShouldShowOverflow(true)
+            onFinish()
+          }, 100) // Délai pour transition fluide roue → winner
         }, 1500)
       }
     }
@@ -222,6 +234,8 @@ export function Wheel({
 
     setShowOnlyWinner(false)
     setCenterItemIndex(-1)
+    // ✅ RÉINITIALISER L'OVERFLOW À HIDDEN
+    setShouldShowOverflow(false)
     
     // Arrêt complet de toute animation
     if (animationFrameRef.current) {
@@ -263,10 +277,11 @@ export function Wheel({
     }
   }, [isSpinning, winningItem, isReady, items, generateNewSequence, calculateFinalPosition, animateWheel, fastMode])
 
-  // Reset standard
+  // ✅ RESET STANDARD AVEC GESTION OVERFLOW
   useEffect(() => {
     if (!isSpinning && wheelRef.current && !showOnlyWinner) {
       wheelRef.current.style.transform = 'translateX(0px)'
+      setShouldShowOverflow(false) // Remettre à hidden par défaut
     }
   }, [isSpinning, showOnlyWinner])
 
@@ -293,12 +308,17 @@ export function Wheel({
   return (
     <div 
       ref={containerRef}
-      className="relative w-full overflow-hidden"
-      style={{ height: 400 }}
+      // ✅ OVERFLOW DYNAMIQUE BASÉ SUR L'ÉTAT
+      className={`relative w-full ${shouldShowOverflow ? 'overflow-visible' : 'overflow-hidden'}`}
+      style={{ height: 310 }}
     >
-      {/* Gradients de fade */}
-      <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-white dark:from-gray-900 to-transparent z-20"></div>
-      <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-white dark:from-gray-900 to-transparent z-20"></div>
+      {/* Gradients de fade - seulement quand overflow est hidden */}
+      {!shouldShowOverflow && (
+        <>
+          <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-white dark:from-gray-900 to-transparent z-20"></div>
+          <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-white dark:from-gray-900 to-transparent z-20"></div>
+        </>
+      )}
       
       {/* Container principal */}
       <div className="relative h-full will-change-transform">
@@ -345,15 +365,16 @@ export function Wheel({
   )
 }
 
+// ✅ WINNER DISPLAY AVEC HALO PLUS GRAND POUR DÉBORDEMENT
 const WinnerDisplay = ({ item, rarityColors }: WinnerDisplayProps) => {
   const glowColor = rarityColors[item.rarity.toLowerCase()] || rarityColors.common
   
   return (
     <motion.div 
-      className="flex flex-col items-center gap-4 p-6"
+      className="flex flex-col items-center gap-1 p-12" 
       animate={{ 
-        y: [0, -8, 0],
-        scale: [1, 1.02, 1]
+        y: [0, -12, 0], 
+        scale: [1, 1.03, 1]
       }}
       transition={{
         duration: 3,
@@ -362,50 +383,53 @@ const WinnerDisplay = ({ item, rarityColors }: WinnerDisplayProps) => {
       }}
     >
       <div className="relative">
+        {/* ✅ HALO ÉNORME POUR DÉBORDER DU CONTAINER */}
         <div 
-          className="absolute inset-0 rounded-full blur-xl opacity-40"
+          className="absolute inset-0 rounded-full blur-3xl opacity-50" 
           style={{ 
             backgroundColor: glowColor,
-            transform: 'scale(1.5)'
+            transform: 'scale(0.5)' // Halo encore plus grand pour déborder
           }}
         />
         
+        {/* Image principale BEAUCOUP plus grande */}
         <motion.img
-          src={item.image_url || 'https://via.placeholder.com/100x100/F3F4F6/9CA3AF?text=?'}
+          src={item.image_url || 'https://via.placeholder.com/200x200/F3F4F6/9CA3AF?text=?'}
           alt={item.name}
-          className="relative w-28 h-28 object-contain"
+          className="relative w-61 h-60 object-contain" 
           style={{
-            filter: `drop-shadow(0 8px 34px ${glowColor}60) brightness(1.15)`
+            filter: `drop-shadow(0 20px 60px ${glowColor}80) brightness(1.2)` 
           }}
           animate={{
             rotateY: [0, 360],
           }}
           transition={{
-            duration: 4,
+            duration: 10,
             repeat: Infinity,
             ease: "linear"
           }}
           onError={(e) => {
             const target = e.target as HTMLImageElement
-            target.src = 'https://via.placeholder.com/100x100/F3F4F6/9CA3AF?text=?'
+            target.src = 'https://via.placeholder.com/200x200/F3F4F6/9CA3AF?text=?'
           }}
         />
       </div>
       
       <div className="text-center">
         <motion.h3 
-          className="text-xl font-bold text-gray-900 dark:text-white mb-2"
+          className="text-2xl font-bold text-gray-900 dark:text-white mb-4" 
           style={{ color: glowColor }}
         >
           {item.name}
         </motion.h3>
+        
         <motion.div 
-          className="flex items-center gap-2 justify-center"
+          className="flex items-center gap-4 justify-center" 
           animate={{ opacity: [0.7, 1, 0.7] }}
           transition={{ duration: 2, repeat: Infinity }}
         >
-          <span className="text-yellow-500">💰</span>
-          <span className="text-2xl font-bold text-gray-900 dark:text-white">
+          <span className="text-2xl">💰</span> 
+          <span className="text-3xl font-bold text-gray-900 dark:text-white"> 
             {item.market_value.toLocaleString()}
           </span>
         </motion.div>
