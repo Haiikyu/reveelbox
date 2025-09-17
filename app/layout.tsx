@@ -6,7 +6,6 @@ import { ThemeProvider } from './components/ThemeProvider'
 import { Providers } from './providers'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
-import ChatSystem from './components/chat/ChatSystem'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -41,7 +40,6 @@ export default function RootLayout({
                 </main>
                 
                 <Footer />
-                <ChatSystem />
               </div>
             </AuthProvider>
           </Providers>

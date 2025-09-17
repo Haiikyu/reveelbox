@@ -6,6 +6,7 @@ import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import ProfileSettings from './ProfileSettings'
+import UpgradeHistoryTab from '@/app/components/UpgradeHistoryTab'
 import { 
   User, 
   Settings,
@@ -763,6 +764,7 @@ export default function ProfilePage() {
     { id: 'overview', label: 'Vue d\'ensemble', icon: User },
     { id: 'stats', label: 'Statistiques', icon: BarChart3 },
     { id: 'activity', label: 'Activité', icon: Clock },
+	{ id: 'upgrades', label: 'Upgrades', icon: TrendingUp }, // NOUVEAU
     { id: 'achievements', label: 'Succès', icon: Trophy },
     { id: 'settings', label: 'Paramètres', icon: Settings }
   ]
@@ -1396,6 +1398,11 @@ export default function ProfilePage() {
                 </div>
               </div>
             )}
+			
+			// Ajoutez le contenu de l'onglet dans le switch des tabs (après achievements)
+{activeTab === 'upgrades' && (
+  <UpgradeHistoryTab userId={user?.id} />
+)}
 
             {/* Settings Tab */}
             {activeTab === 'settings' && (

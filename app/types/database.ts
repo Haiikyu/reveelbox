@@ -1418,6 +1418,70 @@ export type Database = {
         }
         Relationships: []
       }
+      user_upgrades: {
+        Row: {
+          created_at: string
+          final_value: number
+          id: string
+          inventory_item_id: string
+          item_id: string
+          item_name: string
+          multiplier: number
+          original_value: number
+          success: boolean
+          target_value: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          final_value: number
+          id?: string
+          inventory_item_id: string
+          item_id: string
+          item_name: string
+          multiplier: number
+          original_value: number
+          success: boolean
+          target_value: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          final_value?: number
+          id?: string
+          inventory_item_id?: string
+          item_id?: string
+          item_name?: string
+          multiplier?: number
+          original_value?: number
+          success?: boolean
+          target_value?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_user"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_upgrades_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_upgrades_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       admin_stats: {
@@ -1476,6 +1540,32 @@ export type Database = {
           },
         ]
       }
+      top_upgrades: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          final_value: number | null
+          id: string | null
+          item_name: string | null
+          multiplier: number | null
+          original_value: number | null
+          username: string | null
+          value_gained: number | null
+        }
+        Relationships: []
+      }
+      upgrade_global_stats: {
+        Row: {
+          global_success_rate: number | null
+          total_attempts: number | null
+          total_failures: number | null
+          total_successes: number | null
+          total_value_created: number | null
+          total_value_destroyed: number | null
+          unique_upgraders: number | null
+        }
+        Relationships: []
+      }
       user_streak_summary: {
         Row: {
           current_streak: number | null
@@ -1505,6 +1595,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      attempt_upgrade_item: {
+        Args: {
+          p_inventory_id: string
+          p_multiplier: number
+          p_user_id: string
+        }
+        Returns: Json
+      }
       calculate_level_from_exp: {
         Args: { experience: number }
         Returns: number
@@ -1516,6 +1614,10 @@ export type Database = {
       can_claim_daily_box: {
         Args: { p_box_id: string; p_required_level: number; p_user_id: string }
         Returns: boolean
+      }
+      can_user_participate_giveaway: {
+        Args: { p_giveaway_id: string; p_user_id: string }
+        Returns: Json
       }
       check_daily_claim_status: {
         Args: { p_box_id: string; p_user_id: string }
@@ -1615,6 +1717,14 @@ export type Database = {
         Args: { p_battle_id: string }
         Returns: Json
       }
+      get_detailed_giveaway_history: {
+        Args: { p_limit?: number }
+        Returns: Json
+      }
+      get_giveaway_history: {
+        Args: { p_limit?: number }
+        Returns: Json
+      }
       get_loot_box_items_with_probabilities: {
         Args: { p_loot_box_id: string }
         Returns: {
@@ -1639,6 +1749,10 @@ export type Database = {
           total_items: number
           total_probability: number
         }[]
+      }
+      get_online_users_count: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
       get_or_create_affiliate_data: {
         Args: { p_user_id: string }
@@ -1687,6 +1801,23 @@ export type Database = {
         Returns: number
       }
       get_user_stats: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
+      get_user_upgrade_history: {
+        Args: { p_limit?: number; p_user_id: string }
+        Returns: {
+          created_at: string
+          final_value: number
+          id: string
+          item_name: string
+          multiplier: number
+          original_value: number
+          success: boolean
+          target_value: number
+        }[]
+      }
+      get_user_upgrade_stats: {
         Args: { p_user_id: string }
         Returns: Json
       }
@@ -1788,6 +1919,14 @@ export type Database = {
       }
       simulate_loot_box_opening: {
         Args: { p_loot_box_id: string; p_quantity?: number }
+        Returns: Json
+      }
+      stop_active_giveaway: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      stop_giveaway: {
+        Args: { p_giveaway_id: string }
         Returns: Json
       }
       test_daily_box_opening: {

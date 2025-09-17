@@ -1,8 +1,8 @@
-// app/components/OpeningButtons/OpeningButtons.tsx - Version corrigée avec gestion d'erreurs
+// app/components/OpeningButtons/OpeningButtons.tsx - Version avec logo REEV
 'use client'
 
 import { motion } from 'framer-motion'
-import { Coins, Zap, AlertTriangle } from 'lucide-react'
+import { Zap, AlertTriangle } from 'lucide-react'
 
 interface OpeningButtonsProps {
   boxPrice: number
@@ -43,18 +43,6 @@ export function OpeningButtons({
   return (
     <div className={`flex flex-col items-center gap-6 ${className}`}>
       
-      {/* Balance simple en haut */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-3 text-lg"
-      >
-        <Coins className="w-6 h-6 text-yellow-500" />
-        <span className="text-2xl font-bold text-gray-900 dark:text-white">
-          {userCoins.toLocaleString()}
-        </span>
-        <span className="text-gray-500 dark:text-gray-400 font-medium">coins</span>
-      </motion.div>
 
       {/* Boutons principaux - Layout horizontal minimaliste */}
       <div className="flex items-center gap-4">
@@ -89,11 +77,11 @@ export function OpeningButtons({
           )}
 
           {/* Contenu du bouton */}
-          <div className="relative z-10 flex items-center justify-center gap-3">
+          <div className="relative z-10 flex items-center justify-center gap-5">
             {isLoading ? (
               <>
                 <motion.div
-                  className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                  className="w-8 h-8 border-2 border-white border-t-transparent rounded-full"
                   animate={{ rotate: 360 }}
                   transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                 />
@@ -102,12 +90,16 @@ export function OpeningButtons({
             ) : (
               <>
                 <span>Open Box</span>
-                <div className={`flex items-center gap-2 px-3 py-1 rounded-lg ${
+                <div className={`flex items-center gap-1 px-1 py-1 rounded-lg ${
                   canAfford && !isDisabled 
-                    ? 'bg-white/20' 
+                    ? '' 
                     : 'bg-gray-200 dark:bg-gray-600'
                 }`}>
-                  <Coins size={16} className={canAfford && !isDisabled ? 'text-yellow-200' : 'text-gray-400'} />
+                  <motion.img 
+                    src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/loot-boxes/ChatGPT_Image_6_sept._2025_19_31_10.png"
+                    alt="REEV Coin"
+                    className={`w-9 h-9 object-contain ${canAfford && !isDisabled ? 'opacity-90' : 'opacity-50'}`}
+                  />
                   <span className="font-bold">
                     {boxPrice.toLocaleString()}
                   </span>

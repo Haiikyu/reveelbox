@@ -1,21 +1,21 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, Variants } from 'framer-motion'
 import { 
   Package, 
   Coins, 
   Search,
-  Grid3X3,
-  List,
   ArrowLeft,
   CheckCircle,
   DollarSign,
-  Trash2,
-  ShoppingCart,
   AlertCircle,
-  Filter
+  Filter,
+  ShoppingCart,
+  Sparkles,
+  X,
+  TrendingUp
 } from 'lucide-react'
 import { useAuth } from '../components/AuthProvider'
 import { createClient } from '@/utils/supabase/client'
@@ -42,6 +42,35 @@ interface NotificationState {
   message: string
 }
 
+// Variantes d'animation optimisées
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      delayChildren: 0.1,
+      staggerChildren: 0.05
+    }
+  }
+}
+
+const itemVariants: Variants = {
+  hidden: { 
+    opacity: 0, 
+    y: 30, 
+    scale: 0.9
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      duration: 0.5,
+      ease: [0.25, 0.46, 0.45, 0.94]
+    }
+  }
+}
+
 export default function InventoryPage() {
   const { user, profile, loading, isAuthenticated, refreshProfile } = useAuth()
   const router = useRouter()
@@ -50,17 +79,12 @@ export default function InventoryPage() {
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [inventoryLoading, setInventoryLoading] = useState(true)
   const [selectedItems, setSelectedItems] = useState<string[]>([])
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [filterRarity, setFilterRarity] = useState<'all' | 'common' | 'rare' | 'epic' | 'legendary'>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [notification, setNotification] = useState<NotificationState>({ type: 'success', message: '' })
   const [sellLoading, setSellLoading] = useState(false)
-
-  // Fonction notification
-  const showNotification = (type: 'success' | 'error', message: string) => {
-    setNotification({ type, message })
-    setTimeout(() => setNotification({ type: 'success', message: '' }), 4000)
-  }
+  const [showFilters, setShowFilters] = useState(false)
+  const [sortBy, setSortBy] = useState<'recent' | 'value_asc' | 'value_desc' | 'rarity'>('recent')
 
   // Protection de route
   useEffect(() => {
@@ -68,6 +92,12 @@ export default function InventoryPage() {
       router.push('/login')
     }
   }, [loading, isAuthenticated, router])
+
+  // Notification helper
+  const showNotification = (type: 'success' | 'error', message: string) => {
+    setNotification({ type, message })
+    setTimeout(() => setNotification({ type: 'success', message: '' }), 4000)
+  }
 
   // Chargement inventaire
   useEffect(() => {
@@ -115,132 +145,158 @@ export default function InventoryPage() {
     }
   }
 
-  // Fonction de vente simplifiée - utilise directement le market_value comme prix de vente
-const handleSellItem = async (itemId: string) => {
-  try {
-    setSellLoading(true)
-    
-    if (!user) {
-      throw new Error('Utilisateur non connecté')
-    }
+  // Vente d'un objet unique
+  const handleSellItem = async (itemId: string) => {
+    try {
+      setSellLoading(true)
+      
+      if (!user) {
+        throw new Error('Utilisateur non connecté')
+      }
 
-    // Utiliser la nouvelle fonction RPC corrigée
-    const { data, error } = await supabase.rpc('sell_inventory_item_fixed', {
-      p_inventory_item_id: itemId
-    })
+      const { data, error } = await supabase.rpc('sell_inventory_item_fixed', {
+        p_inventory_item_id: itemId
+      })
 
-    if (error) {
-      console.error('Erreur Supabase:', error)
-      throw error
-    }
+      if (error) {
+        console.error('Erreur Supabase:', error)
+        throw error
+      }
 
-    if (!data || !data.success) {
-      throw new Error(data?.error || 'Vente échouée')
-    }
+      if (!data || !data.success) {
+        throw new Error(data?.error || 'Vente échouée')
+      }
 
-    // Actualiser les données
-    await refreshProfile()
-    await loadInventory()
-    
-    // Retirer de la sélection
-    setSelectedItems(prev => prev.filter(id => id !== itemId))
-    
-    // Notification de succès
-    showNotification('success', `Vendu: ${data.item_name} pour ${data.coins_earned.toLocaleString()} coins!`)
-    
-  } catch (error) {
-    console.error('Erreur vente:', error)
-    
-    let errorMessage = 'Erreur lors de la vente'
-    if (error instanceof Error && error.message) {
-      errorMessage = error.message
+      await refreshProfile()
+      await loadInventory()
+      
+      setSelectedItems(prev => prev.filter(id => id !== itemId))
+      
+      showNotification('success', `Vendu: ${data.item_name} pour ${data.coins_earned.toLocaleString()} coins!`)
+      
+    } catch (error) {
+      console.error('Erreur vente:', error)
+      
+      let errorMessage = 'Erreur lors de la vente'
+      if (error instanceof Error && error.message) {
+        errorMessage = error.message
+      }
+      
+      showNotification('error', errorMessage)
+    } finally {
+      setSellLoading(false)
     }
-    
-    showNotification('error', errorMessage)
-  } finally {
-    setSellLoading(false)
   }
-}
 
-const handleSellSelected = async () => {
-  if (selectedItems.length === 0) return
-  
-  try {
-    setSellLoading(true)
+  // Vente de la sélection
+  const handleSellSelected = async () => {
+    if (selectedItems.length === 0) return
     
-    if (!user) {
-      throw new Error('Utilisateur non connecté')
-    }
-    
-    // Utiliser la nouvelle fonction RPC corrigée
-    const { data, error } = await supabase.rpc('sell_multiple_items_fixed', {
-      p_inventory_item_ids: selectedItems
-    })
+    try {
+      setSellLoading(true)
+      
+      if (!user) {
+        throw new Error('Utilisateur non connecté')
+      }
+      
+      const { data, error } = await supabase.rpc('sell_multiple_items_fixed', {
+        p_inventory_item_ids: selectedItems
+      })
 
-    if (error) {
-      console.error('Erreur Supabase:', error)
-      throw error
-    }
+      if (error) {
+        console.error('Erreur Supabase:', error)
+        throw error
+      }
 
-    if (!data || !data.success) {
-      throw new Error(data?.error || 'Vente multiple échouée')
-    }
+      if (!data || !data.success) {
+        throw new Error(data?.error || 'Vente multiple échouée')
+      }
 
-    // Actualiser les données
-    await refreshProfile()
-    await loadInventory()
-    
-    setSelectedItems([])
-    
-    // Notification de succès
-    showNotification('success', `Vendus: ${data.items_sold} objets pour ${data.total_coins_earned.toLocaleString()} coins!`)
-    
-  } catch (error) {
-    console.error('Erreur vente multiple:', error)
-    
-    let errorMessage = 'Erreur lors de la vente multiple'
-    if (error instanceof Error && error.message) {
-      errorMessage = error.message
+      await refreshProfile()
+      await loadInventory()
+      
+      setSelectedItems([])
+      
+      showNotification('success', `Vendus: ${data.items_sold} objets pour ${data.total_coins_earned.toLocaleString()} coins!`)
+      
+    } catch (error) {
+      console.error('Erreur vente multiple:', error)
+      
+      let errorMessage = 'Erreur lors de la vente multiple'
+      if (error instanceof Error && error.message) {
+        errorMessage = error.message
+      }
+      
+      showNotification('error', errorMessage)
+    } finally {
+      setSellLoading(false)
     }
-    
-    showNotification('error', errorMessage)
-  } finally {
-    setSellLoading(false)
   }
-}
 
   // Filtrage et tri
-  const filteredInventory = inventory.filter(item => {
-    if (searchQuery && !item.items?.name?.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false
-    }
-    
-    if (filterRarity !== 'all' && item.items?.rarity !== filterRarity) {
-      return false
-    }
-    
-    return true
-  })
+  const filteredAndSortedInventory = useMemo(() => {
+    let filtered = inventory.filter(item => {
+      const matchesSearch = item.items?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           item.items?.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      
+      const matchesRarity = filterRarity === 'all' || item.items?.rarity === filterRarity
+      
+      return matchesSearch && matchesRarity
+    })
 
-  // Calcul statistiques
-  const stats = {
-    total: inventory.length,
-    totalValue: inventory.reduce((sum, item) => sum + ((item.items?.market_value || 0) * (item.quantity || 1)), 0),
-    selectedValue: selectedItems.reduce((sum, itemId) => {
+    switch (sortBy) {
+      case 'value_asc':
+        return filtered.sort((a, b) => (a.items?.market_value || 0) - (b.items?.market_value || 0))
+      case 'value_desc':
+        return filtered.sort((a, b) => (b.items?.market_value || 0) - (a.items?.market_value || 0))
+      case 'rarity':
+        const rarityOrder = { legendary: 4, epic: 3, rare: 2, common: 1 }
+        return filtered.sort((a, b) => {
+          const aRarity = rarityOrder[a.items?.rarity || 'common']
+          const bRarity = rarityOrder[b.items?.rarity || 'common']
+          return bRarity - aRarity
+        })
+      case 'recent':
+      default:
+        return filtered.sort((a, b) => new Date(b.obtained_at).getTime() - new Date(a.obtained_at).getTime())
+    }
+  }, [inventory, searchQuery, filterRarity, sortBy])
+
+  // Statistiques
+  const stats = useMemo(() => {
+    if (filteredAndSortedInventory.length === 0) return null
+    
+    const totalValue = inventory.reduce((sum, item) => sum + ((item.items?.market_value || 0) * (item.quantity || 1)), 0)
+    const selectedValue = selectedItems.reduce((sum, itemId) => {
       const item = inventory.find(i => i.id === itemId)
       return sum + ((item?.items?.market_value || 0) * (item?.quantity || 1))
     }, 0)
-  }
-
-  // Fonctions utilitaires
-  const getRarityColor = (rarity: string) => {
-    const colors = {
-      common: 'from-gray-600 to-gray-600',
-      rare: 'from-blue-600 to-blue-600',
-      epic: 'from-purple-600 to-purple-600',
-      legendary: 'from-yellow-500 to-yellow-600'
+    
+    const rarityDistribution = inventory.reduce((acc, item) => {
+      const rarity = item.items?.rarity || 'common'
+      acc[rarity] = (acc[rarity] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
+    
+    return {
+      total: inventory.length,
+      filtered: filteredAndSortedInventory.length,
+      totalValue,
+      selectedValue,
+      avgValue: totalValue / inventory.length,
+      rarityDistribution
     }
-    return colors[rarity as keyof typeof colors] || colors.common
+  }, [inventory, filteredAndSortedInventory, selectedItems])
+
+  // Couleurs de rareté
+  const getRarityGlow = (rarity: string) => {
+    const glows = {
+      common: '#10b981',
+      rare: '#3b82f6', 
+      epic: '#8b5cf6',
+      legendary: '#f59e0b'
+    }
+    return glows[rarity as keyof typeof glows] || glows.common
   }
 
   const toggleItemSelection = (itemId: string) => {
@@ -251,35 +307,39 @@ const handleSellSelected = async () => {
     )
   }
 
-  if (loading) {
+  if (loading || inventoryLoading) {
     return (
-      <div className="min-h-screen bg-white dark:bg-gray-900 pt-20 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
         <div className="text-center">
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
             className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"
           />
-          <p className="text-gray-600 dark:text-gray-400">Chargement...</p>
+          <p className="text-gray-600 dark:text-gray-400">Chargement de votre inventaire...</p>
         </div>
       </div>
     )
   }
 
+  if (!isAuthenticated) {
+    return null
+  }
+
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 pt-20">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
       
-      {/* Notification */}
+      {/* Notifications */}
       <AnimatePresence>
         {notification.message && (
           <motion.div
             initial={{ opacity: 0, y: -50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
-            className={`fixed top-24 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
+            className={`fixed top-4 right-4 flex items-center gap-2 px-6 py-3 rounded-xl shadow-lg z-50 ${
               notification.type === 'error' 
-                ? 'bg-red-50 border border-red-200 text-red-700' 
-                : 'bg-green-50 border border-green-200 text-green-700'
+                ? 'bg-red-500 text-white' 
+                : 'bg-green-500 text-white'
             }`}
           >
             {notification.type === 'error' ? (
@@ -287,167 +347,245 @@ const handleSellSelected = async () => {
             ) : (
               <CheckCircle className="h-5 w-5" />
             )}
-            <span className="text-sm font-medium">{notification.message}</span>
+            <span className="font-medium">{notification.message}</span>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.back()}
-                className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-              >
-                <ArrowLeft className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-              </button>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-                  <ShoppingCart className="h-8 w-8 text-blue-500" />
-                  Mon Inventaire
-                </h1>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">
-                  {stats.total} objets • {stats.totalValue.toLocaleString()} coins 
-                </p>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Barre de sélection */}
-        {selectedItems.length > 0 && (
+      {/* Header */}
+      <div className="pt-40 pb-4">
+        <div className="max-w-7xl mx-auto px-6">
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6 flex items-center justify-between"
+            className="flex items-center gap-4 mb-8"
           >
-            <div className="flex items-center gap-4">
-              <span className="font-semibold text-blue-900 dark:text-blue-100">
-                {selectedItems.length} objet(s) sélectionné(s)
-              </span>
-              <span className="text-blue-700 dark:text-blue-300">
-                Valeur: {stats.selectedValue.toLocaleString()} coins
-              </span>
-            </div>
-            
-            <div className="flex gap-2">
-              <button
-                onClick={() => setSelectedItems([])}
-                className="px-4 py-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-800 rounded-lg transition-colors"
-              >
-                Désélectionner
-              </button>
-              <button
-                onClick={handleSellSelected}
-                disabled={sellLoading}
-                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:opacity-50 flex items-center gap-2"
-              >
-                {sellLoading ? (
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
-                  />
-                ) : (
-                  <DollarSign className="h-4 w-4" />
-                )}
-                Vendre la sélection
-              </button>
+            <button
+              onClick={() => router.back()}
+              className="p-3 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 rounded-xl hover:bg-white/80 dark:hover:bg-gray-800/80 transition-all"
+            >
+              <ArrowLeft className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+            </button>
+            <div>
+              <h1 className="text-4xl font-light text-gray-900 dark:text-white flex items-center gap-3">
+                <ShoppingCart className="h-10 w-10 text-blue-500" />
+                Mon Inventaire
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-2">
+                {stats ? `${stats.total} objets • ${stats.totalValue.toLocaleString()} coins` : 'Chargement...'}
+              </p>
             </div>
           </motion.div>
-        )}
 
-        {/* Filtres */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className=" rounded-lg shadow-sm p-4 dark:border-gray-700 mb-6"
-        >
-          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-            
-            {/* Recherche */}
+          {/* Barre de sélection */}
+          <AnimatePresence>
+            {selectedItems.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="bg-blue-50/80 dark:bg-blue-900/20 backdrop-blur-sm border border-blue-200/50 dark:border-blue-800/50 rounded-xl p-4 mb-6"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Sparkles className="h-5 w-5 text-blue-500" />
+                    <span className="font-medium text-blue-900 dark:text-blue-100">
+                      {selectedItems.length} objet{selectedItems.length > 1 ? 's' : ''} sélectionné{selectedItems.length > 1 ? 's' : ''}
+                    </span>
+                    <span className="text-blue-700 dark:text-blue-300">
+                      Valeur: {stats?.selectedValue.toLocaleString()} coins
+                    </span>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setSelectedItems([])}
+                      className="px-4 py-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-800/50 rounded-lg transition-colors"
+                    >
+                      Désélectionner
+                    </button>
+                    <button
+                      onClick={handleSellSelected}
+                      disabled={sellLoading}
+                      className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {sellLoading ? (
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                        />
+                      ) : (
+                        <DollarSign className="h-4 w-4" />
+                      )}
+                      Vendre la sélection
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Barre de recherche et filtres */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col md:flex-row gap-4 mb-6"
+          >
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
               <input
                 type="text"
-                placeholder="Rechercher un objet..."
+                placeholder="Rechercher..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-11 pr-4 py-3 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 transition-all text-gray-900 dark:text-white"
               />
             </div>
 
-            {/* Filtres */}
-            <div className="flex gap-3">
-              <div className="relative">
-                <select
-                  value={filterRarity}
-                  onChange={(e) => setFilterRarity(e.target.value as any)}
-                  className="appearance-none px-4 py-2 pr-8 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">Toutes les raretés</option>
-                  <option value="common">Commun</option>
-                  <option value="rare">Rare</option>
-                  <option value="epic">Épique</option>
-                  <option value="legendary">Légendaire</option>
-                </select>
-                <Filter className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-              </div>
+            <div className="flex gap-2">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="px-4 py-3 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 rounded-lg text-sm text-gray-700 dark:text-gray-300"
+              >
+                <option value="recent">Récents</option>
+                <option value="value_desc">Prix décroissant</option>
+                <option value="value_asc">Prix croissant</option>
+                <option value="rarity">Rareté</option>
+              </select>
+
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setShowFilters(!showFilters)}
+                className={`px-4 py-3 rounded-lg border transition-all flex items-center gap-2 ${
+                  showFilters 
+                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white' 
+                    : 'bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border-gray-200/50 dark:border-gray-700/50 text-gray-700 dark:text-gray-300'
+                }`}
+              >
+                <Filter size={16} />
+                <span className="text-sm font-medium">Filtres</span>
+                {filterRarity !== 'all' && (
+                  <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                )}
+              </motion.button>
 
               <button
-                onClick={() => setSelectedItems(filteredInventory.map(item => item.id))}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
+                onClick={() => setSelectedItems(filteredAndSortedInventory.map(item => item.id))}
+                className="px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
               >
                 Tout sélectionner
               </button>
             </div>
-          </div>
-        </motion.div>
-
-        {/* Contenu inventaire */}
-        {inventoryLoading ? (
-          <div className="text-center py-20">
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"
-            />
-            <p className="text-gray-600 dark:text-gray-400">Chargement de votre inventaire...</p>
-          </div>
-        ) : filteredInventory.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center py-20"
-          >
-            <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              {inventory.length === 0 ? 'Inventaire vide' : 'Aucun résultat'}
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              {inventory.length === 0 
-                ? 'Commencez à ouvrir des boîtes pour remplir votre inventaire !'
-                : 'Essayez de modifier vos filtres pour voir plus d\'objets.'
-              }
-            </p>
           </motion.div>
-        ) : (
+
+          {/* Panneau de filtres */}
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                animate={{ opacity: 1, height: 'auto', marginBottom: 24 }}
+                exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl p-6 border border-gray-200/50 dark:border-gray-700/50">
+                  <div className="flex flex-col gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                        Rareté
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {['all', 'common', 'rare', 'epic', 'legendary'].map((rarity) => (
+                          <button
+                            key={rarity}
+                            onClick={() => setFilterRarity(rarity as any)}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                              filterRarity === rarity
+                                ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                            }`}
+                          >
+                            {rarity === 'all' ? 'Toutes' : rarity.charAt(0).toUpperCase() + rarity.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => {
+                          setFilterRarity('all')
+                          setSearchQuery('')
+                        }}
+                        className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                      >
+                        Réinitialiser les filtres
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Statistiques */}
+          {stats && stats.filtered > 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400 mb-8"
+            >
+              <span>{stats.filtered} objet{stats.filtered > 1 ? 's' : ''}</span>
+              <span className="text-gray-300 dark:text-gray-600">•</span>
+              <span>Valeur moyenne: {Math.round(stats.avgValue).toLocaleString()} coins</span>
+              <span className="text-gray-300 dark:text-gray-600">•</span>
+              <span>Valeur totale: {stats.totalValue.toLocaleString()} coins</span>
+            </motion.div>
+          )}
+        </div>
+      </div>
+
+      {/* Grid des objets */}
+      <div className="max-w-7xl mx-auto px-6 pb-20">
+        {filteredAndSortedInventory.length === 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className={viewMode === 'grid' 
-              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-              : "space-y-4"
-            }
+            className="text-center py-20"
           >
-            {filteredInventory.map((item, index) => (
+            <div className="text-6xl mb-6 opacity-20">📦</div>
+            <h3 className="text-2xl font-light text-gray-900 dark:text-white mb-4">
+              {inventory.length === 0 ? 'Inventaire vide' : 'Aucun résultat'}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-8">
+              {inventory.length === 0 
+                ? 'Commencez à ouvrir des boîtes pour remplir votre inventaire !'
+                : 'Essayez de modifier vos critères de recherche.'
+              }
+            </p>
+            {filteredAndSortedInventory.length === 0 && inventory.length > 0 && (
+              <button 
+                onClick={() => { 
+                  setSearchQuery(''); 
+                  setFilterRarity('all');
+                  setShowFilters(false);
+                }}
+                className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline"
+              >
+                Réinitialiser tous les filtres
+              </button>
+            )}
+          </motion.div>
+        ) : (
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-12"
+          >
+            {filteredAndSortedInventory.map((item, index) => (
               <InventoryItemCard
                 key={item.id}
                 item={item}
@@ -456,8 +594,7 @@ const handleSellSelected = async () => {
                 onSelect={() => toggleItemSelection(item.id)}
                 onSell={() => handleSellItem(item.id)}
                 sellLoading={sellLoading}
-                getRarityColor={getRarityColor}
-                viewMode={viewMode}
+                getRarityGlow={getRarityGlow}
               />
             ))}
           </motion.div>
@@ -467,7 +604,7 @@ const handleSellSelected = async () => {
   )
 }
 
-// Composant Item Card simplifié
+// Composant Item Card avec style identique aux boxes
 interface InventoryItemCardProps {
   item: InventoryItem
   index: number
@@ -475,8 +612,7 @@ interface InventoryItemCardProps {
   onSelect: () => void
   onSell: () => void
   sellLoading: boolean
-  getRarityColor: (rarity: string) => string
-  viewMode: 'grid' | 'list'
+  getRarityGlow: (rarity: string) => string
 }
 
 function InventoryItemCard({ 
@@ -486,139 +622,171 @@ function InventoryItemCard({
   onSelect, 
   onSell, 
   sellLoading, 
-  getRarityColor,
-  viewMode
+  getRarityGlow
 }: InventoryItemCardProps) {
+  const [isHovered, setIsHovered] = useState(false)
   const sellPrice = item.items?.market_value || 0
   const totalPrice = sellPrice * (item.quantity || 1)
-
-  if (viewMode === 'list') {
-    return (
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: index * 0.02 }}
-        className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-4 flex items-center gap-4 transition-all ${
-          isSelected ? 'ring-2 ring-blue-500 border-blue-300' : 'border-gray-200 dark:border-gray-700'
-        }`}
-      >
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={onSelect}
-          className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-        />
-        
-        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center overflow-hidden">
-          {item.items?.image_url ? (
-            <img 
-              src={item.items.image_url} 
-              alt={item.items.name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <Package className="h-8 w-8 text-gray-400" />
-          )}
-        </div>
-
-        <div className="flex-1">
-          <h3 className="font-semibold text-gray-900 dark:text-white">
-            {item.items?.name || 'Objet inconnu'}
-          </h3>
-          <div className="flex items-center gap-2 mt-1">
-            <span className={`px-2 py-1 rounded text-xs font-bold bg-gradient-to-r ${getRarityColor(item.items?.rarity || 'common')} text-white`}>
-              {item.items?.rarity?.toUpperCase() || 'COMMON'}
-            </span>
-            {item.quantity > 1 && (
-              <span className="text-sm text-gray-600 dark:text-gray-400">x{item.quantity}</span>
-            )}
-          </div>
-        </div>
-
-        <div className="text-right">
-          <div className="flex items-center gap-1 text-blue-600 font-bold">
-            <Coins className="h-4 w-4" />
-            {totalPrice.toLocaleString()}
-          </div>
-          <button
-            onClick={onSell}
-            disabled={sellLoading}
-            className="mt-2 text-sm text-blue-600 hover:text-blue-700 disabled:opacity-50"
-          >
-            Vendre
-          </button>
-        </div>
-      </motion.div>
-    )
-  }
+  const glowColor = getRarityGlow(item.items?.rarity || 'common')
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
-      className={` p-4  ${
-        isSelected ? 'ring-2 ring-blue-500 border-blue-300' : 'border-gray-200 dark:border-gray-700'
-      }`}
+      variants={itemVariants}
+      whileHover={{ 
+        y: -20,
+        rotateY: 15,
+        rotateX: -5,
+        scale: 1.05
+      }}
+      onHoverStart={() => setIsHovered(true)}
+      onHoverEnd={() => setIsHovered(false)}
+      className="group cursor-pointer"
+      style={{ perspective: '1000px' }}
     >
-      <div className="flex justify-between items-start mb-3">
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={onSelect}
-          className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-        />
+      <motion.div className="relative">
         
-        <span className={`px-2 py-1 rounded text-xs font-bold bg-gradient-to-r ${getRarityColor(item.items?.rarity || 'common')} text-white`}>
-          {item.items?.rarity?.toUpperCase() || 'COMMON'}
-        </span>
-      </div>
+        {/* Checkbox de sélection */}
+        <div className="absolute -top-2 -left-2 z-20">
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={(e) => {
+              e.stopPropagation()
+              onSelect()
+            }}
+            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+              isSelected 
+                ? 'bg-blue-500 border-blue-500 text-white shadow-lg' 
+                : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:border-blue-400'
+            }`}
+          >
+            {isSelected && <CheckCircle size={16} />}
+          </motion.button>
+        </div>
 
-      <div className="aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center overflow-hidden mb-3 relative">
-        {item.items?.image_url ? (
-          <img 
-            src={item.items.image_url} 
-            alt={item.items.name}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <Package className="h-12 w-12 text-gray-400" />
-        )}
-        
-        {item.quantity > 1 && (
-          <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-            x{item.quantity}
+
+
+        {/* Badge de quantité */}
+        {item.quantity && item.quantity > 1 && (
+          <div className="absolute top-2 left-2 z-20">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.4 + index * 0.05 }}
+              className="bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg"
+            >
+              x{item.quantity}
+            </motion.div>
           </div>
         )}
-      </div>
 
-      <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-2 line-clamp-2">
-        {item.items?.name || 'Objet inconnu'}
-      </h3>
+        {/* Ombre dynamique */}
+        <motion.div
+          className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-24 h-6 bg-black/10 dark:bg-black/20 rounded-full blur-lg transition-colors"
+          animate={{
+            scale: isHovered ? 1.5 : 1,
+            opacity: isHovered ? 0.3 : 0.1
+          }}
+          transition={{ duration: 0.3 }}
+        />
 
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1 text-blue-600 font-bold">
-          <Coins className="h-4 w-4" />
-          <span>{totalPrice.toLocaleString()}</span>
+        {/* Image de l'objet */}
+        <div className="relative mb-4">
+          <motion.img
+            src={item.items?.image_url}
+            alt={item.items?.name}
+            className="w-full h-48 object-contain drop-shadow-2xl"
+            animate={{
+              filter: isHovered 
+                ? `drop-shadow(0 25px 50px ${glowColor}40) brightness(1.1)`
+                : 'drop-shadow(0 10px 25px rgba(0,0,0,0.15)) brightness(1)'
+            }}
+            transition={{ duration: 0.3 }}
+            onError={(e) => {
+              const target = e.target as HTMLImageElement
+              target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xMDAgNTBMMTUwIDc1VjEyNUwxMDAgMTUwTDUwIDEyNVY3NUwxMDAgNTBaIiBmaWxsPSIjOUM5Q0EzIi8+Cjx0ZXh0IHg9IjEwMCIgeT0iMTcwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM2Qjc5ODAiPk9iamV0PC90ZXh0Pgo8L3N2Zz4K'
+            }}
+          />
         </div>
-        
-        <button
-          onClick={onSell}
-          disabled={sellLoading}
-          className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center gap-1"
+
+        {/* Informations */}
+        <motion.div
+          className="text-center"
+          animate={{
+            y: isHovered ? -5 : 0
+          }}
+          transition={{ duration: 0.3 }}
         >
-          {sellLoading ? (
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              className="w-3 h-3 border border-white border-t-transparent rounded-full"
-            />
-          ) : (
-            <DollarSign className="h-3 w-3" />
-          )}
-          Vendre
-        </button>
-      </div>
+          <h3 className="text-lg font-black text-gray-900 dark:text-white mb-2  transition-colors">
+            {item.items?.name || 'Objet inconnu'}
+          </h3>
+          
+          <p className="">
+            {item.items?.description || ''}
+          </p>
+
+          {/* Date d'obtention */}
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+            Obtenu le {new Date(item.obtained_at).toLocaleDateString('fr-FR')}
+          </div>
+
+          {/* Prix de vente */}
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <Coins size={18} style={{ color: glowColor }} />
+            <span className="text-xl font-black text-gray-900 dark:text-white transition-colors">
+              {totalPrice.toLocaleString()}
+            </span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">coins</span>
+          </div>
+
+          {/* Actions au hover */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: isHovered ? 1 : 0 }}
+            className="space-y-2"
+          >
+            <div className="flex gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onSelect()
+                }}
+                className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isSelected 
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' 
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                {isSelected ? 'Sélectionné' : 'Sélectionner'}
+              </button>
+              
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onSell()
+                }}
+                disabled={sellLoading}
+                className="flex-1 bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 transition-colors text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-1"
+              >
+                {sellLoading ? (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    className="w-3 h-3 border border-white border-t-transparent rounded-full"
+                  />
+                ) : (
+                  <>
+                    <DollarSign size={14} />
+                    Vendre
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+
+
+      </motion.div>
     </motion.div>
   )
 }

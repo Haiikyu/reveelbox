@@ -113,21 +113,6 @@ function LootItemCard({ item, index, getRarityGlow }: LootItemCardProps) {
     >
       <motion.div className="relative">
         
-        {/* Badge de rareté */}
-        <div className="absolute -top-3 -right-3 z-20">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 0.95 }}
-            transition={{ 
-              delay: Math.min(0.3 + index * 0.02, 0.8),
-              duration: 0.3 
-            }}
-            className="px-2 py-1 rounded-full text-xs font-bold shadow-lg text-white capitalize"
-            style={{ backgroundColor: glowColor }}
-          >
-            {item.rarity}
-          </motion.div>
-        </div>
 
         {/* Ombre dynamique */}
         <motion.div
@@ -222,68 +207,6 @@ function LootItemCard({ item, index, getRarityGlow }: LootItemCardProps) {
               </div>
             </div>
           </motion.div>
-
-          {/* Indicateur de rareté animé */}
-          <motion.div
-            className="absolute top-2 left-2 w-3 h-3 rounded-full"
-            style={{ backgroundColor: glowColor }}
-            animate={{
-              scale: isHovered ? [1, 1.3, 1] : 1,
-              opacity: isHovered ? [0.7, 1, 0.7] : 0.7
-            }}
-            transition={{ 
-              duration: isHovered ? 0.8 : 0.2,
-              repeat: isHovered ? Infinity : 0,
-              ease: "easeInOut"
-            }}
-          />
-
-          {/* Effet de particules pour les objets rares */}
-          {(item.rarity === 'legendary' || item.rarity === 'epic') && isHovered && (
-            <motion.div
-              className="absolute inset-0 pointer-events-none"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              {Array.from({ length: 6 }).map((_, i) => {
-                const angle = (i * 60) * (Math.PI / 180)
-                const distance = 20
-                
-                return (
-                  <motion.div
-                    key={i}
-                    className="absolute w-1 h-1 rounded-full"
-                    style={{ 
-                      backgroundColor: glowColor,
-                      left: '50%',
-                      top: '50%'
-                    }}
-                    initial={{ 
-                      x: 0, 
-                      y: 0, 
-                      opacity: 0, 
-                      scale: 0 
-                    }}
-                    animate={{
-                      x: Math.cos(angle) * distance,
-                      y: Math.sin(angle) * distance,
-                      opacity: [0, 1, 0],
-                      scale: [0, 1, 0],
-                    }}
-                    transition={{
-                      duration: 1.5,
-                      delay: i * 0.1,
-                      repeat: Infinity,
-                      repeatDelay: 1.5,
-                      ease: "easeOut"
-                    }}
-                  />
-                )
-              })}
-            </motion.div>
-          )}
         </div>
       </motion.div>
     </motion.div>

@@ -189,19 +189,24 @@ export function WinningResult({
                   </h3>
                   
                   <div 
-                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-white bg-gradient-to-r ${rarityConfig.gradient} mb-4`}
+                    className={``}
                   >
-                    <Sparkles size={14} />
-                    {rarityConfig.name}
+                    <Sparkles size={0} />
+                    {}
                   </div>
 
                   {/* Valeur */}
-                  <div className="flex items-center justify-center gap-2 text-2xl font-bold">
-                    <Coins className="text-yellow-500" size={24} />
-                    <span className="text-gray-900 dark:text-white">
-                      {item.market_value.toLocaleString()}
-                    </span>
-                  </div>
+<div className="flex items-center justify-center gap-2 text-2xl font-bold">
+  <span className="text-gray-900 dark:text-white">
+    {item.market_value.toLocaleString()}
+  </span>
+  <img
+    src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/loot-boxes/ChatGPT_Image_6_sept._2025_19_31_10.png"
+    alt="Coins"
+    className="w-10 h-10 object-contain"
+  />
+</div>
+
                   
                   {/* Probabilité discrète */}
                   <div className="text-sm text-gray-500 dark:text-gray-400 mt-2">

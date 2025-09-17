@@ -473,18 +473,7 @@ const WheelItem = ({ item, index, isWinning, rarityColors, isSpinning, isCenterI
           transition={{ duration: 0.3 }}
         />
         
-        {/* Badge de rareté */}
-        <div className="absolute top-2 right-2 z-20">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2 + index * 0.03 }}
-            className="px-2 py-1 rounded-lg text-xs font-bold shadow-lg text-white capitalize"
-            style={{ backgroundColor: glowColor }}
-          >
-            {item.rarity.charAt(0).toUpperCase()}
-          </motion.div>
-        </div>
+
         
         {/* Image */}
         <motion.img

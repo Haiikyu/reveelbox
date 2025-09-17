@@ -231,9 +231,9 @@ export function BoxPresentation({
                   }}
                 >
                   <img 
-                    src="https://media.discordapp.net/attachments/369204403401392139/1413939657237987358/ChatGPT_Image_6_sept._2025_19_31_10.png?ex=68bdc16c&is=68bc6fec&hm=806ceed4add069224321faea8e476ab163a04f096c62876342e4b8e753eea74b&=&format=webp&quality=lossless&width=1126&height=1126"
+                    src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/loot-boxes/ChatGPT_Image_6_sept._2025_19_31_10.png"
                     alt="REEV Coin"
-                    className="w-11 h-11 object-contain"
+                    className="w-12 h-12 object-contain"
                   />
                 </motion.div>
                 <div className="flex items-baseline gap-2">

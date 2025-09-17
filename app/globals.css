@@ -1086,3 +1086,173 @@ html:not(.dark):not(.light) {
     transition: transform 0.1s ease;
   }
 }
+/* Fichier: /app/globals.css - Ajout en fin de fichier */
+
+/* CORRECTION: Emojis non empilés */
+.emoji-reactions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  line-height: 1.2;
+  min-height: 28px;
+}
+
+.emoji-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1;
+  min-width: 28px;
+  min-height: 28px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.emoji-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  padding: 8px;
+}
+
+.emoji-picker-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 16px;
+  line-height: 1;
+  transition: all 0.2s ease;
+}
+
+.emoji-picker-button:hover {
+  transform: scale(1.1);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Messages compacts */
+.chat-message-compact {
+  padding: 8px 12px;
+  margin: 2px 0;
+  border-radius: 8px;
+  max-width: 85%;
+}
+
+.chat-message-compact .avatar {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.chat-message-compact .content {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.chat-message-compact .header {
+  font-size: 12px;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chat-message-compact .level-badge {
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: bold;
+}
+
+/* Corrections pour le layout responsive */
+@media (max-width: 768px) {
+  .chat-message-compact {
+    max-width: 95%;
+    padding: 6px 10px;
+  }
+  
+  .emoji-reactions {
+    gap: 4px;
+  }
+  
+  .emoji-button {
+    padding: 3px 6px;
+    font-size: 12px;
+    min-width: 24px;
+    min-height: 24px;
+  }
+}
+
+/* Panel admin z-index fix */
+.admin-panel-overlay {
+  z-index: 9998;
+}
+
+.admin-panel-content {
+  z-index: 9999;
+}
+
+/* Animations pour les messages épinglés */
+.pinned-message {
+  position: relative;
+  overflow: hidden;
+}
+
+.pinned-message::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 193, 7, 0.3),
+    transparent
+  );
+  animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* Badge épinglé doré */
+.pinned-badge {
+  background: linear-gradient(135deg, #ffd700, #ffb300);
+  color: #000;
+  font-weight: bold;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 10px;
+  text-shadow: none;
+  box-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
+}
+
+.pinned-counter {
+  background: linear-gradient(135deg, #E0B000, #B8860B);
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(224, 176, 0, 0.4);
+}
