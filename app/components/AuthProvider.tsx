@@ -1,9 +1,9 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
-import { createClient } from '@/utils/supabase/client'
+import { createClient, resetSupabaseInstance } from '@/utils/supabase/client'
 import type { User, Session } from '@supabase/supabase-js'
-import { calculateLevel } from '@/lib/xp-system' // Import du système centralisé
+import { calculateLevel } from '@/lib/xp-system'
 
 interface Profile {
   id: string
@@ -23,11 +23,17 @@ interface Profile {
   is_admin: boolean
   created_at: string
   updated_at: string
-  // Propriétés calculées avec le système XP centralisé
   level?: number
   current_level_exp?: number
+  current_level_xp?: number
   exp_to_next?: number
+  next_level_xp?: number
   progress_percentage?: number
+  coins_balance?: number
+  theme?: any
+  consecutive_days?: number
+  longest_streak?: number
+  last_activity?: string
 }
 
 interface AuthContextType {
@@ -51,12 +57,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [profileLoading, setProfileLoading] = useState(false)
   
-  // Refs pour éviter les boucles infinies
   const supabaseRef = useRef(createClient())
   const initializingRef = useRef(false)
   const profileCacheRef = useRef<{ userId: string, profile: Profile } | null>(null)
 
-  // Fonction utilitaire pour enrichir le profil avec les données XP calculées
   const enrichProfileWithXP = (profileData: any): Profile => {
     if (!profileData) return profileData
     
@@ -75,9 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Fonction de chargement du profil avec cache et XP enrichie
   const loadProfile = useCallback(async (userId: string, forceRefresh = false) => {
-    // Utiliser le cache si disponible et pas de refresh forcé
     if (!forceRefresh && profileCacheRef.current?.userId === userId) {
       setProfile(profileCacheRef.current.profile)
       return
@@ -96,7 +98,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(null)
         profileCacheRef.current = null
       } else if (data) {
-        // Enrichir le profil avec les calculs XP centralisés
         const enrichedProfile = enrichProfileWithXP(data)
         setProfile(enrichedProfile)
         profileCacheRef.current = { userId, profile: enrichedProfile }
@@ -110,13 +111,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Initialisation robuste avec protection contre les boucles
   const initializeAuth = useCallback(async () => {
     if (initializingRef.current) return
     initializingRef.current = true
 
     try {
-      // 1. Récupérer la session courante
       const { data: { session: currentSession }, error: sessionError } = await supabaseRef.current.auth.getSession()
       
       if (sessionError) {
@@ -128,12 +127,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      // 2. Mettre à jour l'état
       if (currentSession?.user) {
         setUser(currentSession.user)
         setSession(currentSession)
         
-        // 3. Charger le profil seulement si nécessaire
         if (!profileCacheRef.current || profileCacheRef.current.userId !== currentSession.user.id) {
           await loadProfile(currentSession.user.id)
         }
@@ -155,16 +152,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [loadProfile])
 
-  // Effet d'initialisation avec cleanup
   useEffect(() => {
     initializeAuth()
 
-    // Listener d'authentification avec debounce
     let timeoutId: NodeJS.Timeout | null = null
     
     const { data: { subscription } } = supabaseRef.current.auth.onAuthStateChange(
       async (event, newSession) => {
-        // Debounce pour éviter les appels multiples
         if (timeoutId) clearTimeout(timeoutId)
         
         timeoutId = setTimeout(async () => {
@@ -180,17 +174,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(newSession.user)
             setSession(newSession)
             
-            // Charger le profil seulement si c'est un nouvel utilisateur
             if (!profileCacheRef.current || profileCacheRef.current.userId !== newSession.user.id) {
               await loadProfile(newSession.user.id)
             }
             setLoading(false)
           }
-        }, 100) // Debounce de 100ms
+        }, 100)
       }
     )
 
-    // Cleanup proper
     return () => {
       if (timeoutId) clearTimeout(timeoutId)
       subscription.unsubscribe()
@@ -198,28 +190,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [initializeAuth, loadProfile])
 
-  // Refresh profile avec gestion d'erreurs et recalcul XP
   const refreshProfile = useCallback(async () => {
     if (!user) return
-    await loadProfile(user.id, true) // Force refresh avec recalcul XP
+    await loadProfile(user.id, true)
   }, [user, loadProfile])
 
-  // Update profile optimiste avec rollback et recalcul XP
   const updateProfile = useCallback(async (updates: Partial<Profile>) => {
     if (!user || !profile) return
 
-    // Si on met à jour l'XP, recalculer les propriétés dérivées
     const updatedData = updates.total_exp !== undefined 
       ? enrichProfileWithXP({ ...profile, ...updates })
       : { ...profile, ...updates }
 
-    // Mise à jour optimiste
     const previousProfile = profile
     setProfile(updatedData)
     profileCacheRef.current = { userId: user.id, profile: updatedData }
 
     try {
-      // Ne sauvegarder que les champs de base (pas les calculés)
       const { level, current_level_exp, exp_to_next, progress_percentage, ...dbUpdates } = updates
       
       const { error } = await supabaseRef.current
@@ -228,7 +215,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq('id', user.id)
 
       if (error) {
-        // Rollback en cas d'erreur
         setProfile(previousProfile)
         profileCacheRef.current = { userId: user.id, profile: previousProfile }
         throw error
@@ -239,23 +225,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, profile])
 
-  // SignOut avec cleanup complet
   const signOut = useCallback(async () => {
     try {
       setLoading(true)
       const { error } = await supabaseRef.current.auth.signOut()
-      
+
       if (error) {
         console.error('Erreur déconnexion:', error)
       }
-      
-      // Cleanup immédiat
+
       setUser(null)
       setSession(null)
       setProfile(null)
       profileCacheRef.current = null
-      
-      // Clear localStorage si nécessaire
+
+      // Réinitialiser l'instance Supabase singleton
+      resetSupabaseInstance()
+
       if (typeof window !== 'undefined') {
         localStorage.removeItem('supabase.auth.token')
         localStorage.removeItem('redirectAfterLogin')
@@ -268,7 +254,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Valeur du contexte mémorisée
   const contextValue = useCallback(() => ({
     user,
     session,
@@ -288,7 +273,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
-// Hook useAuth avec vérification
 export function useAuth() {
   const context = useContext(AuthContext)
   if (context === undefined) {
@@ -297,7 +281,6 @@ export function useAuth() {
   return context
 }
 
-// Hook de vérification de session
 export function useAuthCheck() {
   const { user, loading } = useAuth()
   const [isValidating, setIsValidating] = useState(false)

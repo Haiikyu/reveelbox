@@ -366,7 +366,7 @@ if (result.success) {
               {/* Header dans la sidebar */}
               <div className="mb-8">
                 <div className="flex items-center gap-4 p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
-                  <div className="w-12 h-12 bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <div className="w-12 h-12 bg-gradient-to-br from-green-500 via-teal-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
                     <Package className="h-6 w-6 text-white" />
                   </div>
                   <div>
@@ -427,7 +427,7 @@ if (result.success) {
                         className={`
                           w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-medium transition-all duration-200 relative
                           ${activeTab === tab.id 
-                            ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg transform scale-[1.02]' 
+                            ? 'bg-gradient-to-r from-green-500 to-teal-600 text-white shadow-lg transform scale-[1.02]' 
                             : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-gray-200'
                           }
                         `}
@@ -437,7 +437,7 @@ if (result.success) {
                         {activeTab === tab.id && (
                           <motion.div
                             layoutId="activeTab"
-                            className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl -z-10"
+                            className="absolute inset-0 bg-gradient-to-r from-green-500 to-teal-600 rounded-xl -z-10"
                           />
                         )}
                       </button>
@@ -472,7 +472,7 @@ if (result.success) {
                   className="space-y-8"
                 >
                   <div className="text-center">
-                    <h2 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2">
+                    <h2 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent mb-2">
                       Statistiques Avancées
                     </h2>
                     <p className="text-gray-600 dark:text-gray-400 text-lg">

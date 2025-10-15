@@ -1,7 +1,7 @@
 // Fichier: types/chat.ts
 // Types TypeScript stricts pour le système de chat
 
-import { Database } from './database';
+import { Database } from '../app/types/database';
 
 // Types de base pour les messages
 export type ChatMessageType = 'text' | 'system' | 'giveaway' | 'poll' | 'donation' | 'game' | 'image';
@@ -522,4 +522,4 @@ export type {
   Tables,
   TablesInsert,
   TablesUpdate
-} from './database';
+} from '../app/types/database';

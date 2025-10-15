@@ -1,82 +1,37 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { 
-  Eye, 
-  EyeOff, 
-  Mail, 
-  Lock, 
-  User, 
-  Gift, 
-  Loader2, 
-  AlertCircle, 
-  CheckCircle, 
-  Calendar,
-  Users,
-  Star,
-  Trophy
-} from 'lucide-react'
+import { Eye, EyeOff, AlertCircle, CheckCircle, Gift } from 'lucide-react'
 import { useAuth } from '@/app/components/AuthProvider'
 
-// Interfaces TypeScript pour la sécurité des types
-interface ReferralInfo {
-  code: string
-  username: string
-  isDemo: boolean
-}
-
-interface ProfileData {
-  username: string
-}
-
-interface AffiliateData {
-  code: string
-  profiles: ProfileData | ProfileData[] | null
-}
-
-// Composant pour gérer les paramètres de recherche
-function SignUpForm() {
+export default function SignupPage() {
   const [formData, setFormData] = useState({
+    username: '',
     email: '',
     password: '',
     confirmPassword: '',
-    username: '',
-    birthDate: ''
+    birthDate: '',
+    referralCode: ''
   })
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [notification, setNotification] = useState({ type: '', message: '' })
-  const [referralCode, setReferralCode] = useState('')
-  const [referralInfo, setReferralInfo] = useState<ReferralInfo | null>(null)
-  const [checkingReferral, setCheckingReferral] = useState(false)
-  
+
   const router = useRouter()
-  const searchParams = useSearchParams()
   const supabase = createClient()
   const { user, loading: authLoading } = useAuth()
 
-  // Récupérer le code de parrainage depuis l'URL
-  useEffect(() => {
-    const refParam = searchParams?.get('ref')
-    if (refParam) {
-      setReferralCode(refParam)
-      validateReferralCode(refParam)
-    }
-  }, [searchParams])
-
-  // Vérifier si l'utilisateur est déjà connecté au chargement
   useEffect(() => {
     if (!authLoading && user) {
-      console.log('Utilisateur déjà connecté, redirection...')
-      const redirectPath = localStorage.getItem('redirectAfterLogin') || localStorage.getItem('redirectAfterSignup')
+      const redirectPath = localStorage.getItem('redirectAfterSignup') || localStorage.getItem('redirectAfterLogin')
       if (redirectPath && redirectPath !== '/login' && redirectPath !== '/signup') {
-        localStorage.removeItem('redirectAfterLogin')
         localStorage.removeItem('redirectAfterSignup')
+        localStorage.removeItem('redirectAfterLogin')
         router.push(redirectPath)
       } else {
         router.push('/boxes')
@@ -89,109 +44,35 @@ function SignUpForm() {
     setTimeout(() => setNotification({ type: '', message: '' }), 5000)
   }
 
-  // Valider le code de parrainage avec gestion correcte des types
-  const validateReferralCode = async (code: string) => {
-    if (!code || code.length < 3) return
-
-    setCheckingReferral(true)
-    try {
-      // Vérifier si le code existe (avec fallback pour mode démo)
-      const { data, error } = await supabase
-        .from('affiliates')
-        .select(`
-          code,
-          profiles!affiliates_user_id_fkey(username)
-        `)
-        .eq('code', code)
-        .eq('is_active', true)
-        .single()
-
-      if (error || !data) {
-        console.log('Code non trouvé en DB, utilisation mode démo')
-        // Mode démo si la table n'existe pas
-        setReferralInfo({
-          code: code,
-          username: 'Affilié VIP',
-          isDemo: true
-        })
-      } else {
-        // ✅ CORRECTION TypeScript - Gestion complète des types profiles
-        const affiliateData = data as AffiliateData
-        let username = 'Utilisateur'
-        
-        if (affiliateData.profiles) {
-          if (Array.isArray(affiliateData.profiles)) {
-            // Si c'est un tableau, prendre le premier élément
-            username = affiliateData.profiles[0]?.username || 'Utilisateur'
-          } else if (typeof affiliateData.profiles === 'object') {
-            // Si c'est un objet direct
-            username = affiliateData.profiles.username || 'Utilisateur'
-          }
-        }
-        
-        setReferralInfo({
-          code: affiliateData.code,
-          username: username,
-          isDemo: false
-        })
-      }
-    } catch (error) {
-      console.error('Erreur validation code:', error)
-      // Mode démo en cas d'erreur
-      setReferralInfo({
-        code: code,
-        username: 'Affilié VIP',
-        isDemo: true
-      })
-    } finally {
-      setCheckingReferral(false)
-    }
-  }
-
-  // Calculer l'âge à partir de la date de naissance
-  const calculateAge = (birthDate: string) => {
-    const today = new Date()
-    const birth = new Date(birthDate)
-    let age = today.getFullYear() - birth.getFullYear()
-    const monthDiff = today.getMonth() - birth.getMonth()
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--
-    }
-    
-    return age
-  }
-
   const validateForm = () => {
-    if (!formData.email || !formData.password || !formData.confirmPassword || !formData.username || !formData.birthDate) {
+    if (!formData.username || !formData.email || !formData.password || !formData.confirmPassword || !formData.birthDate) {
       showNotification('error', 'Tous les champs sont requis')
       return false
     }
 
-    // Validation nom d'utilisateur
     if (formData.username.length < 3) {
-      showNotification('error', 'Le nom d\'utilisateur doit contenir au moins 3 caractères')
+      showNotification('error', 'Le pseudo doit contenir au moins 3 caractères')
       return false
     }
 
-    if (formData.username.length > 20) {
-      showNotification('error', 'Le nom d\'utilisateur ne peut pas dépasser 20 caractères')
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(formData.email)) {
+      showNotification('error', 'Email invalide')
       return false
     }
 
-    if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
-      showNotification('error', 'Le nom d\'utilisateur ne peut contenir que des lettres, chiffres et underscores')
+    // Vérifier l'âge minimum (18 ans)
+    const birthDate = new Date(formData.birthDate)
+    const today = new Date()
+    const age = today.getFullYear() - birthDate.getFullYear()
+    const monthDiff = today.getMonth() - birthDate.getMonth()
+    const actualAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate()) ? age - 1 : age
+
+    if (actualAge < 18) {
+      showNotification('error', 'Vous devez avoir au moins 18 ans')
       return false
     }
 
-    // Validation âge
-    const age = calculateAge(formData.birthDate)
-    if (age < 18) {
-      showNotification('error', 'Vous devez avoir au moins 18 ans pour vous inscrire')
-      return false
-    }
-
-    // Validation mot de passe
     if (formData.password.length < 6) {
       showNotification('error', 'Le mot de passe doit contenir au moins 6 caractères')
       return false
@@ -202,495 +83,445 @@ function SignUpForm() {
       return false
     }
 
-    // Validation email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(formData.email)) {
-      showNotification('error', 'Email invalide')
-      return false
-    }
-
     return true
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    
-    // Formatage spécial pour le nom d'utilisateur
-    if (name === 'username') {
-      const cleanedValue = value.toLowerCase().replace(/[^a-z0-9_]/g, '')
-      setFormData(prev => ({
-        ...prev,
-        [name]: cleanedValue
-      }))
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }))
-    }
-  }
-
-  const handleReferralCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const code = e.target.value.toUpperCase()
-    setReferralCode(code)
-    setReferralInfo(null)
-    
-    // Valider le code après un délai
-    if (code.length >= 3) {
-      setTimeout(() => validateReferralCode(code), 500)
-    }
+    setFormData(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value
+    }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
     if (!validateForm()) return
-
     setLoading(true)
 
     try {
-      // 1. Créer l'utilisateur avec Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // 1. Créer l'utilisateur
+      const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
           data: {
-            username: formData.username,
-            birth_date: formData.birthDate,
-            referral_code: referralCode || null
+            username: formData.username
           }
         }
       })
 
-      if (authError) {
-        if (authError.message.includes('already registered')) {
+      if (error) {
+        if (error.message.includes('already registered')) {
           showNotification('error', 'Cet email est déjà utilisé')
-        } else if (authError.message.includes('weak password')) {
-          showNotification('error', 'Mot de passe trop faible')
         } else {
-          showNotification('error', authError.message)
+          showNotification('error', error.message)
         }
         setLoading(false)
         return
       }
 
-      if (authData.user) {
-        try {
-          // 2. Créer le profil utilisateur
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .upsert({
-              id: authData.user.id,
-              username: formData.username,
-              birth_date: formData.birthDate,
-              virtual_currency: referralCode && referralInfo ? 150 : 100, // Bonus si parrainage
-              loyalty_points: 0,
-              total_exp: 0,
-              created_at: new Date().toISOString()
-            })
+      if (data.user) {
+        // 2. Créer le profil
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            username: formData.username,
+            email: formData.email,
+            birth_date: formData.birthDate,
+            virtual_currency: 100, // Bonus de départ
+            level: 1,
+            total_exp: 0,
+            current_exp: 0
+          })
 
-          if (profileError) {
-            console.error('Erreur création profil:', profileError)
-            // Continue même si le profil n'a pas pu être créé
-          }
+        if (profileError) {
+          console.error('Erreur création profil:', profileError)
+        }
 
-          // 3. Transaction de bienvenue
-          try {
+        // 3. Gérer le code de parrainage si présent
+        if (formData.referralCode && formData.referralCode.trim()) {
+          const { data: affiliateData } = await supabase
+            .from('affiliate_profiles')
+            .select('user_id')
+            .eq('affiliate_code', formData.referralCode.trim().toUpperCase())
+            .single()
+
+          if (affiliateData) {
+            // Enregistrer la référence
             await supabase
-              .from('transactions')
+              .from('affiliate_referrals')
               .insert({
-                user_id: authData.user.id,
-                type: 'welcome_bonus',
-                virtual_amount: referralCode && referralInfo ? 150 : 100,
-                description: referralCode && referralInfo
-                  ? `Bonus de bienvenue + parrainage (${referralCode})` 
-                  : 'Bonus de bienvenue'
+                referrer_id: affiliateData.user_id,
+                referred_id: data.user.id,
+                status: 'pending'
               })
-          } catch (error) {
-            console.error('Erreur transaction bienvenue:', error)
           }
-
-          // 4. Traiter le parrainage si présent et valide
-          if (referralCode && referralInfo && !referralInfo.isDemo) {
-            try {
-              // Utiliser la fonction RPC si disponible
-              const { error: referralError } = await supabase.rpc('register_referral', {
-                p_affiliate_code: referralCode,
-                p_referred_user_id: authData.user.id
-              })
-
-              if (referralError) {
-                console.error('Erreur traitement parrainage:', referralError)
-              } else {
-                console.log('Parrainage traité avec succès')
-              }
-            } catch (error) {
-              console.error('Erreur RPC parrainage:', error)
-              // Fallback : enregistrement manuel si RPC non disponible
-              try {
-                await supabase
-                  .from('referrals')
-                  .insert({
-                    referrer_user_id: '00000000-0000-0000-0000-000000000000', // Placeholder
-                    referred_user_id: authData.user.id,
-                    affiliate_code: referralCode,
-                    commission_earned: 5.00,
-                    status: 'converted'
-                  })
-              } catch (fallbackError) {
-                console.error('Erreur fallback parrainage:', fallbackError)
-              }
-            }
-          }
-
-        } catch (error) {
-          console.error('Erreur post-inscription:', error)
         }
 
-        // 5. Notification et redirection
-        if (!authData.user.email_confirmed_at) {
-          showNotification('success', 'Vérifiez votre email pour confirmer votre inscription')
-          setTimeout(() => {
-            router.push('/login')
-          }, 2000)
-        } else {
-          const successMessage = referralCode && referralInfo
-            ? `Inscription réussie ! Bonus de parrainage de 50 coins supplémentaires !`
-            : 'Inscription réussie ! 100 coins de bienvenue ajoutés !'
-          
-          showNotification('success', successMessage)
-          
-          setTimeout(() => {
-            const redirectPath = localStorage.getItem('redirectAfterLogin') || localStorage.getItem('redirectAfterSignup')
-            if (redirectPath && redirectPath !== '/login' && redirectPath !== '/signup') {
-              localStorage.removeItem('redirectAfterLogin')
-              localStorage.removeItem('redirectAfterSignup')
-              router.push(redirectPath)
-            } else {
-              router.push('/boxes')
-            }
-          }, 2000)
-        }
+        showNotification('success', 'Compte créé avec succès ! Bienvenue !')
+
+        setTimeout(() => {
+          const redirectPath = localStorage.getItem('redirectAfterSignup') || localStorage.getItem('redirectAfterLogin')
+          if (redirectPath && redirectPath !== '/login' && redirectPath !== '/signup') {
+            localStorage.removeItem('redirectAfterSignup')
+            localStorage.removeItem('redirectAfterLogin')
+            router.push(redirectPath)
+          } else {
+            router.push('/boxes')
+          }
+        }, 1500)
       }
-
     } catch (error) {
       console.error('Erreur inscription:', error)
-      showNotification('error', 'Une erreur est survenue lors de l\'inscription')
-    } finally {
+      showNotification('error', 'Une erreur est survenue')
       setLoading(false)
     }
   }
 
-  // Affichage du loading pendant la vérification de l'auth
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Vérification de votre session...</p>
-        </div>
+      <div className="min-h-screen hybrid-container flex items-center justify-center">
+        <div className="w-12 h-12 border-3 border-t-transparent rounded-full animate-spin"
+          style={{ borderColor: 'var(--hybrid-accent-primary)', borderTopColor: 'transparent' }}></div>
       </div>
     )
   }
 
-  // Si l'utilisateur est connecté, ne pas afficher la page
-  if (user) {
-    return null
-  }
+  if (user) return null
 
   return (
-    <div className="min-h-screen bg-white flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen hybrid-container flex overflow-hidden">
+      {/* Bouton retour */}
+      <Link
+        href="/"
+        className="fixed top-6 left-6 z-50 flex items-center gap-2 px-4 py-2 backdrop-blur-sm text-white rounded-xl font-medium transition-all"
+        style={{
+          background: 'var(--hybrid-text-primary)',
+          color: 'var(--hybrid-text-inverse)'
+        }}
+      >
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        Retour
+      </Link>
+
       {/* Notification */}
       {notification.message && (
         <motion.div
           initial={{ opacity: 0, y: -50 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -50 }}
-          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg border ${
-            notification.type === 'error' 
-              ? 'bg-red-50 border-red-200 text-red-800' 
-              : 'bg-green-50 border-green-200 text-green-800'
-          }`}
+          className="fixed top-6 right-6 z-50 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl text-white"
+          style={{
+            background: notification.type === 'error' ? 'var(--hybrid-error)' : 'var(--hybrid-success)'
+          }}
         >
-          {notification.type === 'error' ? (
-            <AlertCircle className="h-5 w-5" />
-          ) : (
-            <CheckCircle className="h-5 w-5" />
-          )}
-          <span className="text-sm font-medium">{notification.message}</span>
+          {notification.type === 'error' ? <AlertCircle className="h-5 w-5" /> : <CheckCircle className="h-5 w-5" />}
+          <span className="text-sm font-semibold">{notification.message}</span>
         </motion.div>
       )}
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        {/* Logo et titre */}
+      {/* Panneau gauche - 3D Boxes */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.8 }}
+        className="hidden lg:flex lg:w-1/2 relative overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, var(--hybrid-accent-primary) 0%, var(--hybrid-accent-secondary) 50%, var(--hybrid-accent-tertiary) 100%)'
+        }}
+      >
+        {/* Effets de fond améliorés */}
+        <div className="absolute inset-0">
+          <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-cyan-400/20 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-1/4 left-1/4 w-80 h-80 bg-pink-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-gradient-radial from-white/5 to-transparent"></div>
+        </div>
+
+        {/* Grille de points décorative */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="w-full h-full" style={{
+            backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
+            backgroundSize: '50px 50px'
+          }}></div>
+        </div>
+
+        {/* Conteneur des boxes 3D multiples */}
+        <div className="relative z-10 flex items-center justify-center w-full h-full p-12">
+          <div className="relative w-full h-full max-w-2xl">
+            {/* Box centrale principale */}
+            <motion.div
+              animate={{
+                rotateY: [0, 360],
+                rotateX: [0, 20, 0, -20, 0],
+                z: [0, 50, 0]
+              }}
+              transition={{
+                duration: 15,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+              style={{
+                transformStyle: 'preserve-3d',
+                perspective: '1500px'
+              }}
+            >
+              <div className="relative w-72 h-72">
+                {/* Faces du cube avec dégradés */}
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-400/30 via-cyan-400/30 to-pink-500/30 backdrop-blur-2xl border-2 border-white/40 rounded-3xl shadow-2xl"
+                     style={{ transform: 'translateZ(80px)' }}>
+                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent rounded-3xl"></div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Gift className="w-32 h-32 text-white drop-shadow-2xl" />
+                  </div>
+                </div>
+
+                {/* Face arrière */}
+                <div className="absolute inset-0 bg-gradient-to-br from-pink-500/30 via-purple-500/30 to-cyan-400/30 backdrop-blur-2xl border-2 border-white/30 rounded-3xl"
+                     style={{ transform: 'translateZ(-80px) rotateY(180deg)' }}>
+                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent rounded-3xl"></div>
+                </div>
+
+                {/* Glow effect */}
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-400 via-cyan-400 to-pink-500 blur-3xl opacity-40 rounded-3xl"></div>
+              </div>
+            </motion.div>
+
+            {/* Box secondaire - Haut gauche */}
+            <motion.div
+              animate={{
+                rotateY: [360, 0],
+                rotateZ: [0, 180, 360],
+                scale: [1, 1.1, 1]
+              }}
+              transition={{
+                duration: 12,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 1
+              }}
+              className="absolute top-16 left-16"
+              style={{
+                transformStyle: 'preserve-3d',
+                perspective: '1000px'
+              }}
+            >
+              <div className="relative w-32 h-32">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-400/30 via-pink-500/30 to-orange-400/30 backdrop-blur-xl border-2 border-white/30 rounded-2xl shadow-xl"
+                     style={{ transform: 'translateZ(40px)' }}>
+                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent rounded-2xl"></div>
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-400 via-pink-500 to-orange-400 blur-2xl opacity-30 rounded-2xl"></div>
+              </div>
+            </motion.div>
+
+            {/* Box secondaire - Bas droite */}
+            <motion.div
+              animate={{
+                rotateX: [0, 360],
+                rotateY: [0, 180, 360],
+                scale: [1, 0.9, 1]
+              }}
+              transition={{
+                duration: 18,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 2
+              }}
+              className="absolute bottom-20 right-20"
+              style={{
+                transformStyle: 'preserve-3d',
+                perspective: '1000px'
+              }}
+            >
+              <div className="relative w-40 h-40">
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/30 via-blue-500/30 to-violet-400/30 backdrop-blur-xl border-2 border-white/30 rounded-2xl shadow-xl"
+                     style={{ transform: 'translateZ(50px)' }}>
+                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent rounded-2xl"></div>
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-400 via-blue-500 to-violet-400 blur-2xl opacity-30 rounded-2xl"></div>
+              </div>
+            </motion.div>
+
+            {/* Box flottante - Droite */}
+            <motion.div
+              animate={{
+                y: [0, -30, 0],
+                rotateY: [0, 360],
+                rotateZ: [0, -10, 0, 10, 0]
+              }}
+              transition={{
+                duration: 10,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="absolute top-1/3 right-8"
+              style={{
+                transformStyle: 'preserve-3d',
+                perspective: '1000px'
+              }}
+            >
+              <div className="relative w-24 h-24">
+                <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/30 via-orange-500/30 to-red-500/30 backdrop-blur-xl border-2 border-white/30 rounded-xl shadow-xl"
+                     style={{ transform: 'translateZ(30px)' }}>
+                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent rounded-xl"></div>
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 blur-xl opacity-30 rounded-xl"></div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+
+        {/* Texte décoratif */}
+        <div className="absolute bottom-12 left-12 z-20">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.8 }}
+          >
+            <h2 className="text-4xl font-bold text-white mb-3 drop-shadow-lg">
+              Rejoignez l'aventure
+            </h2>
+            <p className="text-white/80 text-lg drop-shadow-md">
+              100 pièces offertes à l'inscription
+            </p>
+          </motion.div>
+        </div>
+      </motion.div>
+
+      {/* Panneau droit - Formulaire */}
+      <div className="flex-1 flex items-center justify-center p-8 lg:w-1/2"
+        style={{ background: 'var(--hybrid-bg-secondary)' }}>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="text-center"
+          className="w-full max-w-md"
         >
-          <div className="mx-auto h-16 w-16 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center shadow-lg">
-            <Gift className="h-8 w-8 text-white" />
+          {/* Logo */}
+          <div className="flex justify-center mb-8">
+            <div className="h-12 w-12 rounded-xl flex items-center justify-center"
+              style={{
+                background: 'var(--hybrid-accent-primary)',
+                opacity: 0.1,
+                border: '1px solid var(--hybrid-accent-primary)'
+              }}>
+              <Gift className="h-6 w-6" style={{ color: 'var(--hybrid-accent-primary)', opacity: 3 }} />
+            </div>
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            Rejoindre ReveelBox
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Créez votre compte et commencez l'aventure
-          </p>
-          
-          {/* Affichage du parrainage si présent */}
-          {referralInfo && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="mt-4 bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-lg p-4"
-            >
-              <div className="flex items-center justify-center gap-3">
-                <div className="h-10 w-10 bg-green-500 rounded-full flex items-center justify-center">
-                  <Users className="h-5 w-5 text-white" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-semibold text-green-800">
-                    Parrainage de {referralInfo.username}
-                  </p>
-                  <p className="text-xs text-green-600">
-                    +50 coins bonus à l'inscription !
-                  </p>
-                </div>
-                <Trophy className="h-5 w-5 text-green-600" />
-              </div>
-            </motion.div>
-          )}
 
-          {/* Indicateur de redirection si présent */}
-          {typeof window !== 'undefined' && (localStorage.getItem('redirectAfterLogin') || localStorage.getItem('redirectAfterSignup')) && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3"
-            >
-              <p className="text-sm text-blue-800">
-                🔄 Vous serez redirigé vers votre page après inscription
-              </p>
-            </motion.div>
-          )}
-        </motion.div>
-      </div>
+          {/* Titre */}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold mb-2"
+              style={{ color: 'var(--hybrid-text-primary)' }}>
+              Créer un compte
+            </h1>
+            <p style={{ color: 'var(--hybrid-text-secondary)' }}>
+              Vous avez déjà un compte ?{' '}
+              <Link href="/login" className="font-semibold transition-colors"
+                style={{ color: 'var(--hybrid-accent-primary)' }}>
+                Se connecter
+              </Link>
+            </p>
+          </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="bg-white py-8 px-4 shadow-lg sm:rounded-2xl sm:px-10 border border-gray-100"
-        >
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            
-            {/* Nom d'utilisateur */}
+          {/* Formulaire */}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Username */}
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                Nom d'utilisateur
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="username"
-                  name="username"
-                  type="text"
-                  required
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-gray-50 focus:bg-white"
-                  placeholder="Haikyu"
-                  value={formData.username}
-                  onChange={handleChange}
-                  disabled={loading}
-                  minLength={3}
-                  maxLength={20}
-                />
-              </div>
-              <p className="mt-1 text-xs text-gray-500">
-                3-20 caractères, lettres, chiffres et _ uniquement
-              </p>
+              <input
+                type="text"
+                name="username"
+                placeholder="Nom d'utilisateur"
+                value={formData.username}
+                onChange={handleChange}
+                disabled={loading}
+                className="hybrid-input"
+              />
             </div>
 
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Adresse email
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-gray-50 focus:bg-white"
-                  placeholder="votre@email.com"
-                  value={formData.email}
-                  onChange={handleChange}
-                  disabled={loading}
-                />
-              </div>
+              <input
+                type="email"
+                name="email"
+                placeholder="Email"
+                value={formData.email}
+                onChange={handleChange}
+                disabled={loading}
+                className="hybrid-input"
+              />
+            </div>
+
+            {/* Date de naissance */}
+            <div>
+              <input
+                type="date"
+                name="birthDate"
+                placeholder="Date de naissance"
+                value={formData.birthDate}
+                onChange={handleChange}
+                disabled={loading}
+                className="hybrid-input"
+              />
             </div>
 
             {/* Mot de passe */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Mot de passe
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-gray-50 focus:bg-white"
-                  placeholder="Minimum 6 caractères"
-                  value={formData.password}
-                  onChange={handleChange}
-                  disabled={loading}
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                  )}
-                </button>
-              </div>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                placeholder="Mot de passe"
+                value={formData.password}
+                onChange={handleChange}
+                disabled={loading}
+                className="hybrid-input pr-12"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 transition-colors"
+                style={{ color: 'var(--hybrid-text-secondary)' }}
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
             </div>
 
-            {/* Confirmation mot de passe */}
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                Confirmer le mot de passe
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  required
-                  className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-gray-50 focus:bg-white"
-                  placeholder="Répétez votre mot de passe"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  disabled={loading}
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
-                  {showConfirmPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                  )}
-                </button>
-              </div>
-            </div>
-			
-			{/* Date de naissance */}
-            <div>
-              <label htmlFor="birthDate" className="block text-sm font-medium text-gray-700 mb-2">
-                Date de naissance
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Calendar className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="birthDate"
-                  name="birthDate"
-                  type="date"
-                  required
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-gray-50 focus:bg-white"
-                  value={formData.birthDate}
-                  onChange={handleChange}
-                  disabled={loading}
-                  max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
-                />
-              </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Vous devez avoir au moins 18 ans
-              </p>
-              {formData.birthDate && calculateAge(formData.birthDate) < 18 && (
-                <p className="mt-1 text-sm text-red-600">
-                  Âge insuffisant ({calculateAge(formData.birthDate)} ans)
-                </p>
-              )}
-            </div>
-			
-			{/* Code de parrainage */}
-            <div>
-              <label htmlFor="referralCode" className="block text-sm font-medium text-gray-700 mb-2">
-                Code de parrainage (optionnel)
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Star className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="referralCode"
-                  name="referralCode"
-                  type="text"
-                  className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-gray-50 focus:bg-white uppercase"
-                  placeholder="REV12345"
-                  value={referralCode}
-                  onChange={handleReferralCodeChange}
-                  disabled={loading}
-                />
-                {checkingReferral && (
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                    <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                  </div>
-                )}
-                {referralInfo && (
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                  </div>
-                )}
-              </div>
-              {referralCode && !checkingReferral && !referralInfo && (
-                <p className="mt-1 text-sm text-red-600">Code de parrainage invalide</p>
-              )}
+            {/* Confirmer mot de passe */}
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                name="confirmPassword"
+                placeholder="Confirmer le mot de passe"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                disabled={loading}
+                className="hybrid-input pr-12"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 transition-colors"
+                style={{ color: 'var(--hybrid-text-secondary)' }}
+              >
+                {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
             </div>
 
-            {/* Bonus d'inscription */}
-            <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 bg-green-500 rounded-full flex items-center justify-center">
-                  <Gift className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-green-800">
-                    Bonus d'inscription
-                  </p>
-                  <p className="text-xs text-green-600">
-                    {referralInfo ? '150 coins' : '100 coins'} offerts pour commencer !
-                    {referralInfo && (
-                      <span className="block">+50 coins grâce au parrainage 🎉</span>
-                    )}
-                  </p>
-                </div>
-              </div>
+            {/* Code de parrainage (optionnel) */}
+            <div>
+              <input
+                type="text"
+                name="referralCode"
+                placeholder="Code de parrainage (Optionnel)"
+                value={formData.referralCode}
+                onChange={handleChange}
+                disabled={loading}
+                className="hybrid-input"
+              />
             </div>
 
             {/* Bouton inscription */}
@@ -698,88 +529,93 @@ function SignUpForm() {
               whileHover={{ scale: loading ? 1 : 1.02 }}
               whileTap={{ scale: loading ? 1 : 0.98 }}
               type="submit"
-              disabled={loading || (formData.birthDate !== '' && calculateAge(formData.birthDate) < 18)}
-              className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              disabled={loading}
+              className="hybrid-btn hybrid-btn-primary hybrid-btn-md hybrid-btn-full"
             >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Création en cours...
-                </>
-              ) : (
-                <>
-                  <User className="h-4 w-4" />
-                  Créer mon compte
-                </>
-              )}
+              {loading ? 'Création du compte...' : 'Créer un compte'}
             </motion.button>
           </form>
 
-          {/* Lien connexion */}
-          <div className="mt-6">
+          {/* Séparateur */}
+          <div className="my-8">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200" />
+                <div className="w-full" style={{ borderTop: '1px solid var(--hybrid-border-default)' }}></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">
-                  Déjà inscrit ?
-                </span>
+                <span className="px-4" style={{
+                  background: 'var(--hybrid-bg-secondary)',
+                  color: 'var(--hybrid-text-secondary)'
+                }}>Ou</span>
               </div>
             </div>
-
-            <div className="mt-6">
-              <Link
-                href="/login"
-                className="w-full flex justify-center py-3 px-4 border border-gray-200 rounded-xl shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors duration-200"
-                onClick={() => {
-                  // Transférer la redirection vers login
-                  const redirectPath = localStorage.getItem('redirectAfterSignup') || localStorage.getItem('redirectAfterLogin')
-                  if (redirectPath) {
-                    localStorage.setItem('redirectAfterLogin', redirectPath)
-                    localStorage.removeItem('redirectAfterSignup')
-                  }
-                }}
-              >
-                Se connecter
-              </Link>
-            </div>
           </div>
-        </motion.div>
 
-        {/* Footer */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-          className="mt-8 text-center text-xs text-gray-500"
-        >
-          En créant un compte, vous acceptez nos{' '}
-          <Link href="/terms" className="text-green-600 hover:text-green-500">
-            conditions d'utilisation
-          </Link>{' '}
-          et notre{' '}
-          <Link href="/privacy" className="text-green-600 hover:text-green-500">
-            politique de confidentialité
-          </Link>
-        </motion.p>
+          {/* Connexion sociale */}
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={async () => {
+                const { error } = await supabase.auth.signInWithOAuth({
+                  provider: 'google',
+                  options: {
+                    redirectTo: `${window.location.origin}/auth/callback`
+                  }
+                })
+                if (error) {
+                  showNotification('error', 'Erreur de connexion avec Google')
+                }
+              }}
+              className="w-full flex items-center justify-center gap-3 py-4 rounded-xl font-medium transition-all"
+              style={{
+                background: 'var(--hybrid-bg-elevated)',
+                border: '1px solid var(--hybrid-border-default)',
+                color: 'var(--hybrid-text-primary)'
+              }}
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+              </svg>
+              Continuer avec Google
+            </button>
+
+            <button
+              type="button"
+              className="w-full flex items-center justify-center gap-3 py-4 rounded-xl font-medium transition-all"
+              style={{
+                background: 'var(--hybrid-bg-elevated)',
+                border: '1px solid var(--hybrid-border-default)',
+                color: 'var(--hybrid-text-primary)'
+              }}
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+              </svg>
+              Continuer avec Apple
+            </button>
+          </div>
+
+          {/* Bonus */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="mt-8 p-4 rounded-xl text-center"
+            style={{
+              background: 'var(--hybrid-success-bg)',
+              border: '1px solid var(--hybrid-success-border)'
+            }}
+          >
+            <p className="text-sm font-semibold"
+              style={{ color: 'var(--hybrid-success)' }}>
+              🎁 Obtenez 100 pièces gratuites en vous inscrivant !
+            </p>
+          </motion.div>
+        </motion.div>
       </div>
     </div>
-  )
-}
-
-// Composant principal avec Suspense
-export default function SignUpPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement...</p>
-        </div>
-      </div>
-    }>
-      <SignUpForm />
-    </Suspense>
   )
 }

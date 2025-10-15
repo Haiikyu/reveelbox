@@ -83,7 +83,7 @@ export function FreedropButtons({
         text: 'Claim Free',
         icon: Gift,
         disabled: false,
-        style: 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg hover:shadow-xl',
+        style: 'bg-gradient-to-r from-green-500 to-teal-600 text-white shadow-lg hover:shadow-xl',
         description: 'Get your daily reward now!'
       }
     }

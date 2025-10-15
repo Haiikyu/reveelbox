@@ -33,7 +33,7 @@ export function BoxPresentation({
     if (level >= 50 || price >= 500) return { name: 'Legendary', color: 'from-yellow-400 to-orange-500', icon: Crown, glow: '#f59e0b' }
     if (level >= 30 || price >= 300) return { name: 'Epic', color: 'from-purple-500 to-pink-500', icon: Award, glow: '#d946ef' }
     if (level >= 20 || price >= 200) return { name: 'Rare', color: 'from-blue-500 to-indigo-500', icon: Zap, glow: '#3b82f6' }
-    if (level >= 10 || price >= 100) return { name: 'Uncommon', color: 'from-green-500 to-emerald-500', icon: Shield, glow: '#10b981' }
+    if (level >= 10 || price >= 100) return { name: 'Uncommon', color: 'from-green-500 to-teal-500', icon: Shield, glow: '#10b981' }
     return { name: 'Common', color: 'from-gray-400 to-gray-500', icon: Star, glow: '#6b7280' }
   }
 
@@ -48,33 +48,6 @@ export function BoxPresentation({
       transition={{ duration: 0.8 }}
       className={`relative w-full ${className}`}
     >
-      
-      {/* Particules flottantes - dispersées sur toute la zone */}
-      {Array.from({ length: 20 }).map((_, i) => (
-        <motion.div
-          key={i}
-          className="absolute w-1 h-1 rounded-full"
-          style={{
-            backgroundColor: i % 4 === 0 ? rarity.glow : 'rgba(255,255,255,0.3)',
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            zIndex: 1
-          }}
-          animate={{
-            y: [0, -30, 0],
-            x: [0, Math.random() * 20 - 10, 0],
-            opacity: [0.2, 1, 0.2],
-            scale: [1, 1.5, 1]
-          }}
-          transition={{
-            duration: 4 + Math.random() * 3,
-            repeat: Infinity,
-            delay: Math.random() * 4,
-            ease: "easeInOut"
-          }}
-        />
-      ))}
-
       <motion.div
         className="flex flex-col lg:flex-row items-center gap-12 max-w-7xl mx-auto py-16 px-8 relative z-10"
         initial={{ opacity: 0 }}
@@ -156,7 +129,7 @@ export function BoxPresentation({
               className="absolute -bottom-6 -left-8 z-20"
             >
               <motion.div
-                className="bg-gradient-to-r from-green-400 to-emerald-500 text-white px-3 py-2 rounded-xl shadow-xl flex items-center gap-2"
+                className="bg-gradient-to-r from-green-400 to-teal-500 text-white px-3 py-2 rounded-xl shadow-xl flex items-center gap-2"
                 whileHover={{ scale: 1.1, y: -3 }}
               >
                 <Gift size={14} />

@@ -1,7 +1,7 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@/utils/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { Database } from '@/app/types/database';
 
 const createGiveawaySchema = z.object({
   title: z.string().min(3).max(100),
@@ -14,7 +14,7 @@ const createGiveawaySchema = z.object({
 // GET /api/admin/giveaways - Récupérer les giveaways
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
+    const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/giveaways - Créer un giveaway
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
+    const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -78,9 +78,9 @@ export async function POST(request: NextRequest) {
     const validationResult = createGiveawaySchema.safeParse(body);
 
     if (!validationResult.success) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Données invalides',
-        details: validationResult.error.errors 
+        details: validationResult.error.issues
       }, { status: 400 });
     }
 

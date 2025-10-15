@@ -1,0 +1,149 @@
+/* Styles pour le système de chat ReveelBox */
+
+/* Animation de pulsation pour les notifications */
+@keyframes pulse-glow {
+  0%, 100% { 
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.5); 
+    transform: scale(1); 
+  }
+  50% { 
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.8); 
+    transform: scale(1.05); 
+  }
+}
+
+.chat-bubble-pulse {
+  animation: pulse-glow 2s infinite;
+}
+
+/* Scroll personnalisé pour les messages */
+.chat-messages-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-messages-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-messages-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5);
+  border-radius: 3px;
+}
+
+.chat-messages-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.8);
+}
+
+/* Animation d'apparition des messages */
+.message-appear {
+  animation: messageSlideIn 0.3s ease-out;
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Gradient animé pour les giveaways */
+.giveaway-gradient {
+  background: linear-gradient(45deg, #fbbf24, #f59e0b, #d97706, #f59e0b);
+  background-size: 300% 300%;
+  animation: gradientShift 3s ease infinite;
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Effet de scintillement pour les prix */
+.prize-sparkle {
+  position: relative;
+  overflow: hidden;
+}
+
+.prize-sparkle::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, transparent 40%, rgba(255, 215, 0, 0.3) 50%, transparent 60%);
+  z-index: -1;
+  animation: sparkle 2s linear infinite;
+}
+
+@keyframes sparkle {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Mode sombre responsive */
+@media (prefers-color-scheme: dark) {
+  .chat-messages-scroll::-webkit-scrollbar-thumb {
+    background-color: rgba(75, 85, 99, 0.5);
+  }
+  
+  .chat-messages-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(75, 85, 99, 0.8);
+  }
+}
+
+/* Responsive mobile */
+@media (max-width: 640px) {
+  .chat-panel-mobile {
+    width: calc(100vw - 2rem);
+    height: 70vh;
+    bottom: 5rem;
+    right: 1rem;
+  }
+}
+
+/* Animations de chargement */
+.loading-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.loading-dots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: currentColor;
+  animation: loadingDots 1.4s infinite ease-in-out both;
+}
+
+.loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+.loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes loadingDots {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+/* Responsive mobile-first */
+@media (max-width: 768px) {
+  .mobile\:inset-x-0 {
+    left: 0;
+    right: 0;
+  }
+  .mobile\:bottom-0 {
+    bottom: 0;
+  }
+  .mobile\:top-16 {
+    top: 4rem;
+  }
+  .mobile\:rounded-t-2xl {
+    border-top-left-radius: 1rem;
+    border-top-right-radius: 1rem;
+  }
+}

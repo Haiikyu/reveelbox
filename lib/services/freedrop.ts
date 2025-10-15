@@ -235,22 +235,111 @@ class FreedropService {
    */
   async claimFreedrop(userId: string, boxId: string, itemId: string): Promise<ClaimResult> {
     try {
-      const { data, error } = await this.supabase.rpc('claim_daily_freedrop', {
-        p_user_id: userId,
-        p_box_id: boxId,
-        p_item_id: itemId
-      })
+      // Vérifier si déjà réclamé aujourd'hui (utilise claimed_date au lieu de created_at)
+      const today = new Date().toISOString().split('T')[0] // Format: YYYY-MM-DD
+      const { data: existingClaim } = await this.supabase
+        .from('daily_box_claims')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('daily_box_id', boxId)
+        .eq('claimed_date', today)
+        .maybeSingle()
 
-      if (error) {
-        console.error('Erreur claim freedrop:', error)
+      if (existingClaim) {
         return {
           success: false,
-          error: 'Erreur de communication avec le serveur',
-          error_code: 'RPC_ERROR'
+          error: 'Vous avez déjà réclamé cette freedrop aujourd\'hui',
+          error_code: 'ALREADY_CLAIMED'
         }
       }
 
-      return data as ClaimResult
+      // Vérifier si l'item existe dans user_inventory
+      const { data: existingInventory } = await this.supabase
+        .from('user_inventory')
+        .select('id, quantity')
+        .eq('user_id', userId)
+        .eq('item_id', itemId)
+        .maybeSingle()
+
+      if (existingInventory) {
+        // Incrémenter la quantité si l'item existe déjà
+        const { error: updateError } = await this.supabase
+          .from('user_inventory')
+          .update({ quantity: existingInventory.quantity + 1 })
+          .eq('id', existingInventory.id)
+
+        if (updateError) {
+          console.error('Erreur mise à jour inventaire:', updateError)
+          return {
+            success: false,
+            error: 'Erreur lors de la mise à jour de l\'inventaire',
+            error_code: 'INVENTORY_ERROR'
+          }
+        }
+      } else {
+        // Ajouter l'item à l'inventaire
+        const { error: inventoryError } = await this.supabase
+          .from('user_inventory')
+          .insert({
+            user_id: userId,
+            item_id: itemId,
+            quantity: 1
+          })
+
+        if (inventoryError) {
+          console.error('Erreur ajout inventaire:', inventoryError)
+          return {
+            success: false,
+            error: 'Erreur lors de l\'ajout à l\'inventaire',
+            error_code: 'INVENTORY_ERROR'
+          }
+        }
+      }
+
+      // Enregistrer la réclamation avec la date du jour
+      const { error: claimError } = await this.supabase
+        .from('daily_box_claims')
+        .insert({
+          user_id: userId,
+          daily_box_id: boxId,
+          item_id: itemId,
+          claimed_date: today
+        })
+
+      if (claimError) {
+        console.error('Erreur enregistrement claim:', claimError)
+        return {
+          success: false,
+          error: 'Erreur lors de l\'enregistrement de la réclamation',
+          error_code: 'CLAIM_ERROR'
+        }
+      }
+
+      // Mettre à jour les statistiques utilisateur (XP et level)
+      const { data: profile } = await this.supabase
+        .from('profiles')
+        .select('current_exp, level')
+        .eq('id', userId)
+        .single()
+
+      if (profile) {
+        const xpGain = 10 // XP gagné par freedrop
+        const newExp = (profile.current_exp || 0) + xpGain
+        const newLevel = Math.floor(newExp / 100) + 1
+
+        await this.supabase
+          .from('profiles')
+          .update({
+            current_exp: newExp % 100,
+            level: Math.max(profile.level || 1, newLevel)
+          })
+          .eq('id', userId)
+      }
+
+      return {
+        success: true,
+        xp_gained: 10
+      }
     } catch (error) {
       console.error('Erreur critique claimFreedrop:', error)
       return {

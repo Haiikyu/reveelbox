@@ -6,11 +6,11 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import dynamic from 'next/dynamic'
-import { 
-  Gift, Package, Sword, Users, Mail, User, LogOut, Coins, X, 
-  ShoppingCart, Star, Crown, Eye, Clock, Sparkles, Plus, ChevronDown, 
-  Monitor, Sun, Moon, Shield, TrendingUp, Gamepad2, Home, Settings,
-  CreditCard, Wallet, Check, ArrowUpCircle
+import {
+  Gift, Package, Sword, Users, User, LogOut, X,
+  ShoppingCart, Sparkles, Plus, ChevronDown,
+  Monitor, Sun, Moon, Shield, TrendingUp, Gamepad2,
+  Menu, Zap, Crown, Star, Flame, ArrowRight, ChevronUp, Mail, CreditCard
 } from 'lucide-react'
 import { useAuth } from './AuthProvider'
 import { useTheme } from './ThemeProvider'
@@ -31,1120 +31,132 @@ interface InventoryItem {
 
 const UpgradeModal = dynamic(() => import('@/app/components/UpgradeModal'), {
   ssr: false,
-  loading: () => (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="text-white">Chargement...</div>
-    </div>
-  )
+  loading: () => null
 })
 
+const CartModal = dynamic(() => import('@/app/components/CartModal'), {
+  ssr: false,
+  loading: () => null
+})
 
-// Effet de particules pour rendre la navbar plus vivante
-const ParticleEffect = () => {
-  const [particles, setParticles] = useState([])
+const PaymentModal = dynamic(() => import('@/app/components/PaymentModal'), {
+  ssr: false,
+  loading: () => null
+})
 
-  useEffect(() => {
-    const createParticle = () => ({
-      id: Math.random(),
-      x: Math.random() * 100,
-      y: -5,
-      opacity: Math.random() * 0.5 + 0.2,
-      size: Math.random() * 2 + 1,
-      speed: Math.random() * 2 + 1
-    })
+// Wrapper pour l'espacement avec gestion automatique de la navbar
+interface PageWrapperProps {
+  children: React.ReactNode;
+  className?: string;
+}
 
-    const initialParticles = Array.from({ length: 8 }, createParticle)
-    setParticles(initialParticles)
+export const PageWrapper: React.FC<PageWrapperProps> = ({ children, className = "" }) => {
+  const [isNavbarHidden, setIsNavbarHidden] = React.useState(false)
 
-    const interval = setInterval(() => {
-      setParticles(prev => 
-        prev.map(particle => ({
-          ...particle,
-          y: particle.y + particle.speed,
-          opacity: particle.y > 100 ? 0 : particle.opacity
-        })).filter(particle => particle.y < 120)
-      )
-      
-      if (Math.random() > 0.7) {
-        setParticles(prev => [...prev, createParticle()])
-      }
-    }, 100)
+  React.useEffect(() => {
+    // Lire l'état initial
+    const savedState = localStorage.getItem('navbarHidden')
+    setIsNavbarHidden(savedState === 'true')
 
-    return () => clearInterval(interval)
+    // Écouter les changements
+    const handleToggle = () => {
+      const newState = localStorage.getItem('navbarHidden') === 'true'
+      setIsNavbarHidden(newState)
+    }
+
+    window.addEventListener('navbarToggle', handleToggle)
+    return () => window.removeEventListener('navbarToggle', handleToggle)
   }, [])
 
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {particles.map(particle => (
-        <motion.div
-          key={particle.id}
-          className="absolute bg-emerald-400 rounded-full"
-          style={{
-            left: `${particle.x}%`,
-            top: `${particle.y}%`,
-            width: `${particle.size}px`,
-            height: `${particle.size}px`,
-            opacity: particle.opacity
-          }}
-          animate={{
-            y: [0, 20],
-            opacity: [particle.opacity, 0]
-          }}
-          transition={{
-            duration: 3,
-            ease: "easeOut"
-          }}
-        />
-      ))}
-    </div>
-  )
-}
-
-// Wrapper pour créer l'espacement derrière la navbar
-export const PageWrapper = ({ children, className = "" }) => {
-  return (
-    <div className={`pt-24 ${className}`}>
+    <div
+      className={`transition-all duration-300 ${className}`}
+      style={{ paddingTop: isNavbarHidden ? '0px' : '96px' }}
+    >
       {children}
     </div>
   )
 }
 
-// COMPOSANT MENU DE RECHARGE COMPLÈTEMENT REFAIT
-const RechargeMenu = ({ isOpen, setIsOpen, router }) => {
-  const menuRef = useRef(null)
-  const [selectedAmount, setSelectedAmount] = useState(null)
-  const [customAmount, setCustomAmount] = useState('')
-  const [selectedPayment, setSelectedPayment] = useState(null)
-  const [isProcessing, setIsProcessing] = useState(false)
-  
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setIsOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [setIsOpen])
-
-  const predefinedAmounts = [
-    { euros: 5, coins: 500, bonus: 0, isPopular: false },
-    { euros: 10, coins: 1000, bonus: 100, isPopular: false },
-    { euros: 25, coins: 2500, bonus: 300, isPopular: true },
-    { euros: 50, coins: 5000, bonus: 750, isPopular: false },
-    { euros: 100, coins: 10000, bonus: 2000, isPopular: false },
-    { euros: 250, coins: 25000, bonus: 6000, isPopular: false }
-  ]
-
-  const paymentMethods = [
-    { 
-      id: 'card', 
-      name: 'Carte Bancaire', 
-      icon: CreditCard, 
-      description: 'Visa, Mastercard, Amex',
-      fees: 'Aucuns frais'
-    },
-    { 
-      id: 'paypal', 
-      name: 'PayPal', 
-      icon: Wallet, 
-      description: 'Compte PayPal',
-      fees: 'Aucuns frais'
-    },
-    { 
-      id: 'apple', 
-      name: 'Apple Pay', 
-      icon: '🍎', 
-      description: 'Touch ID / Face ID',
-      fees: 'Aucuns frais'
-    },
-    { 
-      id: 'google', 
-      name: 'Google Pay', 
-      icon: '🔵', 
-      description: 'Compte Google',
-      fees: 'Aucuns frais'
-    }
-  ]
-
-  const handlePurchase = async () => {
-    if (!isValidPurchase()) return
-    
-    setIsProcessing(true)
-    const amount = selectedAmount?.euros || parseInt(customAmount)
-    
-    try {
-      // Redirection vers la page de paiement
-      setIsOpen(false)
-      router.push(`/buy-coins?amount=${amount}&method=${selectedPayment}&coins=${getTotalCoins()}`)
-    } catch (error) {
-      console.error('Erreur lors du paiement:', error)
-    } finally {
-      setIsProcessing(false)
-    }
-  }
-
-  const getTotalCoins = () => {
-    if (selectedAmount) {
-      return selectedAmount.coins + selectedAmount.bonus
-    }
-    if (customAmount) {
-      const euros = parseInt(customAmount)
-      return euros * 100 // 1€ = 100 coins par défaut
-    }
-    return 0
-  }
-
-  const getSelectedEuros = () => {
-    return selectedAmount?.euros || parseInt(customAmount) || 0
-  }
-
-  const isValidPurchase = () => {
-    return (selectedAmount || (customAmount && parseInt(customAmount) >= 1)) && selectedPayment
-  }
-
-  return (
-    <div className="relative" ref={menuRef}>
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: -10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -10 }}
-            className="absolute top-full right-0 mt-4 w-[450px] 
-                       bg-white/95 dark:bg-slate-800/95 backdrop-blur-3xl 
-                       border border-white/30 dark:border-slate-700/50 
-                       rounded-3xl shadow-2xl overflow-hidden"
-          >
-            {/* Header */}
-            <div className="p-6 bg-gradient-to-r from-emerald-50/80 to-blue-50/80 dark:from-emerald-900/20 dark:to-blue-900/20 border-b border-white/20 dark:border-slate-700/50">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-black text-gray-900 dark:text-white">Recharger des Coins</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Achetez des coins pour ouvrir des boîtes</p>
-                </div>
-                <button 
-                  onClick={() => setIsOpen(false)} 
-                  className="p-2 rounded-2xl hover:bg-white/50 dark:hover:bg-white/10 transition-all"
-                >
-                  <X className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              {/* Montants prédéfinis */}
-              <div>
-                <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-4">Choisissez un montant</h4>
-                <div className="grid grid-cols-3 gap-3">
-                  {predefinedAmounts.map((amount) => (
-                    <button
-                      key={amount.euros}
-                      onClick={() => { setSelectedAmount(amount); setCustomAmount('') }}
-                      className={`relative p-4 rounded-2xl border-2 transition-all duration-300 hover:scale-105 ${
-                        selectedAmount?.euros === amount.euros 
-                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 scale-105 shadow-lg' 
-                          : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-emerald-300'
-                      }`}
-                    >
-                      {amount.isPopular && (
-                        <div className="absolute -top-2 -right-2 bg-gradient-to-r from-orange-400 to-red-500 text-white text-xs px-2 py-1 rounded-full font-bold shadow-lg">
-                          POPULAIRE
-                        </div>
-                      )}
-                      <div className="text-center">
-                        <div className="text-lg font-black text-gray-900 dark:text-white">{amount.euros}€</div>
-                        <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                          {amount.coins.toLocaleString()} coins
-                        </div>
-                        {amount.bonus > 0 && (
-                          <div className="text-xs font-bold text-orange-600 dark:text-orange-400 mt-1">
-                            +{amount.bonus} BONUS
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Montant personnalisé */}
-              <div>
-                <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-3">Ou saisissez un montant</h4>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={customAmount}
-                    onChange={(e) => { setCustomAmount(e.target.value); setSelectedAmount(null) }}
-                    placeholder="Montant en euros"
-                    className="w-full px-4 py-4 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-2xl text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-lg font-semibold"
-                    min="1"
-                    max="1000"
-                  />
-                  <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">€</div>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Minimum 1€ • Maximum 1000€ • 1€ = 100 coins</p>
-              </div>
-
-              {/* Récapitulatif */}
-              {(selectedAmount || customAmount) && (
-                <div className="p-4 bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-2xl border border-emerald-200/50 dark:border-emerald-700/50">
-                  <div className="flex items-center justify-between text-lg">
-                    <span className="font-bold text-gray-900 dark:text-white">Total :</span>
-                    <div className="flex items-center gap-2">
-                      <img 
-                        src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png" 
-                        alt="Coins" 
-                        className="h-6 w-6" 
-                      />
-                      <span className="font-black text-emerald-600 dark:text-emerald-400 text-xl">
-                        {getTotalCoins().toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                  {selectedAmount?.bonus > 0 && (
-                    <div className="text-sm text-orange-600 dark:text-orange-400 font-bold mt-1">
-                      Inclus {selectedAmount.bonus} coins bonus gratuits !
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Méthodes de paiement */}
-              <div>
-                <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-3">Méthode de paiement</h4>
-                <div className="space-y-2">
-                  {paymentMethods.map((method) => {
-                    const IconComponent = method.icon
-                    return (
-                      <button
-                        key={method.id}
-                        onClick={() => setSelectedPayment(method.id)}
-                        disabled={!selectedAmount && !customAmount}
-                        className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all duration-300 ${
-                          selectedPayment === method.id
-                            ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 scale-[1.02]'
-                            : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
-                        } ${
-                          !selectedAmount && !customAmount 
-                            ? 'opacity-50 cursor-not-allowed' 
-                            : 'hover:border-emerald-300 hover:scale-[1.01]'
-                        }`}
-                      >
-                        <div className="flex items-center justify-center w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-2xl">
-                          {typeof method.icon === 'string' ? (
-                            <span className="text-2xl">{method.icon}</span>
-                          ) : (
-                            <IconComponent className="h-6 w-6 text-gray-600 dark:text-gray-300" />
-                          )}
-                        </div>
-                        <div className="flex-1 text-left">
-                          <div className="font-bold text-gray-900 dark:text-white">{method.name}</div>
-                          <div className="text-sm text-gray-600 dark:text-gray-400">{method.description}</div>
-                          <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">{method.fees}</div>
-                        </div>
-                        {selectedPayment === method.id && (
-                          <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
-                            <Check className="h-4 w-4 text-white" />
-                          </div>
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Bouton de paiement */}
-              <button
-                onClick={handlePurchase}
-                disabled={!isValidPurchase() || isProcessing}
-                className={`w-full py-4 rounded-2xl font-black text-lg transition-all duration-300 ${
-                  isValidPurchase() && !isProcessing
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-xl hover:shadow-2xl hover:scale-105'
-                    : 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                {isProcessing 
-                  ? 'Redirection...' 
-                  : !selectedAmount && !customAmount 
-                  ? 'Choisissez un montant' 
-                  : !selectedPayment 
-                  ? 'Sélectionnez un moyen de paiement' 
-                  : `Payer ${getSelectedEuros()}€ • ${getTotalCoins().toLocaleString()} coins`
-                }
-              </button>
-
-              <div className="text-center">
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  🔒 Paiement 100% sécurisé par Stripe • Aucune donnée bancaire conservée
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  )
-}
-
-// COMPOSANT PANIER AVEC UPGRADE AJOUTÉ ET COULEURS CORRIGÉES
-const CartDropdown = ({ cartItems, cartLoading, setCartOpen, router }) => {
-  const [selectedItems, setSelectedItems] = useState(new Set())
-  const [selectAll, setSelectAll] = useState(false)
-  const [isProcessingSell, setIsProcessingSell] = useState(false)
-  const dropdownRef = useRef(null)
-const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
-const [selectedUpgradeItem, setSelectedUpgradeItem] = useState<any>(null)
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setCartOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [setCartOpen])
-
-  const toggleSelectAll = () => {
-    if (selectAll) {
-      setSelectedItems(new Set())
-    } else {
-      setSelectedItems(new Set(cartItems.map(item => item.id)))
-    }
-    setSelectAll(!selectAll)
-  }
-
-  const toggleItemSelection = (itemId) => {
-    setSelectedItems(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(itemId)) {
-        newSet.delete(itemId)
-      } else {
-        newSet.add(itemId)
-      }
-      return newSet
-    })
-  }
-
-  const getRarityGradient = (rarity) => {
-    const gradients = {
-      legendary: 'from-yellow-400 via-orange-500 to-red-500',
-      epic: 'from-purple-400 via-pink-500 to-purple-600',
-      rare: 'from-blue-400 via-cyan-500 to-blue-600',
-      uncommon: 'from-green-400 via-emerald-500 to-green-600',
-      common: 'from-gray-400 via-gray-500 to-gray-600'
-    }
-    return gradients[rarity?.toLowerCase()] || gradients.common
-  }
-
-  const selectedValue = cartItems
-    .filter(item => selectedItems.has(item.id))
-    .reduce((total, item) => total + (item.items?.market_value || 0), 0)
-
-  const handleViewInventory = () => {
-    setCartOpen(false)
-    router.push('/inventory')
-  }
-
-  // Fonction pour vendre les items sélectionnés
-  const handleSellSelected = async () => {
-    if (selectedItems.size === 0 || isProcessingSell) return
-    
-    setIsProcessingSell(true)
-    const supabase = createClient()
-    
-    try {
-      // Appel de la fonction RPC pour vendre plusieurs items
-      const itemIds = Array.from(selectedItems)
-      const { data, error } = await supabase.rpc('sell_multiple_items_fixed', {
-        p_inventory_item_ids: itemIds
-      })
-
-      if (error) {
-        console.error('Erreur lors de la vente:', error)
-        // Afficher un message d'erreur à l'utilisateur
-        return
-      }
-
-      // Succès - réinitialiser les sélections
-      setSelectedItems(new Set())
-      setSelectAll(false)
-      
-      // Recharger la page ou actualiser les données
-      window.location.reload()
-      
-    } catch (error) {
-      console.error('Erreur:', error)
-    } finally {
-      setIsProcessingSell(false)
-    }
-  }
-
-const handleUpgradeSelected = () => {
-  if (selectedItems.size === 0) return
-  
-  // Récupérer les items sélectionnés
-  const selectedItemsArray = Array.from(selectedItems)
-  
-  if (selectedItemsArray.length === 1) {
-    // Si un seul item est sélectionné, ouvrir directement le modal
-    const itemId = selectedItemsArray[0]
-    const item = cartItems.find(i => i.id === itemId)
-    
-    if (item && item.items) {
-      setSelectedUpgradeItem({
-        id: item.id,
-        item_id: item.items.id,
-        name: item.items.name,
-        image_url: item.items.image_url,
-        rarity: item.items.rarity,
-        market_value: item.items.market_value,
-        quantity: item.quantity || 1
-      })
-      setUpgradeModalOpen(true)
-      // Ne pas fermer le panier immédiatement, laisser le modal s'ouvrir
-    }
-  } else {
-    // Si plusieurs items sont sélectionnés
-    alert('Veuillez sélectionner un seul objet pour l\'upgrade')
-  }
-}
-
-  return (
-    <>
-      <motion.div
-        ref={dropdownRef}
-        initial={{ opacity: 0, scale: 0.95, y: -10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: -10 }}
-        className="absolute top-full right-0 mt-4 w-[420px] bg-white/95 dark:bg-slate-800/95 backdrop-blur-3xl border border-white/30 dark:border-slate-700/50 rounded-3xl shadow-2xl overflow-hidden"
-      >
-        {/* Header */}
-        <div className="p-6 bg-gradient-to-r from-emerald-50/80 to-blue-50/80 dark:from-emerald-900/20 dark:to-blue-900/20 border-b border-white/20 dark:border-slate-700/50">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-xl font-black text-gray-900 dark:text-white">Mon Inventaire</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {cartItems.length} objet{cartItems.length !== 1 ? 's' : ''} dans votre collection
-              </p>
-            </div>
-            <button 
-              onClick={() => setCartOpen(false)} 
-              className="p-2 rounded-2xl hover:bg-white/50 dark:hover:bg-white/10 transition-all"
-            >
-              <X className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-            </button>
-          </div>
-          
-          {cartItems.length > 0 && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {selectedItems.size > 0 && (
-                  <div className="bg-emerald-500 text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-lg">
-                    {selectedItems.size} sélectionnés
-                  </div>
-                )}
-              </div>
-              
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <input 
-                  type="checkbox" 
-                  checked={selectAll} 
-                  onChange={toggleSelectAll} 
-                  className="sr-only" 
-                />
-                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all group-hover:scale-110 ${
-                  selectAll 
-                    ? 'bg-emerald-500 border-emerald-500 shadow-lg' 
-                    : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'
-                }`}>
-                  {selectAll && (
-                    <Check className="w-4 h-4 text-white font-bold" />
-                  )}
-                </div>
-                <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                  Tout sélectionner
-                </span>
-              </label>
-            </div>
-          )}
-        </div>
-
-        {cartLoading ? (
-          <div className="p-8 text-center">
-            <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-gray-600 dark:text-gray-400 font-medium">Chargement de votre inventaire...</p>
-          </div>
-        ) : cartItems.length > 0 ? (
-          <>
-            <div className="max-h-80 overflow-y-auto">
-              {cartItems.slice(0, 12).map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => toggleItemSelection(item.id)}
-                  className={`flex items-center gap-4 p-4 hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all border-b border-white/10 dark:border-slate-700/30 last:border-b-0 cursor-pointer group ${
-                    selectedItems.has(item.id) 
-                      ? 'bg-emerald-50/80 dark:bg-emerald-900/20 border-l-4 border-l-emerald-500' 
-                      : ''
-                  }`}
-                >
-                  <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all group-hover:scale-110 ${
-                    selectedItems.has(item.id) 
-                      ? 'bg-emerald-500 border-emerald-500 shadow-lg' 
-                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'
-                  }`}>
-                    {selectedItems.has(item.id) && (
-                      <Check className="w-4 h-4 text-white font-bold" />
-                    )}
-                  </div>
-
-                  <div className={`relative w-16 h-16 rounded-2xl overflow-hidden shadow-lg bg-gradient-to-br ${getRarityGradient(item.items?.rarity)} p-0.5 group-hover:scale-105 transition-transform`}>
-                    <div className="w-full h-full bg-white dark:bg-gray-800 rounded-xl flex items-center justify-center overflow-hidden">
-                      {item.items?.image_url ? (
-                        <img 
-                          src={item.items.image_url} 
-                          alt={item.items.name} 
-                          className="w-full h-full object-cover" 
-                        />
-                      ) : (
-                        <Package className="h-8 w-8 text-gray-400" />
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex-1">
-                    <h4 className="font-black text-gray-900 dark:text-white text-sm">
-                      {item.items?.name || 'Objet mystère'}
-                    </h4>
-                    <p className="text-xs text-gray-600 dark:text-gray-400 capitalize font-bold">
-                      {item.items?.rarity || 'Common'}
-                    </p>
-                    <div className="flex items-center gap-1 mt-2">
-                      <img 
-                        src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png" 
-                        alt="Coins" 
-                        className="h-4 w-4" 
-                      />
-                      <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
-                        {item.items?.market_value || 0}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            <div className="p-6 bg-gradient-to-r from-gray-50 to-white dark:from-slate-800 dark:to-slate-900 border-t border-white/20 dark:border-slate-700/50">
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <button 
-                  onClick={handleViewInventory}
-                  className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white py-3 rounded-2xl transition-all text-sm font-bold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl hover:scale-105"
-                >
-                  <Eye className="h-4 w-4" />
-                  Voir tout
-                </button>
-                
-                <button 
-                  disabled={selectedItems.size === 0}
-                  onClick={handleUpgradeSelected}
-                  className={`py-3 rounded-2xl transition-all text-sm font-bold flex items-center justify-center gap-2 shadow-lg ${
-                    selectedItems.size > 0 
-                      ? 'bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white hover:scale-105 hover:shadow-xl' 
-                      : 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  <ArrowUpCircle className="h-4 w-4" />
-                  Upgrade
-                </button>
-              </div>
-              
-              {selectedItems.size > 0 && (
-                <div className="p-4 bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-2xl border border-emerald-200/50 dark:border-emerald-700/50">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-emerald-800 dark:text-emerald-200">
-                      Valeur totale sélectionnée :
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <img 
-                        src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png" 
-                        alt="Coins" 
-                        className="h-5 w-5" 
-                      />
-                      <span className="font-black text-emerald-900 dark:text-emerald-100 text-lg">
-                        {selectedValue.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </>
-        ) : (
-          <div className="p-8 text-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-              <Package className="h-10 w-10 text-gray-400" />
-            </div>
-            <h4 className="font-black text-gray-900 dark:text-white mb-2 text-lg">Inventaire vide</h4>
-            <p className="text-gray-600 dark:text-gray-400 text-sm mb-6 max-w-xs mx-auto">
-              Ouvrez des boîtes mystères pour découvrir des objets incroyables !
-            </p>
-            <button 
-              onClick={() => { setCartOpen(false); router.push('/boxes') }}
-              className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-8 py-3 rounded-2xl transition-all text-sm font-bold flex items-center gap-2 mx-auto shadow-lg hover:shadow-xl hover:scale-105"
-            >
-              <Gift className="h-5 w-5" />
-              Découvrir les boîtes
-            </button>
-          </div>
-        )}
-      </motion.div>
-
-      {/* Modal Upgrade */}
-      {upgradeModalOpen && selectedUpgradeItem && (
-        <UpgradeModal
-          isOpen={upgradeModalOpen}
-          onClose={() => {
-            setUpgradeModalOpen(false)
-            setSelectedUpgradeItem(null)
-            // Recharger l'inventaire après upgrade
-            window.location.reload()
-          }}
-          item={selectedUpgradeItem}
-          onSuccess={(newValue) => {
-            console.log('Upgrade réussi ! Nouvelle valeur :', newValue)
-            window.location.reload()
-          }}
-        />
-      )}
-    </>
-  )
-}
-
-// COMPOSANT LOGO COMPACT
-const Logo = () => {
-  return (
-    <motion.div
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      className="flex items-center space-x-2"
-    >
-      <Link href="/" className="flex items-center space-x-2">
-        <img 
-          src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/04aa1ec8-45f4-4ddf-83d9-14b50138c5b9-removebg-preview%20(1).png" 
-          alt="ReveelBox" 
-          className="h-11 w-11 object-contain"
-        />
-        <span 
-          className="text-3xl font-black tracking-tight hidden sm:block uppercase" 
-          style={{ 
-            fontFamily: 'system-ui, -apple-system, sans-serif', 
-            fontWeight: 900,
-            color: '#FFFFFF',
-            letterSpacing: '-0.02em'
-          }}
-        >
-          REVEELBOX
-        </span>
-      </Link>
-    </motion.div>
-  )
-}
-
-// COMPOSANT MENU UTILISATEUR
-const UserMenu = ({ userProfile, isOpen, setIsOpen, router, signOut, theme, setTheme, resolvedTheme, isAdmin }) => {
-  const menuRef = useRef(null)
-  
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setIsOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [setIsOpen])
-
-  const toggleTheme = () => {
-    setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
-  }
-
-  const handleSignOut = async () => {
-    await signOut()
-    setIsOpen(false)
-  }
-
-  const handleMenuClick = (href) => {
-    setIsOpen(false)
-    router.push(href)
-  }
-
-  return (
-    <div className="relative" ref={menuRef}>
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => setIsOpen(!isOpen)}
-        className="h-12 w-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-xl hover:shadow-2xl transition-all"
-      >
-        {userProfile?.avatar_url ? (
-          <img src={userProfile.avatar_url} alt="Avatar" className="h-12 w-12 rounded-full object-cover" />
-        ) : (
-          <User className="h-6 w-6 text-white" />
-        )}
-      </motion.button>
-
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: -10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -10 }}
-            className="absolute top-full right-0 mt-4 w-64 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl border border-white/30 dark:border-slate-700/50 rounded-3xl shadow-2xl py-2 overflow-hidden"
-          >
-            <div className="px-4 py-3 border-b border-white/20 bg-gradient-to-r from-emerald-50/80 to-blue-50/80 dark:from-emerald-900/20 dark:to-blue-900/20">
-              <p className="text-sm font-black text-gray-900 dark:text-white truncate">{userProfile?.username || 'Utilisateur'}</p>
-              <div className="flex items-center justify-between mt-1">
-                <div className="flex items-center gap-1">
-                  <img src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png" alt="Coins" className="h-4 w-4" />
-                  <span className="text-sm font-black text-gray-700 dark:text-gray-300">{userProfile?.virtual_currency?.toLocaleString() || '0'}</span>
-                </div>
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-black">Niveau {userProfile?.level || 1}</span>
-              </div>
-            </div>
-            
-            <button onClick={() => handleMenuClick('/profile')} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-emerald-500/20 hover:text-emerald-600 dark:hover:text-emerald-300 w-full text-left transition-all group">
-              <User className="h-4 w-4 group-hover:scale-110 transition-transform" />
-              <span className="font-bold">Mon Profil</span>
-            </button>
-            
-            <button onClick={() => handleMenuClick('/inventory')} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-emerald-500/20 hover:text-emerald-600 dark:hover:text-emerald-300 w-full text-left transition-all group">
-              <Package className="h-4 w-4 group-hover:scale-110 transition-transform" />
-              <span className="font-bold">Inventaire</span>
-            </button>
-            
-            <div className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-emerald-500/20">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Monitor className="h-4 w-4" />
-                  <span className="font-bold">Thème</span>
-                </div>
-                
-                <button onClick={toggleTheme} className="relative focus:outline-none group">
-                  <motion.div className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 ${
-                    resolvedTheme === 'dark' ? 'bg-gradient-to-r from-blue-600 to-purple-600' : 'bg-gradient-to-r from-orange-400 to-yellow-400'
-                  }`}>
-                    <motion.div
-                      className="w-4 h-4 bg-white rounded-full shadow-md flex items-center justify-center"
-                      animate={{ x: resolvedTheme === 'dark' ? 20 : 0, rotate: resolvedTheme === 'dark' ? 360 : 0 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                    >
-                      <AnimatePresence mode="wait">
-                        {resolvedTheme === 'dark' ? (
-                          <Moon className="h-2.5 w-2.5 text-blue-600" key="moon" />
-                        ) : (
-                          <Sun className="h-2.5 w-2.5 text-orange-500" key="sun" />
-                        )}
-                      </AnimatePresence>
-                    </motion.div>
-                  </motion.div>
-                </button>
-              </div>
-            </div>
-            
-            {isAdmin && (
-              <button onClick={() => handleMenuClick('/admin')} className="flex items-center gap-3 px-4 py-3 text-sm text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 w-full text-left transition-all border-t border-white/20 group">
-                <Shield className="h-4 w-4 group-hover:scale-110 transition-transform" />
-                <span className="font-bold">Panel Admin</span>
-              </button>
-            )}
-            
-            <button onClick={handleSignOut} className="flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left transition-all group">
-              <LogOut className="h-4 w-4 group-hover:scale-110 transition-transform" />
-              <span className="font-bold">Déconnexion</span>
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  )
-}
-
-// COMPOSANT BLOC CENTRAL CENTRÉ
-const CentralBlock = ({ userProfile, cartItems, gamesMenuOpen, setGamesMenuOpen, pathname, router, isAuthenticated, cartOpen, setCartOpen, cartLoading }) => {
-  const [rechargeMenuOpen, setRechargeMenuOpen] = useState(false)
-  const gamesMenuRef = useRef(null)
-  const cartRef = useRef(null)
-
-  const navItems = [
-    { href: '/boxes', label: 'Unboxing', icon: Package },
-    { href: '/battle', label: 'Battles', icon: Sword },
-    { href: '/games', label: 'Games', icon: Gamepad2, hasDropdown: true },
-    { href: '/affiliates', label: 'Affiliés', icon: Users },
-    { href: '/freedrop', label: 'Free Drop', icon: Gift, highlight: true }
-  ]
-
-  const gamesDropdownItems = [
-    { href: '/games/crash', label: 'Crash Game', icon: TrendingUp, description: 'Multipliez vos gains' },
-    { href: '/games/roulette', label: 'Roulette', icon: Crown, description: 'Tentez votre chance', isComingSoon: true },
-    { href: '/games/coinflip', label: 'Coinflip', icon: Coins, description: 'Pile ou face', isComingSoon: true },
-    { href: '/games/blackjack', label: 'Blackjack', icon: Star, description: 'Jeu de cartes', isComingSoon: true }
-  ]
-
-  const handleNavClick = (href) => {
-    if (gamesMenuOpen) setGamesMenuOpen(false)
-    router.push(href)
-  }
-
-  const handleGameClick = (href, isComingSoon) => {
-    if (!isComingSoon) {
-      setGamesMenuOpen(false)
-      router.push(href)
-    }
-  }
-
-  return (
-    <div className="flex-1 flex justify-center mx-4">
-      <div className="w-full max-w-5xl bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl 
-                      border border-white/30 dark:border-slate-700/50 
-                      rounded-3xl shadow-xl px-6 py-4 relative overflow-visible">
-        {/* Effet de particules */}
-        <ParticleEffect />
-        
-        <div className="flex items-center justify-between relative z-10">
-          
-          {/* Navigation principale */}
-          <div className="hidden lg:flex items-center space-x-2">
-            {navItems.map((item) => {
-              const Icon = item.icon
-              const isActive = pathname === item.href || (item.href === '/games' && pathname.startsWith('/games'))
-              
-              if (item.hasDropdown) {
-                return (
-                  <div key={item.href} className="relative" ref={gamesMenuRef}>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setGamesMenuOpen(!gamesMenuOpen)}
-                      className={`px-4 py-2.5 rounded-2xl transition-all duration-300 flex items-center gap-2 ${
-                        isActive
-                          ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 shadow-lg'
-                          : 'text-gray-700 dark:text-gray-100 hover:bg-emerald-50 dark:hover:bg-emerald-500/20 hover:text-emerald-600 dark:hover:text-emerald-300'
-                      }`}
-                    >
-                      <Icon className="h-4 w-4" />
-                      <span className="font-bold text-sm">{item.label}</span>
-                      <ChevronDown className={`h-4 w-4 transition-transform ${gamesMenuOpen ? 'rotate-180' : ''}`} />
-                    </motion.button>
-
-                    <AnimatePresence>
-                      {gamesMenuOpen && (
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                          className="absolute top-full mt-2 left-0 w-72 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl border border-white/30 dark:border-slate-700/50 rounded-2xl shadow-2xl py-2 overflow-hidden"
-                        >
-                          {gamesDropdownItems.map((gameItem) => {
-                            const GameIcon = gameItem.icon
-                            return (
-                              <button
-                                key={gameItem.href}
-                                onClick={() => handleGameClick(gameItem.href, gameItem.isComingSoon)}
-                                className={`flex items-center gap-4 px-4 py-3 w-full transition-all group ${
-                                  gameItem.isComingSoon
-                                    ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-60'
-                                    : 'text-gray-700 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-emerald-500/20 hover:scale-105'
-                                }`}
-                              >
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all group-hover:scale-110 ${
-                                  gameItem.isComingSoon
-                                    ? 'bg-gray-100/50 dark:bg-gray-700/50'
-                                    : 'bg-emerald-100/50 dark:bg-emerald-900/30'
-                                }`}>
-                                  <GameIcon className={`h-5 w-5 ${
-                                    gameItem.isComingSoon
-                                      ? 'text-gray-400 dark:text-gray-500'
-                                      : 'text-emerald-600 dark:text-emerald-400'
-                                  }`} />
-                                </div>
-                                <div className="flex-1 text-left">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-bold">{gameItem.label}</span>
-                                    {gameItem.isComingSoon && (
-                                      <span className="bg-orange-500 text-white text-xs px-2 py-1 rounded-full font-bold">BIENTÔT</span>
-                                    )}
-                                  </div>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{gameItem.description}</p>
-                                </div>
-                              </button>
-                            )
-                          })}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                )
-              }
-              
-              return (
-                <motion.button
-                  key={item.href}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => handleNavClick(item.href)}
-                  className={`px-4 py-2.5 rounded-2xl transition-all duration-300 flex items-center gap-2 ${
-                    item.highlight
-                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg hover:shadow-xl'
-                      : isActive
-                      ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 shadow-lg'
-                      : 'text-gray-700 dark:text-gray-100 hover:bg-emerald-50 dark:hover:bg-emerald-500/20 hover:text-emerald-600 dark:hover:text-emerald-300'
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span className="font-bold text-sm">{item.label}</span>
-                </motion.button>
-              )
-            })}
-          </div>
-
-          {/* Version mobile condensée */}
-          <div className="flex lg:hidden items-center space-x-2">
-            {navItems.slice(0, 3).map((item) => {
-              const Icon = item.icon
-              const isActive = pathname === item.href
-              
-              return (
-                <motion.button
-                  key={item.href}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => handleNavClick(item.href)}
-                  className={`p-2.5 rounded-2xl transition-all duration-300 ${
-                    item.highlight
-                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg'
-                      : isActive
-                      ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 shadow-lg'
-                      : 'text-gray-700 dark:text-gray-100 hover:bg-emerald-50 dark:hover:bg-emerald-500/20 hover:text-emerald-600 dark:hover:text-emerald-300'
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                </motion.button>
-              )
-            })}
-          </div>
-
-          {/* Balance utilisateur et panier */}
-          {isAuthenticated ? (
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 bg-gradient-to-r from-gray-50 to-white dark:from-slate-800 dark:to-slate-900 rounded-2xl px-4 py-2 border border-white/30 dark:border-slate-700/50 shadow-lg">
-                <img src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png" alt="Coins" className="h-5 w-5" />
-                <span className="font-black text-sm text-gray-900 dark:text-white">{userProfile?.virtual_currency?.toLocaleString() || '0'}</span>
-                <div className="relative">
-                  <RechargeMenu isOpen={rechargeMenuOpen} setIsOpen={setRechargeMenuOpen} router={router} />
-                  <button
-                    onClick={() => setRechargeMenuOpen(!rechargeMenuOpen)}
-                    className="p-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-full transition-all shadow-lg hover:scale-110"
-                  >
-                    <Plus className="h-3 w-3" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="relative" ref={cartRef}>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setCartOpen(!cartOpen)}
-                  className="relative p-2.5 bg-gradient-to-r from-gray-50 to-white dark:from-slate-800 dark:to-slate-900 rounded-2xl hover:from-gray-100 hover:to-gray-50 dark:hover:from-slate-700 dark:hover:to-slate-800 transition-all duration-300 border border-white/30 dark:border-slate-700/50 shadow-lg"
-                >
-                  <ShoppingCart className="h-5 w-5 text-gray-700 dark:text-gray-200" />
-                  {cartItems?.length > 0 && (
-                    <motion.span
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="absolute -top-1 -right-1 h-6 w-6 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs rounded-full flex items-center justify-center font-black shadow-lg"
-                    >
-                      {cartItems.length}
-                    </motion.span>
-                  )}
-                </motion.button>
-                
-                <AnimatePresence>
-                  {cartOpen && (
-                    <CartDropdown 
-                      cartItems={cartItems} 
-                      cartLoading={cartLoading}
-                      setCartOpen={setCartOpen}
-                      router={router}
-                    />
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <Link href="/login" className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
-                Connexion
-              </Link>
-              <Link href="/signup" className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-2xl text-sm font-bold hover:shadow-lg transition-all duration-200 shadow-md hover:scale-105">
-                S'inscrire
-              </Link>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// COMPOSANT PRINCIPAL NAVBAR
+// NAVBAR PREMIUM - FULL WIDTH
 export default function ReveelBoxNavbar() {
-  const { user, profile, refreshProfile, signOut, isAuthenticated, loading } = useAuth()
+  const { user, profile, signOut, isAuthenticated, loading, refreshProfile } = useAuth()
   const { theme, setTheme, resolvedTheme } = useTheme()
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [gamesMenuOpen, setGamesMenuOpen] = useState(false)
-  const [cartOpen, setCartOpen] = useState(false)
-  const [cartItems, setCartItems] = useState([])
-  const [cartLoading, setCartLoading] = useState(false)
+  const [cartItems, setCartItems] = useState<InventoryItem[]>([])
   const [isScrolled, setIsScrolled] = useState(false)
-  const [lastScrollY, setLastScrollY] = useState(0)
-  const [showNavbar, setShowNavbar] = useState(true)
-  
+  const [cartOpen, setCartOpen] = useState(false)
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+  const [navbarHidden, setNavbarHidden] = useState(false)
+  const [selectedCartItems, setSelectedCartItems] = useState<string[]>([])
+
+  const cartButtonRef = useRef(null)
+  const paymentButtonRef = useRef(null)
+
+  // Charger l'état de la navbar depuis localStorage au montage
+  useEffect(() => {
+    const savedState = localStorage.getItem('navbarHidden')
+    if (savedState !== null) {
+      setNavbarHidden(savedState === 'true')
+    }
+  }, [])
+
+  // Sauvegarder l'état dans localStorage quand il change
+  const toggleNavbar = () => {
+    const newState = !navbarHidden
+    setNavbarHidden(newState)
+    localStorage.setItem('navbarHidden', String(newState))
+    window.dispatchEvent(new Event('navbarToggle'))
+  }
+
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
-  
+  const userMenuRef = useRef<HTMLDivElement>(null)
+  const gamesMenuRef = useRef<HTMLDivElement>(null)
+
   const isAdmin = profile?.role === 'admin' || user?.email === 'admin@reveelbox.com'
 
-  // Gestion du scroll avec navbar qui se cache/montre
+  const navItems = [
+    { href: '/boxes', label: 'Unboxing', icon: Package },
+    { href: '/battles', label: 'Battles', icon: Sword },
+    { href: '/games', label: 'Games', icon: Gamepad2, hasDropdown: true },
+    { href: '/affiliates', label: 'Affiliés', icon: Users },
+    { href: '/freedrop', label: 'Free Drop', icon: Gift },
+  ]
+
+  const gamesDropdownItems = [
+    { href: '/games/crash', label: 'Crash', icon: TrendingUp, gradient: 'from-red-500 to-orange-500' },
+    { href: '/games/roulette', label: 'Roulette', icon: Crown, gradient: 'from-yellow-500 to-amber-500', comingSoon: true },
+    { href: '/games/coinflip', label: 'Coinflip', icon: Zap, gradient: 'from-blue-500 to-cyan-500', comingSoon: true },
+  ]
+
+  // Gestion scroll
   useEffect(() => {
     const handleScroll = () => {
-      const currentScrollY = window.scrollY
-      
-      // Fermer les menus lors du scroll vers le bas
-      if (currentScrollY > lastScrollY) {
-        setUserMenuOpen(false)
-        setCartOpen(false)
-        setGamesMenuOpen(false)
-      }
-      
-      // Masquer/afficher la navbar selon le scroll
-      if (currentScrollY > lastScrollY && currentScrollY > 150) {
-        setShowNavbar(false)
-      } else if (currentScrollY < lastScrollY || currentScrollY <= 100) {
-        setShowNavbar(true)
-      }
-      
-      setIsScrolled(currentScrollY > 20)
-      setLastScrollY(currentScrollY)
+      setIsScrolled(window.scrollY > 20)
     }
-
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [lastScrollY])
+  }, [])
 
-  // Chargement de l'inventaire pour le panier
+  // Click outside handlers
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false)
+      }
+      if (gamesMenuRef.current && !gamesMenuRef.current.contains(e.target as Node)) {
+        setGamesMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Chargement inventaire
   useEffect(() => {
     const loadCartItems = async () => {
       if (!isAuthenticated || !user) {
@@ -1153,8 +165,6 @@ export default function ReveelBoxNavbar() {
       }
 
       try {
-        setCartLoading(true)
-        
         const { data: inventory, error } = await supabase
           .from('user_inventory')
           .select(`
@@ -1174,41 +184,39 @@ export default function ReveelBoxNavbar() {
           .order('obtained_at', { ascending: false })
           .limit(15)
 
-        if (error) {
-          console.error('Erreur chargement inventaire:', error.message)
-          return
+        if (!error && inventory) {
+          setCartItems(inventory.map((item: any) => ({
+            id: item.id,
+            quantity: item.quantity,
+            obtained_at: item.obtained_at,
+            items: item.items || null
+          })))
         }
-
-        setCartItems((inventory || []).map(item => ({
-          id: item.id,
-          quantity: item.quantity,
-          obtained_at: item.obtained_at,
-          items: item.items || null
-        })))
       } catch (error) {
         console.error('Erreur:', error)
-      } finally {
-        setCartLoading(false)
       }
     }
 
     loadCartItems()
 
-    // Écoute des changements en temps réel sur l'inventaire
-    if (isAuthenticated && user) {
-      const channel = supabase
-        .channel('inventory-changes')  
-        .on('postgres_changes', { 
-          event: '*', 
-          schema: 'public', 
-          table: 'user_inventory', 
-          filter: `user_id=eq.${user.id}` 
-        }, () => {
-          loadCartItems()
-        })
-        .subscribe()
+    if (!isAuthenticated || !user) {
+      return
+    }
 
-      return () => supabase.removeChannel(channel)
+    const channel = supabase
+      .channel('inventory-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'user_inventory',
+        filter: `user_id=eq.${user.id}`
+      }, () => {
+        loadCartItems()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
     }
   }, [isAuthenticated, user, supabase])
 
@@ -1216,61 +224,856 @@ export default function ReveelBoxNavbar() {
 
   return (
     <>
-      <AnimatePresence>
-        {showNavbar && (
-          <motion.nav
-            initial={{ y: -100 }}
-            animate={{ y: 0 }}
-            exit={{ y: -100 }}
-            transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between gap-2 p-4"
-          >
-            
-            {/* Logo à gauche */}
-            <Logo />
-            
-            {/* Section centrale */}
-            <CentralBlock 
-              userProfile={profile}
-              cartItems={cartItems}
-              gamesMenuOpen={gamesMenuOpen}
-              setGamesMenuOpen={setGamesMenuOpen}
-              pathname={pathname}
-              router={router}
-              isAuthenticated={isAuthenticated}
-              cartOpen={cartOpen}
-              setCartOpen={setCartOpen}
-              cartLoading={cartLoading}
-            />
-            
-            {/* Menu utilisateur à droite */}
-            {isAuthenticated ? (
-              <UserMenu 
-                userProfile={profile}
-                isOpen={userMenuOpen}
-                setIsOpen={setUserMenuOpen}
-                router={router}
-                signOut={signOut}
-                theme={theme}
-                setTheme={setTheme}
-                resolvedTheme={resolvedTheme}
-                isAdmin={isAdmin}
-              />
-            ) : (
-              <div className="flex items-center gap-3">
-                <Link href="/login" className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
-                  Connexion
-                </Link>
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Link href="/signup" className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-full text-sm font-bold hover:shadow-lg transition-all duration-200 shadow-md">
-                    S'inscrire
-                  </Link>
+      {/* NAVBAR MODERNE & ÉLÉGANTE */}
+      <motion.nav
+        initial={{ y: -100, opacity: 0 }}
+        animate={{
+          y: navbarHidden ? -100 : 0,
+          opacity: navbarHidden ? 0 : 1
+        }}
+        transition={{ duration: 0.15, type: "spring", stiffness: 500, damping: 30 }}
+        style={{
+          background: isScrolled
+            ? 'var(--hybrid-bg-elevated)'
+            : `rgba(${resolvedTheme === 'dark' ? '10, 10, 11' : '253, 252, 250'}, 0.6)`,
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          borderBottom: isScrolled ? '1px solid var(--hybrid-border-default)' : 'none',
+          boxShadow: isScrolled ? 'var(--hybrid-shadow-lg)' : 'none'
+        }}
+        className="fixed top-0 left-0 right-0 z-50 transition-all duration-500"
+      >
+        {/* Barre lumineuse supérieure animée hybrid */}
+        <div className="absolute top-0 left-0 right-0 h-[1px] overflow-hidden">
+          <motion.div
+            className="absolute inset-0"
+            style={{
+              background: `linear-gradient(90deg, transparent, var(--hybrid-accent-primary), transparent)`,
+              opacity: 0.6
+            }}
+            animate={{
+              x: ['-200%', '200%'],
+              opacity: [0.2, 0.6, 0.2]
+            }}
+            transition={{
+              duration: 4,
+              repeat: Infinity,
+              ease: "linear",
+              repeatDelay: 2
+            }}
+          />
+          <div className="absolute inset-0" style={{
+            background: `linear-gradient(90deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary), var(--hybrid-accent-primary))`,
+            opacity: 0.1
+          }} />
+        </div>
+
+        {/* Dégradé de fond élégant hybrid */}
+        <div className="absolute inset-0 pointer-events-none" style={{
+          background: `linear-gradient(90deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary), var(--hybrid-accent-primary))`,
+          opacity: 0.02
+        }} />
+
+        <div className="w-full px-6 lg:px-8">
+          <div className="flex items-center justify-between h-20">
+
+            {/* LOGO SECTION - Design Premium */}
+            <div className="flex items-center gap-8">
+              {/* Burger Menu Mobile élégant */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setMobileMenuOpen(true)}
+                className="lg:hidden relative p-2.5 rounded-xl transition-all group overflow-hidden"
+                style={{
+                  '--hover-bg': 'var(--hybrid-accent-primary)',
+                  '--hover-color': 'var(--hybrid-accent-primary)'
+                } as React.CSSProperties}
+              >
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{
+                  background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`,
+                  opacity: 0.1
+                }} />
+                <Menu className="relative h-5 w-5 text-gray-600 dark:text-gray-400 transition-colors duration-300" onMouseEnter={(e) => e.currentTarget.style.color = 'var(--hybrid-accent-primary)'} onMouseLeave={(e) => e.currentTarget.style.color = ''} />
+              </motion.button>
+
+              {/* Logo Premium avec animations */}
+              <Link href="/" className="group flex items-center gap-4">
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="relative"
+                >
+                  {/* Effet de halo rotatif (plus subtil) - utilise les couleurs hybrid */}
+                  <motion.div
+                    className="absolute -inset-2 rounded-2xl blur-xl opacity-0 group-hover:opacity-100"
+                    style={{
+                      background: `linear-gradient(90deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary), var(--hybrid-accent-primary))`,
+                      opacity: 0.2
+                    }}
+                    animate={{
+                      rotate: [0, 360],
+                    }}
+                    transition={{
+                      duration: 8,
+                      repeat: Infinity,
+                      ease: "linear"
+                    }}
+                  />
+
+                  <motion.img
+                    src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/04aa1ec8-45f4-4ddf-83d9-14b50138c5b9-removebg-preview%20(1).png"
+                    alt="ReveelBox"
+                    className="relative h-12 w-12 object-contain transition-all duration-300 group-hover:brightness-110"
+                  />
                 </motion.div>
+
+                <div className="hidden sm:block">
+                  <motion.div
+                    className="relative"
+                    whileHover={{ x: 2 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                  >
+                    <span className="text-xl font-black tracking-tight" style={{
+                      background: `linear-gradient(90deg, var(--hybrid-text-primary), var(--hybrid-accent-primary), var(--hybrid-text-primary))`,
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text'
+                    }}>
+                      REVEELBOX
+                    </span>
+                    <motion.div
+                      className="absolute -bottom-1 left-0 right-0 h-[2px]"
+                      style={{
+                        background: `linear-gradient(90deg, transparent, var(--hybrid-accent-primary), transparent)`
+                      }}
+                      initial={{ scaleX: 0 }}
+                      whileHover={{ scaleX: 1 }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  </motion.div>
+                </div>
+              </Link>
+            </div>
+
+            {/* NAVIGATION DESKTOP - Design Élégant avec Animations */}
+            <div className="hidden lg:flex items-center gap-2">
+              {navItems.map((item) => {
+                const Icon = item.icon
+                const isActive = pathname === item.href || (item.href === '/games' && pathname.startsWith('/games'))
+
+                if (item.hasDropdown) {
+                  return (
+                    <div key={item.href} className="relative" ref={gamesMenuRef}>
+                      <motion.button
+                        whileHover={{ y: -2 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setGamesMenuOpen(!gamesMenuOpen)}
+                        className={`relative px-5 py-2.5 text-sm font-bold transition-all duration-300 rounded-xl flex items-center gap-2.5 group overflow-hidden ${
+                          isActive
+                            ? 'dark:text-white'
+                            : 'text-gray-900 dark:text-gray-100'
+                        }`}
+                        style={isActive ? { color: 'var(--hybrid-accent-primary)' } : {}}
+                      >
+                        {/* Background animé au hover */}
+                        <motion.div
+                          className="absolute inset-0 opacity-0 group-hover:opacity-100"
+                          style={{
+                            background: `linear-gradient(90deg, transparent, var(--hybrid-accent-primary), transparent)`,
+                            opacity: 0.1
+                          }}
+                          animate={{
+                            backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+                          }}
+                          transition={{
+                            duration: 3,
+                            repeat: Infinity,
+                            ease: "linear"
+                          }}
+                        />
+
+                        {/* Indicateur actif */}
+                        {isActive && (
+                          <motion.div
+                            layoutId="navbar-active-indicator"
+                            className="absolute inset-0 rounded-xl shadow-lg"
+                            style={{
+                              background: `linear-gradient(90deg, transparent, var(--hybrid-accent-primary), transparent)`,
+                              opacity: 0.2,
+                              borderColor: 'var(--hybrid-accent-primary)',
+                              borderWidth: '1px',
+                              borderStyle: 'solid'
+                            }}
+                            transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                          />
+                        )}
+
+                        <Icon className="relative h-4.5 w-4.5 group-hover:scale-110 transition-transform duration-300" />
+                        <span className="relative">{item.label}</span>
+                        <ChevronDown className={`relative h-4 w-4 transition-all duration-300 ${gamesMenuOpen ? 'rotate-180' : ''}`} style={gamesMenuOpen ? { color: 'var(--hybrid-accent-primary)' } : {}} />
+
+                        {/* Effet de lueur au survol */}
+                        <motion.div
+                          className="absolute -bottom-1 left-0 right-0 h-[2px] opacity-0 group-hover:opacity-100"
+                          style={{
+                            background: `linear-gradient(90deg, transparent, var(--hybrid-accent-primary), transparent)`
+                          }}
+                          initial={{ scaleX: 0 }}
+                          whileHover={{ scaleX: 1 }}
+                          transition={{ duration: 0.3 }}
+                        />
+                      </motion.button>
+
+                      <AnimatePresence>
+                        {gamesMenuOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1], type: "spring", stiffness: 300, damping: 25 }}
+                            className="absolute top-full mt-3 left-0 w-72 bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl border-2 border-gray-200/80 rounded-2xl shadow-2xl shadow-black/20 dark:shadow-black/50 overflow-hidden"
+                            style={{ borderColor: 'var(--hybrid-border-default)' }}
+                          >
+                            {/* Barre décorative */}
+                            <div className="h-[2px]" style={{ background: `linear-gradient(90deg, transparent, var(--hybrid-accent-primary), transparent)`, opacity: 0.6 }} />
+
+                            <div className="p-3">
+                              {gamesDropdownItems.map((game, index) => {
+                                const GameIcon = game.icon
+                                return (
+                                  <motion.button
+                                    key={game.href}
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: index * 0.06, type: "spring", stiffness: 200 }}
+                                    onClick={() => !game.comingSoon && (router.push(game.href), setGamesMenuOpen(false))}
+                                    disabled={game.comingSoon}
+                                    whileHover={!game.comingSoon ? { x: 4, transition: { duration: 0.2 } } : {}}
+                                    className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all group ${
+                                      game.comingSoon
+                                        ? 'opacity-40 cursor-not-allowed'
+                                        : 'hover:bg-gray-100 dark:hover:bg-white/5'
+                                    }`}
+                                    style={!game.comingSoon ? {
+                                      '--hover-bg': 'rgba(var(--hybrid-accent-primary-rgb), 0.1)'
+                                    } as React.CSSProperties : {}}
+                                  >
+                                    <motion.div
+                                      whileHover={!game.comingSoon ? { rotate: 5, scale: 1.1 } : {}}
+                                      transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                                      className={`w-12 h-12 bg-gradient-to-br ${game.gradient} rounded-xl flex items-center justify-center shadow-lg`}
+                                    >
+                                      <GameIcon className="h-6 w-6 text-white" />
+                                    </motion.div>
+                                    <div className="flex-1 text-left">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-bold text-gray-900 dark:text-white text-sm transition-colors" onMouseEnter={(e) => !game.comingSoon && (e.currentTarget.style.color = 'var(--hybrid-accent-primary)')} onMouseLeave={(e) => e.currentTarget.style.color = ''}>{game.label}</span>
+                                        {game.comingSoon && (
+                                          <span className="px-2.5 py-1 bg-gradient-to-r from-orange-500/20 to-red-500/20 text-orange-500 dark:text-orange-400 text-[10px] rounded-full font-bold border border-orange-500/30">BIENTÔT</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {!game.comingSoon && (
+                                      <ArrowRight className="h-4 w-4 text-gray-400 transition-colors" onMouseEnter={(e) => e.currentTarget.style.color = 'var(--hybrid-accent-primary)'} onMouseLeave={(e) => e.currentTarget.style.color = ''} />
+                                    )}
+                                  </motion.button>
+                                )
+                              })}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )
+                }
+
+                return (
+                  <motion.button
+                    key={item.href}
+                    whileHover={{ y: -2 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => router.push(item.href)}
+                    className={`relative px-5 py-2.5 text-sm font-bold transition-all duration-300 rounded-xl flex items-center gap-2.5 group overflow-hidden ${
+                      isActive
+                        ? 'dark:text-white'
+                        : 'text-gray-900 dark:text-gray-100'
+                    }`}
+                    style={isActive ? { color: 'var(--hybrid-accent-primary)' } : {}}
+                  >
+                    {/* Background animé au hover */}
+                    <motion.div
+                      className="absolute inset-0 opacity-0 group-hover:opacity-100"
+                      style={{
+                        background: `linear-gradient(90deg, transparent, var(--hybrid-accent-primary), transparent)`,
+                        opacity: 0.1
+                      }}
+                      animate={{
+                        backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+                      }}
+                      transition={{
+                        duration: 3,
+                        repeat: Infinity,
+                        ease: "linear"
+                      }}
+                    />
+
+                    {/* Indicateur actif */}
+                    {isActive && (
+                      <motion.div
+                        layoutId="navbar-active-indicator"
+                        className="absolute inset-0 rounded-xl shadow-lg"
+                        style={{
+                          background: `linear-gradient(90deg, transparent, var(--hybrid-accent-primary), transparent)`,
+                          opacity: 0.2,
+                          borderColor: 'var(--hybrid-accent-primary)',
+                          borderWidth: '1px',
+                          borderStyle: 'solid'
+                        }}
+                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                      />
+                    )}
+
+                    <Icon className="relative h-4.5 w-4.5 group-hover:scale-110 transition-transform duration-300" />
+                    <span className="relative">{item.label}</span>
+
+                    {/* Effet de lueur au survol */}
+                    <motion.div
+                      className="absolute -bottom-1 left-0 right-0 h-[2px] opacity-0 group-hover:opacity-100"
+                      style={{
+                        background: `linear-gradient(90deg, transparent, var(--hybrid-accent-primary), transparent)`
+                      }}
+                      initial={{ scaleX: 0 }}
+                      whileHover={{ scaleX: 1 }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  </motion.button>
+                )
+              })}
+            </div>
+
+            {/* ACTIONS DROITE - Design Premium */}
+            <div className="flex items-center gap-4">
+              {isAuthenticated ? (
+                <>
+                  {/* Balance Premium avec effets */}
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    className="hidden sm:flex items-center gap-3 px-4 py-2.5 bg-gradient-to-r from-gray-100/80 via-gray-50/80 to-gray-100/80 dark:from-slate-900/60 dark:via-slate-800/60 dark:to-slate-900/60 backdrop-blur-xl rounded-full border border-gray-300/50 dark:border-gray-700/50 shadow-lg shadow-gray-200/50 dark:shadow-black/20 group"
+                  >
+                    <motion.img
+                      animate={{
+                        rotate: [0, 10, -10, 0],
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                      }}
+                      src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
+                      alt="Coins"
+                      className="h-6 w-6"
+                    />
+                    <span className="font-black text-gray-900 dark:text-white text-base">{profile?.virtual_currency?.toLocaleString() || '0'}</span>
+                    <motion.button
+                      ref={paymentButtonRef}
+                      whileHover={{ scale: 1.1, rotate: 90 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => {
+                        setCartOpen(false)
+                        setPaymentModalOpen(true)
+                      }}
+                      className="p-2 rounded-full transition-all shadow-lg"
+                      style={{
+                        background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`,
+                        boxShadow: `0 4px 12px rgba(var(--hybrid-accent-primary), 0.3)`
+                      }}
+                    >
+                      <Plus className="h-4 w-4 text-white" />
+                    </motion.button>
+                  </motion.div>
+
+                  {/* Panier avec animations */}
+                  <motion.button
+                    ref={cartButtonRef}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      setPaymentModalOpen(false)
+                      setCartOpen(true)
+                    }}
+                    className="relative p-3 bg-gradient-to-br from-gray-100/80 to-gray-50/80 dark:from-slate-900/60 dark:to-slate-800/60 backdrop-blur-xl rounded-xl border border-gray-300/50 dark:border-gray-700/50 hover:border-gray-600/50 transition-all shadow-lg shadow-gray-200/50 dark:shadow-black/20 group"
+                  >
+                    <ShoppingCart className="h-5 w-5 text-gray-700 dark:text-gray-300 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
+                    {cartItems.length > 0 && (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{
+                          scale: [1, 1.1, 1],
+                        }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "easeInOut"
+                        }}
+                        className="absolute -top-1 -right-1 h-6 w-6 rounded-full flex items-center justify-center shadow-lg"
+                        style={{
+                          background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`,
+                          boxShadow: `0 4px 12px rgba(var(--hybrid-accent-primary), 0.5)`
+                        }}
+                      >
+                        <span className="text-xs font-black text-white">{cartItems.length}</span>
+                      </motion.div>
+                    )}
+                  </motion.button>
+
+                  {/* Avatar Menu Premium */}
+                  <div className="relative" ref={userMenuRef}>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setUserMenuOpen(!userMenuOpen)}
+                      className="relative h-11 w-11 rounded-full p-[2px] shadow-xl hover:shadow-2xl transition-all duration-500 group"
+                      style={{
+                        background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
+                      }}
+                    >
+                      {/* Halo rotatif au hover */}
+                      <motion.div
+                        className="absolute -inset-1 rounded-full opacity-0 group-hover:opacity-60 blur-lg"
+                        style={{
+                          background: `linear-gradient(90deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
+                        }}
+                        animate={{
+                          rotate: [0, 360],
+                        }}
+                        transition={{
+                          duration: 4,
+                          repeat: Infinity,
+                          ease: "linear"
+                        }}
+                      />
+
+                      {profile?.avatar_url ? (
+                        <img
+                          src={profile.avatar_url}
+                          alt="Avatar"
+                          className="relative h-full w-full rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="relative h-full w-full rounded-full bg-slate-900 flex items-center justify-center">
+                          <User className="h-5 w-5 text-gray-300" />
+                        </div>
+                      )}
+                    </motion.button>
+
+                    {/* Dropdown Menu minimaliste et élégant */}
+                    <AnimatePresence>
+                      {userMenuOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                          className="absolute top-full right-0 mt-2 w-60 bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl border border-gray-200/50 dark:border-gray-700/50 rounded-xl shadow-2xl shadow-black/10 dark:shadow-black/50 overflow-hidden"
+                        >
+                          {/* Header minimaliste */}
+                          <div className="px-4 py-3 border-b border-gray-200/50 dark:border-gray-800/50">
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 p-0.5">
+                                {profile?.avatar_url ? (
+                                  <img src={profile.avatar_url} alt="Avatar" className="h-full w-full rounded-full object-cover" />
+                                ) : (
+                                  <div className="h-full w-full rounded-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-violet-500">
+                                    <User className="h-5 w-5 text-white" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-bold text-gray-900 dark:text-white text-sm truncate">{profile?.username || 'Utilisateur'}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Niveau {profile?.level || 1}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Menu items épuré */}
+                          <div className="p-2">
+                            <button
+                              onClick={() => { router.push('/profile'); setUserMenuOpen(false) }}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-700 dark:text-gray-300 rounded-lg transition-all text-sm font-medium hybrid-menu-item"
+                            >
+                              <User className="h-4 w-4" />
+                              <span>Profil</span>
+                            </button>
+
+                            <button
+                              onClick={() => { router.push('/inventory'); setUserMenuOpen(false) }}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-700 dark:text-gray-300 rounded-lg transition-all text-sm font-medium hybrid-menu-item"
+                            >
+                              <Package className="h-4 w-4" />
+                              <span>Inventaire</span>
+                            </button>
+
+                            <button
+                              onClick={() => { router.push('/contact'); setUserMenuOpen(false) }}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-700 dark:text-gray-300 rounded-lg transition-all text-sm font-medium hybrid-menu-item"
+                            >
+                              <Mail className="h-4 w-4" />
+                              <span>Contact</span>
+                            </button>
+
+                            {/* Theme toggle compact */}
+                            <div className="flex items-center justify-between px-3 py-2.5 hover:bg-gray-500/5 dark:hover:bg-gray-500/10 rounded-lg transition-all mt-1">
+                              <div className="flex items-center gap-3">
+                                <Monitor className="h-4 w-4 text-gray-700 dark:text-gray-300" />
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Thème</span>
+                              </div>
+                              <button
+                                onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+                                className="relative w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full p-0.5 transition-colors"
+                              >
+                                <motion.div
+                                  className="h-5 w-5 rounded-full flex items-center justify-center shadow-md"
+                                  style={{
+                                    background: resolvedTheme === 'dark'
+                                      ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)'
+                                      : 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)'
+                                  }}
+                                  animate={{ x: resolvedTheme === 'dark' ? 20 : 0 }}
+                                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                >
+                                  {resolvedTheme === 'dark' ? (
+                                    <Moon className="h-3 w-3 text-white" />
+                                  ) : (
+                                    <Sun className="h-3 w-3 text-white" />
+                                  )}
+                                </motion.div>
+                              </button>
+                            </div>
+
+                            {isAdmin && (
+                              <>
+                                <div className="h-px bg-gray-200 dark:bg-gray-800 my-2" />
+                                <button
+                                  onClick={() => { router.push('/admin'); setUserMenuOpen(false) }}
+                                  className="w-full flex items-center gap-3 px-3 py-2.5 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 rounded-lg transition-all text-sm font-medium"
+                                >
+                                  <Shield className="h-4 w-4" />
+                                  <span>Admin</span>
+                                </button>
+                              </>
+                            )}
+
+                            <div className="h-px bg-gray-200 dark:bg-gray-800 my-2" />
+
+                            <button
+                              onClick={() => { signOut(); setUserMenuOpen(false) }}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 text-red-600 dark:text-red-400 hover:bg-red-500/10 rounded-lg transition-all text-sm font-medium"
+                            >
+                              <LogOut className="h-4 w-4" />
+                              <span>Déconnexion</span>
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <Link
+                      href="/login"
+                      className="px-5 py-2.5 text-sm font-semibold text-gray-300 hover:text-white transition-all rounded-xl hover:bg-gradient-to-r hover:from-slate-800/30 hover:to-slate-700/30"
+                    >
+                      Connexion
+                    </Link>
+                  </motion.div>
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Link
+                      href="/signup"
+                      className="relative px-6 py-2.5 text-white rounded-xl text-sm font-bold shadow-xl transition-all overflow-hidden group"
+                      style={{
+                        background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
+                      }}
+                    >
+                      {/* Effet de brillance animé */}
+                      <motion.div
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                        animate={{
+                          x: ['-200%', '200%'],
+                        }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "linear",
+                          repeatDelay: 1
+                        }}
+                      />
+                      <span className="relative">S'inscrire</span>
+                    </Link>
+                  </motion.div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Barre inférieure élégante (plus subtile) */}
+        <div className="absolute bottom-0 left-0 right-0 h-[1px] overflow-hidden">
+          <motion.div
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-500/30 to-transparent"
+            animate={{
+              x: ['100%', '-100%'],
+            }}
+            transition={{
+              duration: 5,
+              repeat: Infinity,
+              ease: "linear",
+              repeatDelay: 1
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-700/20 to-transparent" />
+        </div>
+
+      </motion.nav>
+
+      {/* Toggle Arrow - Toujours visible même quand la navbar est masquée */}
+      <motion.button
+        onClick={toggleNavbar}
+        className="fixed left-1/2 p-1.5 backdrop-blur-xl border border-t-0 rounded-b-lg transition-all shadow-lg group z-50"
+        style={{
+          background: 'var(--hybrid-bg-elevated)',
+          borderColor: 'var(--hybrid-border-default)',
+          transform: 'translateX(-50%)'
+        }}
+        animate={{
+          top: navbarHidden ? '0px' : '79px'
+        }}
+        transition={{ duration: 0.15, type: "spring", stiffness: 500, damping: 30 }}
+      >
+        <motion.div
+          animate={{ rotate: navbarHidden ? 180 : 0 }}
+          transition={{ duration: 0.15, type: "spring", stiffness: 500, damping: 30 }}
+        >
+          <ChevronUp
+            className="h-3 w-3 transition-colors"
+            style={{ color: 'var(--hybrid-accent-primary)' }}
+          />
+        </motion.div>
+      </motion.button>
+
+      {/* MENU MOBILE */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 lg:hidden"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 250 }}
+              className="fixed left-0 top-0 bottom-0 w-80 bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl border-r-2 border-gray-200/80 dark:border-gray-700/50 z-50 lg:hidden overflow-y-auto"
+            >
+              <div className="p-6">
+                {/* Header */}
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
+                  className="flex items-center justify-between mb-8"
+                >
+                  <div className="flex items-center gap-3">
+                    <motion.div
+                      initial={{ scale: 0.8 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.15, type: "spring", stiffness: 300 }}
+                      className="h-12 w-12 rounded-2xl border-2 flex items-center justify-center"
+                      style={{
+                        background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`,
+                        opacity: 0.2,
+                        borderColor: 'var(--hybrid-accent-primary)'
+                      }}
+                    >
+                      <img
+                        src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/04aa1ec8-45f4-4ddf-83d9-14b50138c5b9-removebg-preview%20(1).png"
+                        alt="ReveelBox"
+                        className="h-8 w-8 object-contain"
+                      />
+                    </motion.div>
+                    <span className="text-xl font-black text-gray-900 dark:text-white">REVEELBOX</span>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-all"
+                  >
+                    <X className="h-6 w-6 text-gray-900 dark:text-white" />
+                  </motion.button>
+                </motion.div>
+
+                {/* Balance mobile */}
+                {isAuthenticated && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                    className="mb-6 p-4 rounded-2xl border-2"
+                    style={{
+                      background: `linear-gradient(90deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`,
+                      opacity: 0.1,
+                      borderColor: 'var(--hybrid-accent-primary)'
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <motion.img
+                          animate={{ rotate: [0, 10, -10, 0] }}
+                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                          src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
+                          alt="Coins"
+                          className="h-6 w-6"
+                        />
+                        <span className="font-black text-gray-900 dark:text-white text-lg">{profile?.virtual_currency?.toLocaleString() || '0'}</span>
+                      </div>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => { setPaymentModalOpen(true); setMobileMenuOpen(false) }}
+                        className="px-4 py-2 text-white rounded-xl text-sm font-bold shadow-lg hybrid-btn-primary-gradient"
+                      >
+                        Recharger
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Navigation */}
+                <div className="space-y-2">
+                  {navItems.map((item, index) => {
+                    const Icon = item.icon
+                    const isActive = pathname === item.href
+
+                    return (
+                      <motion.button
+                        key={item.href}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.08, type: "spring", stiffness: 200 }}
+                        onClick={() => { router.push(item.href); setMobileMenuOpen(false) }}
+                        whileTap={{ scale: 0.98 }}
+                        className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-all ${
+                          isActive
+                            ? 'text-gray-900 dark:text-white border-2'
+                            : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5'
+                        }`}
+                        style={isActive ? {
+                          background: `linear-gradient(90deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`,
+                          opacity: 0.2,
+                          borderColor: 'var(--hybrid-accent-primary)'
+                        } : {}}
+                      >
+                        <Icon className="h-6 w-6" />
+                        <span className="font-bold text-lg">{item.label}</span>
+                      </motion.button>
+                    )
+                  })}
+                </div>
               </div>
-            )}
-          </motion.nav>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
+
+      {/* MODALS */}
+      <CartModal
+        isOpen={cartOpen}
+        onClose={() => setCartOpen(false)}
+        items={cartItems.map(item => ({
+          id: item.id,
+          name: item.items?.name || 'Unknown',
+          image_url: item.items?.image_url || '',
+          market_value: item.items?.market_value || 0,
+          rarity: item.items?.rarity || 'common',
+          quantity: item.quantity
+        }))}
+        selectedItems={selectedCartItems}
+        onSelectItem={(id) => {
+          setSelectedCartItems(prev =>
+            prev.includes(id)
+              ? prev.filter(itemId => itemId !== id)
+              : [...prev, id]
+          )
+        }}
+        onSelectAll={() => {
+          setSelectedCartItems(
+            selectedCartItems.length === cartItems.length
+              ? []
+              : cartItems.map(item => item.id)
+          )
+        }}
+        onSellSelected={async () => {
+          try {
+            // Calculer la valeur totale des items sélectionnés
+            const itemsToSell = cartItems.filter(item => selectedCartItems.includes(item.id))
+            const totalValue = itemsToSell.reduce((sum, item) => {
+              return sum + (item.items?.market_value || 0) * item.quantity
+            }, 0)
+
+            // Marquer les items comme vendus
+            const { error: sellError } = await supabase
+              .from('user_inventory')
+              .update({ is_sold: true })
+              .in('id', selectedCartItems)
+
+            if (sellError) throw sellError
+
+            // Créditer les coins au profil de l'utilisateur
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({
+                virtual_currency: (profile?.virtual_currency || 0) + totalValue
+              })
+              .eq('id', user?.id)
+
+            if (updateError) throw updateError
+
+            // Rafraîchir le profil sans recharger la page
+            await refreshProfile()
+
+            // Retirer les items vendus du panier
+            setCartItems(prevItems => prevItems.filter(item => !selectedCartItems.includes(item.id)))
+
+            // Nettoyer la sélection et fermer le modal
+            setSelectedCartItems([])
+            setCartOpen(false)
+          } catch (err) {
+            console.error('Error selling items:', err)
+          }
+        }}
+        onUpgrade={() => {
+          setCartOpen(false)
+          router.push('/upgrade')
+        }}
+        buttonRef={cartButtonRef}
+      />
+
+      <PaymentModal
+        isOpen={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        buttonRef={paymentButtonRef}
+      />
     </>
   )
 }

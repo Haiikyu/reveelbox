@@ -1,14 +1,14 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@/utils/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { Database } from '@/app/types/database';
 
 // POST /api/admin/giveaways/[id]/select-winners - Sélectionner les gagnants
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
+    const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -26,7 +26,8 @@ export async function POST(
       return NextResponse.json({ error: 'Permissions insuffisantes' }, { status: 403 });
     }
 
-    const giveawayId = params.id;
+    const { id } = await params;
+    const giveawayId = id;
 
     // Utiliser la fonction RPC pour sélectionner les gagnants
     const { data: winners, error } = await supabase.rpc('select_giveaway_winners', {

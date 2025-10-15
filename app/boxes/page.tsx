@@ -1,14 +1,16 @@
+
 // app/boxes/page.tsx - Version Minimaliste avec Filtres Avancés
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence, Variants } from 'framer-motion'
-import { Search, Coins, ArrowRight, Filter, TrendingUp, TrendingDown, Sparkles, AlertTriangle, X, ChevronDown } from 'lucide-react'
+import { Search, Coins, ArrowRight, Filter, TrendingUp, TrendingDown, Sparkles, AlertTriangle, X, ChevronDown, Package } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { LoadingState } from '../components/ui/LoadingState'
 import { useAuth } from '@/app/components/AuthProvider'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
+import ParticlesBackground from '@/app/components/affiliate/ParticlesBackground'
 
 // Interface pour les types
 interface LootBox {
@@ -277,8 +279,10 @@ export default function BoxesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
-      
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300 relative overflow-hidden">
+      {/* Particles Background */}
+      <ParticlesBackground />
+
       {/* Messages de notification */}
       <AnimatePresence>
         {error && (
@@ -365,26 +369,33 @@ export default function BoxesPage() {
                 exit={{ opacity: 0, height: 0, marginBottom: 0 }}
                 className="overflow-hidden"
               >
-                <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl p-6 border border-gray-200/50 dark:border-gray-700/50">
+                <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-xl">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    
+
                     {/* Filtre par rareté */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                        <Sparkles size={16} style={{ color: 'var(--hybrid-accent-primary)' }} />
                         Rareté
                       </label>
                       <div className="flex flex-wrap gap-2">
-                        {['all', 'common', 'rare', 'epic', 'legendary'].map((rarity) => (
+                        {[
+                          { value: 'all', label: 'Toutes', color: 'from-gray-400 to-gray-600' },
+                          { value: 'common', label: 'Commune', color: 'from-gray-400 to-gray-600' },
+                          { value: 'rare', label: 'Rare', color: 'from-blue-400 to-blue-600' },
+                          { value: 'epic', label: 'Épique', color: 'from-purple-400 to-purple-600' },
+                          { value: 'legendary', label: 'Légendaire', color: 'from-yellow-400 to-yellow-600' }
+                        ].map((rarity) => (
                           <button
-                            key={rarity}
-                            onClick={() => setSelectedRarity(rarity)}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                              selectedRarity === rarity
-                                ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                            key={rarity.value}
+                            onClick={() => setSelectedRarity(rarity.value)}
+                            className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
+                              selectedRarity === rarity.value
+                                ? `bg-gradient-to-r ${rarity.color} text-white shadow-lg`
+                                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                             }`}
                           >
-                            {rarity === 'all' ? 'Toutes' : rarity.charAt(0).toUpperCase() + rarity.slice(1)}
+                            {rarity.label}
                           </button>
                         ))}
                       </div>
@@ -392,23 +403,24 @@ export default function BoxesPage() {
 
                     {/* Filtre par niveau de risque */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                        <AlertTriangle size={16} className="text-orange-500" />
                         Niveau de risque
                       </label>
                       <div className="flex flex-wrap gap-2">
                         {[
-                          { value: 'all', label: 'Tous' },
-                          { value: 'low', label: 'Faible' },
-                          { value: 'medium', label: 'Moyen' },
-                          { value: 'high', label: 'Élevé' }
+                          { value: 'all', label: 'Tous', color: 'from-gray-400 to-gray-600' },
+                          { value: 'low', label: 'Faible', color: 'from-green-400 to-green-600' },
+                          { value: 'medium', label: 'Moyen', color: 'from-orange-400 to-orange-600' },
+                          { value: 'high', label: 'Élevé', color: 'from-red-400 to-red-600' }
                         ].map((risk) => (
                           <button
                             key={risk.value}
                             onClick={() => setRiskFilter(risk.value as any)}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                            className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
                               riskFilter === risk.value
-                                ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                ? `bg-gradient-to-r ${risk.color} text-white shadow-lg`
+                                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                             }`}
                           >
                             {risk.label}
@@ -419,31 +431,40 @@ export default function BoxesPage() {
 
                     {/* Gamme de prix */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                        <Coins size={16} className="text-yellow-500" />
                         Prix: {priceRange[0]} - {priceRange[1]} coins
                       </label>
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="range"
-                          min={0}
-                          max={1000}
-                          value={priceRange[0]}
-                          onChange={(e) => setPriceRange([parseInt(e.target.value), priceRange[1]])}
-                          className="flex-1"
-                        />
-                        <input
-                          type="range"
-                          min={0}
-                          max={1000}
-                          value={priceRange[1]}
-                          onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value)])}
-                          className="flex-1"
-                        />
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-gray-500 dark:text-gray-400 w-8">Min</span>
+                          <input
+                            type="range"
+                            min={0}
+                            max={1000}
+                            value={priceRange[0]}
+                            onChange={(e) => setPriceRange([parseInt(e.target.value), priceRange[1]])}
+                            className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                            style={{ accentColor: 'var(--hybrid-accent-primary)' }}
+                          />
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-gray-500 dark:text-gray-400 w-8">Max</span>
+                          <input
+                            type="range"
+                            min={0}
+                            max={1000}
+                            value={priceRange[1]}
+                            onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value)])}
+                            className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                            style={{ accentColor: 'var(--hybrid-accent-primary)' }}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-4 flex justify-end">
+                  <div className="mt-6 flex justify-end">
                     <button
                       onClick={() => {
                         setSelectedRarity('all')
@@ -451,8 +472,14 @@ export default function BoxesPage() {
                         setPriceRange([0, 1000])
                         setSearchQuery('')
                       }}
-                      className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 rounded-lg transition-all hover:bg-gray-100 dark:hover:bg-gray-800"
+                      style={{
+                        '--hover-color': 'var(--hybrid-accent-primary)'
+                      } as React.CSSProperties}
+                      onMouseEnter={(e) => e.currentTarget.style.color = 'var(--hybrid-accent-primary)'}
+                      onMouseLeave={(e) => e.currentTarget.style.color = ''}
                     >
+                      <X size={16} />
                       Réinitialiser les filtres
                     </button>
                   </div>
@@ -464,15 +491,31 @@ export default function BoxesPage() {
           {/* Statistiques */}
           {stats && filteredAndSortedBoxes.length > 0 && (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400 mb-8"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-wrap items-center gap-6 mb-8 text-sm text-gray-600 dark:text-gray-400"
             >
-              <span>{stats.count} boîte{stats.count > 1 ? 's' : ''}</span>
-              <span className="text-gray-300 dark:text-gray-600">•</span>
-              <span>Prix moyen: {stats.avgPrice} coins</span>
-              <span className="text-gray-300 dark:text-gray-600">•</span>
-              <span>Risque moyen: {stats.avgRisk}%</span>
+              <div className="flex items-center gap-2">
+                <Package className="h-4 w-4" style={{ color: 'var(--hybrid-accent-primary)' }} />
+                <span className="font-semibold text-gray-900 dark:text-white">{stats.count}</span>
+                <span>boîte{stats.count > 1 ? 's' : ''}</span>
+              </div>
+
+              <div className="w-px h-4 bg-gray-300 dark:bg-gray-700"></div>
+
+              <div className="flex items-center gap-2">
+                <Coins className="h-4 w-4 text-yellow-500" />
+                <span className="font-semibold text-gray-900 dark:text-white">{stats.avgPrice}</span>
+                <span>coins moy.</span>
+              </div>
+
+              <div className="w-px h-4 bg-gray-300 dark:bg-gray-700"></div>
+
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-orange-500" />
+                <span className="font-semibold text-gray-900 dark:text-white">{stats.avgRisk}%</span>
+                <span>risque moy.</span>
+              </div>
             </motion.div>
           )}
         </div>

@@ -1,183 +1,133 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  X, 
-  TrendingUp, 
-  AlertTriangle, 
-  Sparkles,
-  ChevronRight,
-  Zap,
-  Trophy,
-  Info,
-  Percent,
-  Calculator,
-  Shield,
-  Flame,
-  Diamond,
-  AlertCircle
-} from 'lucide-react'
+'use client'
 
-interface UpgradeItem {
-  id: string
-  item_id: string
-  name: string
-  image_url?: string
-  rarity: string
-  market_value: number
-  quantity?: number
-}
+import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { createClient } from '@/utils/supabase/client'
+import { useAuth } from './AuthProvider'
+import {
+  X, TrendingUp, Sparkles, Trophy, AlertCircle, Loader2, Zap, Target, ArrowRight
+} from 'lucide-react'
 
 interface UpgradeModalProps {
   isOpen: boolean
   onClose: () => void
-  item: UpgradeItem | null
-  onSuccess: (newValue: number) => void
-  userId: string
+  item?: {
+    id: string
+    item_id: string
+    name: string
+    image_url?: string
+    rarity: string
+    market_value: number
+  } | null
+  onSuccess?: () => void
 }
 
-// Configuration des multiplicateurs prédéfinis
-const PRESET_MULTIPLIERS = [
-  { value: 1.5, chance: 60, label: 'Safe', color: 'from-green-400 to-green-500' },
-  { value: 2, chance: 45, label: 'Classic', color: 'from-blue-400 to-blue-500' },
-  { value: 5, chance: 18, label: 'Risky', color: 'from-purple-400 to-purple-500' },
-  { value: 10, chance: 9, label: 'Extreme', color: 'from-pink-400 to-pink-500' },
+const MULTIPLIERS = [
+  { value: 2, color: 'from-green-500 to-teal-600', shadow: 'shadow-green-500/50', label: 'Safe', chance: '~25%' },
+  { value: 5, color: 'from-blue-500 to-indigo-600', shadow: 'shadow-blue-500/50', label: 'Low', chance: '~10%' },
+  { value: 10, color: 'from-violet-500 to-purple-600', shadow: 'shadow-violet-500/50', label: 'Medium', chance: '~5%' },
+  { value: 20, color: 'from-orange-500 to-red-600', shadow: 'shadow-orange-500/50', label: 'High', chance: '~2.5%' },
+  { value: 50, color: 'from-rose-500 to-pink-600', shadow: 'shadow-rose-500/50', label: 'Extreme', chance: '~1%' },
+  { value: 100, color: 'from-fuchsia-500 to-pink-600', shadow: 'shadow-fuchsia-500/50', label: 'Insane', chance: '~0.5%' },
 ]
 
-export default function UpgradeModal({ isOpen, onClose, item, onSuccess, userId }: UpgradeModalProps) {
-  const [customMultiplier, setCustomMultiplier] = useState('')
+export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: UpgradeModalProps) {
+  const { user, profile, refreshProfile } = useAuth()
   const [selectedMultiplier, setSelectedMultiplier] = useState(2)
-  const [isCustomMode, setIsCustomMode] = useState(false)
   const [isUpgrading, setIsUpgrading] = useState(false)
   const [showResult, setShowResult] = useState(false)
   const [upgradeSuccess, setUpgradeSuccess] = useState(false)
-  const [finalValue, setFinalValue] = useState(0)
-  const [animationPhase, setAnimationPhase] = useState(0)
+  const [wonValue, setWonValue] = useState(0)
+  const [rotation, setRotation] = useState(0)
+  const supabase = createClient()
 
   useEffect(() => {
     if (!isOpen) {
-      setSelectedMultiplier(2)
-      setCustomMultiplier('')
-      setIsCustomMode(false)
-      setIsUpgrading(false)
       setShowResult(false)
-      setUpgradeSuccess(false)
-      setAnimationPhase(0)
+      setIsUpgrading(false)
+      setRotation(0)
+      setSelectedMultiplier(2)
     }
   }, [isOpen])
 
-  const calculateChance = (multiplier: number) => {
-    if (multiplier <= 1.5) return 60
-    if (multiplier <= 2) return 45
-    if (multiplier <= 3) return 30
-    if (multiplier <= 5) return 18
-    if (multiplier <= 10) return 9
-    if (multiplier <= 50) return 2
-    if (multiplier <= 100) return 1
-    if (multiplier <= 500) return 0.2
-    return 0.1
+  const getRarityConfig = (rarity: string) => {
+    const configs: Record<string, { gradient: string; glow: string }> = {
+      common: { gradient: 'from-slate-400 to-slate-600', glow: 'shadow-slate-500/40' },
+      rare: { gradient: 'from-blue-400 to-blue-600', glow: 'shadow-blue-500/50' },
+      epic: { gradient: 'from-purple-400 to-purple-600', glow: 'shadow-purple-500/50' },
+      legendary: { gradient: 'from-amber-400 via-orange-500 to-red-500', glow: 'shadow-amber-500/60' },
+      mythic: { gradient: 'from-cyan-400 via-pink-500 to-purple-600', glow: 'shadow-pink-500/60' },
+    }
+    return configs[rarity?.toLowerCase()] || configs.common
   }
 
-  const currentChance = calculateChance(selectedMultiplier)
-
-  const handleCustomMultiplierChange = (value: string) => {
-    const num = parseFloat(value)
-    if (!isNaN(num) && num >= 1.1 && num <= 1000) {
-      setCustomMultiplier(value)
-      setSelectedMultiplier(num)
-    } else if (value === '') {
-      setCustomMultiplier('')
-      setSelectedMultiplier(2)
-    }
+  const calculateSuccessRate = (multiplier: number, itemValue: number) => {
+    const baseRate = 50 / multiplier
+    const valueBonus = Math.min(itemValue / 100, 10)
+    return Math.max(5, Math.min(95, baseRate + valueBonus))
   }
 
   const handleUpgrade = async () => {
-    if (!item || isUpgrading) return
+    if (!item || !user || isUpgrading) return
 
     setIsUpgrading(true)
     setShowResult(false)
-    setAnimationPhase(1)
-    
-    const phases = [
-      { duration: 1000, phase: 1 },
-      { duration: 1500, phase: 2 },
-      { duration: 1500, phase: 3 },
-      { duration: 500, phase: 4 },
-    ]
 
-    let totalTime = 0
-    phases.forEach(({ duration, phase }) => {
-      setTimeout(() => setAnimationPhase(phase), totalTime)
-      totalTime += duration
-    })
+    try {
+      const successRate = calculateSuccessRate(selectedMultiplier, item.market_value)
 
-    setTimeout(async () => {
-      const random = Math.random() * 100
-      const success = random <= currentChance
+      // Animation 3D
+      const rotationInterval = setInterval(() => {
+        setRotation(prev => prev + 25)
+      }, 40)
+
+      await new Promise(resolve => setTimeout(resolve, 3000))
+      clearInterval(rotationInterval)
+
+      const success = Math.random() * 100 < successRate
+      const newValue = success ? item.market_value * selectedMultiplier : 0
+
+      await supabase.from('upgrade_attempts').insert({
+        user_id: user.id,
+        item_id: item.item_id,
+        item_value: item.market_value,
+        target_multiplier: selectedMultiplier,
+        success: success,
+        won_value: newValue
+      })
 
       if (success) {
-        const newValue = Math.floor(item.market_value * selectedMultiplier)
-        setFinalValue(newValue)
-        setUpgradeSuccess(true)
-        
-        try {
-          const response = await fetch('/api/upgrade-item', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              inventory_id: item.id,
-              multiplier: selectedMultiplier,
-              new_value: newValue,
-              user_id: userId
-            })
+        await supabase
+          .from('profiles')
+          .update({
+            virtual_currency: (profile?.virtual_currency || 0) + newValue
           })
-          
-          if (response.ok) {
-            onSuccess(newValue)
-          }
-        } catch (error) {
-          console.error('Upgrade error:', error)
-        }
-      } else {
-        setUpgradeSuccess(false)
-        setFinalValue(0)
-        
-        try {
-          await fetch('/api/upgrade-item', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              inventory_id: item.id,
-              multiplier: selectedMultiplier,
-              new_value: 0,
-              user_id: userId,
-              failed: true
-            })
-          })
-        } catch (error) {
-          console.error('Failed upgrade error:', error)
-        }
+          .eq('id', user.id)
+        await refreshProfile()
       }
 
-      setAnimationPhase(0)
-      setShowResult(true)
-      setIsUpgrading(false)
-    }, totalTime)
-  }
+      await supabase.from('user_inventory').delete().eq('id', item.id)
 
-  const getRarityInfo = (rarity: string) => {
-    const rarityMap = {
-      common: { label: 'Common', bg: 'bg-gray-500/10', border: 'border-gray-500/30', text: 'text-gray-400' },
-      uncommon: { label: 'Uncommon', bg: 'bg-green-500/10', border: 'border-green-500/30', text: 'text-green-400' },
-      rare: { label: 'Rare', bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400' },
-      epic: { label: 'Epic', bg: 'bg-purple-500/10', border: 'border-purple-500/30', text: 'text-purple-400' },
-      legendary: { label: 'Legendary', bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400' }
+      setUpgradeSuccess(success)
+      setWonValue(newValue)
+      setShowResult(true)
+
+      if (onSuccess) onSuccess()
+
+    } catch (error) {
+      console.error('Upgrade error:', error)
+    } finally {
+      setIsUpgrading(false)
+      setRotation(0)
     }
-    return rarityMap[rarity?.toLowerCase()] || rarityMap.common
   }
 
   if (!isOpen || !item) return null
 
-  const rarityInfo = getRarityInfo(item.rarity)
+  const config = getRarityConfig(item.rarity)
+  const successRate = calculateSuccessRate(selectedMultiplier, item.market_value)
+  const potentialWin = item.market_value * selectedMultiplier
+  const selectedMult = MULTIPLIERS.find(m => m.value === selectedMultiplier) || MULTIPLIERS[0]
 
   return (
     <AnimatePresence>
@@ -185,350 +135,340 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess, userId 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4"
-        onClick={onClose}
+        className="fixed inset-0 bg-black/80 backdrop-blur-lg z-[100] flex items-center justify-center p-4"
+        onClick={() => !isUpgrading && !showResult && onClose()}
       >
         <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
+          initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
+          exit={{ scale: 0.95, opacity: 0 }}
+          transition={{ type: 'spring', damping: 30, stiffness: 400 }}
           onClick={(e) => e.stopPropagation()}
-          className="bg-[#1a1f2e] rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-800/50"
-          style={{
-            background: 'linear-gradient(135deg, #1a1f2e 0%, #151922 100%)'
-          }}
+          className="relative w-full max-w-3xl"
         >
-          {/* Header */}
-          <div className="relative px-6 py-4 border-b border-gray-800/50">
+          {/* Glow effect */}
+          <div className={`absolute -inset-1 bg-gradient-to-r ${selectedMult.color} rounded-3xl blur-2xl opacity-20`} />
+
+          <div className="relative bg-slate-900/95 backdrop-blur-2xl rounded-3xl border border-white/10 overflow-hidden">
+            {/* Animated gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-600/5 via-transparent to-pink-600/5" />
+
+            {/* Close button */}
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 p-2 rounded-lg hover:bg-white/5 transition-colors"
+              disabled={isUpgrading}
+              className="absolute top-4 right-4 z-10 p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all disabled:opacity-50 group"
             >
-              <X className="h-5 w-5 text-gray-400 hover:text-white" />
+              <X className="w-5 h-5 text-white/60 group-hover:text-white/90 transition-colors" />
             </button>
-            
-            <div className="flex items-center gap-3">
-              <TrendingUp className="h-6 w-6 text-purple-400" />
-              <h2 className="text-xl font-bold text-white">Item Upgrade</h2>
-            </div>
-          </div>
 
-          {/* Content */}
-          <div className="p-6">
-            {!showResult ? (
-              <>
-                {/* Item Display */}
-                <div className="mb-6">
-                  <div className={`${rarityInfo.bg} ${rarityInfo.border} border rounded-xl p-4`}>
-                    <div className="flex items-center gap-4">
-                      {/* Item Image */}
+            <div className="relative z-10 p-8">
+              {!showResult ? (
+                <>
+                  {/* Header */}
+                  <div className="text-center mb-8">
+                    <div className="inline-flex items-center gap-3 mb-3">
+                      <div className={`p-3 bg-gradient-to-br ${selectedMult.color} rounded-2xl ${selectedMult.shadow} shadow-xl`}>
+                        <TrendingUp className="w-8 h-8 text-white" />
+                      </div>
+                      <h2 className="text-3xl font-black text-white">Upgrade Item</h2>
+                    </div>
+                    <p className="text-white/50 text-sm">Risk it for the multiplier</p>
+                  </div>
+
+                  {/* 3D Item Display */}
+                  <div className="mb-8">
+                    <div className="relative perspective-1000 mx-auto max-w-xs">
                       <motion.div
                         animate={{
-                          scale: animationPhase === 2 ? [1, 1.05, 1] : 1,
-                          rotate: animationPhase === 3 ? [0, 5, -5, 0] : 0,
+                          rotateY: isUpgrading ? rotation : 0,
+                          scale: isUpgrading ? [1, 1.08, 1] : 1
                         }}
                         transition={{
-                          scale: { duration: 0.5, repeat: animationPhase === 2 ? Infinity : 0 },
-                          rotate: { duration: 0.3, repeat: animationPhase === 3 ? Infinity : 0 }
+                          rotateY: { duration: 0.04, ease: 'linear' },
+                          scale: { duration: 0.6, repeat: isUpgrading ? Infinity : 0 }
                         }}
-                        className="relative w-20 h-20 rounded-lg overflow-hidden bg-[#0f1318] border border-gray-700/50"
+                        className={`relative w-full aspect-square bg-gradient-to-br ${config.gradient} p-0.5 rounded-3xl ${config.glow} shadow-2xl`}
+                        style={{ transformStyle: 'preserve-3d' }}
                       >
-                        {item.image_url ? (
-                          <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Sparkles className="h-8 w-8 text-gray-600" />
-                          </div>
-                        )}
-                        {isUpgrading && (
-                          <motion.div
-                            className="absolute inset-0 bg-purple-500/20"
-                            animate={{ opacity: [0.2, 0.5, 0.2] }}
-                            transition={{ duration: 1, repeat: Infinity }}
-                          />
-                        )}
-                      </motion.div>
-                      
-                      {/* Item Info */}
-                      <div className="flex-1">
-                        <h3 className="text-lg font-bold text-white mb-1">{item.name}</h3>
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${rarityInfo.bg} ${rarityInfo.text}`}>
-                          {rarityInfo.label}
-                        </span>
-                        <div className="flex items-center gap-3 mt-2">
-                          <div className="flex items-center gap-1">
-                            <img 
-                              src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png" 
-                              alt="Coins" 
-                              className="h-4 w-4" 
+                        <div className="w-full h-full bg-slate-950 rounded-[23px] flex items-center justify-center p-8">
+                          {item.image_url ? (
+                            <img
+                              src={item.image_url}
+                              alt={item.name}
+                              className="max-w-full max-h-full object-contain"
+                              style={{ filter: isUpgrading ? 'blur(1px) brightness(1.3)' : 'none' }}
                             />
-                            <span className="text-white font-semibold">{item.market_value.toLocaleString()}</span>
-                          </div>
-                          {!isUpgrading && (
-                            <>
-                              <ChevronRight className="h-4 w-4 text-gray-500" />
-                              <div className="flex items-center gap-1">
-                                <img 
-                                  src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png" 
-                                  alt="Coins" 
-                                  className="h-4 w-4" 
-                                />
-                                <span className="text-purple-400 font-bold">
-                                  {Math.floor(item.market_value * selectedMultiplier).toLocaleString()}
-                                </span>
-                              </div>
-                            </>
+                          ) : (
+                            <div className="w-20 h-20 bg-white/5 rounded-2xl" />
                           )}
                         </div>
-                      </div>
-                    </div>
-                    
-                    {/* Progress Bar */}
-                    {isUpgrading && (
-                      <div className="mt-4">
-                        <div className="h-1 bg-gray-700 rounded-full overflow-hidden">
-                          <motion.div
-                            className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
-                            initial={{ width: '0%' }}
-                            animate={{ width: '100%' }}
-                            transition={{ duration: 4.5, ease: 'linear' }}
+
+                        {/* Particles */}
+                        {isUpgrading && (
+                          <>
+                            {[...Array(8)].map((_, i) => (
+                              <motion.div
+                                key={i}
+                                className="absolute w-1.5 h-1.5 bg-white rounded-full"
+                                initial={{ x: '50%', y: '50%', opacity: 0 }}
+                                animate={{
+                                  x: `${50 + Math.cos((i * Math.PI * 2) / 8) * 180}%`,
+                                  y: `${50 + Math.sin((i * Math.PI * 2) / 8) * 180}%`,
+                                  opacity: [0, 1, 0]
+                                }}
+                                transition={{
+                                  duration: 1.5,
+                                  repeat: Infinity,
+                                  delay: i * 0.08,
+                                  ease: 'easeOut'
+                                }}
+                              />
+                            ))}
+                          </>
+                        )}
+                      </motion.div>
+
+                      {/* Item info */}
+                      <div className="text-center mt-5">
+                        <h3 className="text-xl font-bold text-white mb-2">{item.name}</h3>
+                        <div className="inline-flex items-center gap-2 bg-white/5 backdrop-blur-sm border border-white/10 rounded-full px-4 py-1.5">
+                          <img
+                            src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
+                            alt="Coins"
+                            className="w-4 h-4"
                           />
+                          <span className="text-lg font-black" style={{ color: 'var(--hybrid-accent-primary)' }}>{item.market_value.toLocaleString()}</span>
                         </div>
                       </div>
-                    )}
+                    </div>
                   </div>
-                </div>
 
-                {/* Multiplier Selection */}
-                {!isUpgrading && (
-                  <>
-                    {/* Mode Toggle */}
-                    <div className="grid grid-cols-2 gap-2 mb-4">
-                      <button
-                        onClick={() => setIsCustomMode(false)}
-                        className={`py-2.5 rounded-lg font-medium transition-all ${
-                          !isCustomMode 
-                            ? 'bg-purple-500 text-white' 
-                            : 'bg-[#0f1318] text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        Preset
-                      </button>
-                      <button
-                        onClick={() => setIsCustomMode(true)}
-                        className={`py-2.5 rounded-lg font-medium transition-all ${
-                          isCustomMode 
-                            ? 'bg-purple-500 text-white' 
-                            : 'bg-[#0f1318] text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        Custom
-                      </button>
+                  {/* Multiplier selector */}
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-sm font-bold text-white/60 uppercase tracking-wider">Multiplier</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl font-black bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                          x{selectedMultiplier}
+                        </span>
+                        <span className="text-xs text-white/40">{selectedMult.chance}</span>
+                      </div>
                     </div>
 
-                    {!isCustomMode ? (
-                      /* Preset Multipliers */
-                      <div className="grid grid-cols-4 gap-2 mb-4">
-                        {PRESET_MULTIPLIERS.map((mult) => (
-                          <button
-                            key={mult.value}
-                            onClick={() => setSelectedMultiplier(mult.value)}
-                            className={`p-3 rounded-lg border transition-all ${
+                    <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                      {MULTIPLIERS.map((mult) => (
+                        <motion.button
+                          key={mult.value}
+                          whileHover={{ scale: 1.05, y: -2 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => setSelectedMultiplier(mult.value)}
+                          disabled={isUpgrading}
+                          className="relative group"
+                        >
+                          <div className={`absolute -inset-0.5 bg-gradient-to-r ${mult.color} rounded-xl opacity-0 group-hover:opacity-100 blur transition-opacity`} />
+                          <div
+                            className={`relative py-3 px-2 rounded-xl font-bold transition-all ${
                               selectedMultiplier === mult.value
-                                ? 'border-purple-500 bg-purple-500/10'
-                                : 'border-gray-700 bg-[#0f1318] hover:border-gray-600'
+                                ? `bg-gradient-to-br ${mult.color} text-white ${mult.shadow} shadow-lg`
+                                : 'bg-white/5 text-white/60 hover:bg-white/10 border border-white/10'
                             }`}
                           >
-                            <div className={`text-lg font-bold bg-gradient-to-r ${mult.color} bg-clip-text text-transparent`}>
-                              x{mult.value}
-                            </div>
-                            <div className="text-xs text-gray-400">{mult.chance}%</div>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      /* Custom Multiplier */
-                      <div className="mb-4">
-                        <div className="bg-[#0f1318] rounded-lg p-4 border border-gray-700">
-                          <label className="block text-sm text-gray-400 mb-2">
-                            Custom Multiplier (1.1 - 1000)
-                          </label>
-                          <div className="flex gap-2">
-                            <input
-                              type="number"
-                              value={customMultiplier}
-                              onChange={(e) => handleCustomMultiplierChange(e.target.value)}
-                              placeholder="Ex: 23.65"
-                              step="0.01"
-                              min="1.1"
-                              max="1000"
-                              className="flex-1 px-3 py-2 bg-[#1a1f2e] text-white rounded-lg border border-gray-700 focus:border-purple-500 focus:outline-none"
-                            />
-                            <button
-                              onClick={() => {
-                                const random = (Math.random() * 50 + 1.5).toFixed(2)
-                                handleCustomMultiplierChange(random)
-                              }}
-                              className="px-4 py-2 bg-purple-500/20 text-purple-400 rounded-lg hover:bg-purple-500/30 transition-colors"
-                            >
-                              Random
-                            </button>
+                            <div className="text-lg font-black">x{mult.value}</div>
+                            <div className="text-[9px] opacity-70 uppercase">{mult.label}</div>
                           </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Stats Display */}
-                    <div className="grid grid-cols-3 gap-2 mb-4">
-                      <div className="bg-[#0f1318] rounded-lg p-3 text-center">
-                        <div className="text-2xl font-bold text-green-400">{currentChance.toFixed(1)}%</div>
-                        <div className="text-xs text-gray-500">Success</div>
-                      </div>
-                      <div className="bg-[#0f1318] rounded-lg p-3 text-center">
-                        <div className="text-2xl font-bold text-purple-400">x{selectedMultiplier}</div>
-                        <div className="text-xs text-gray-500">Multiplier</div>
-                      </div>
-                      <div className="bg-[#0f1318] rounded-lg p-3 text-center">
-                        <div className="text-2xl font-bold text-orange-400">
-                          {Math.floor(item.market_value * selectedMultiplier).toLocaleString()}
-                        </div>
-                        <div className="text-xs text-gray-500">Potential</div>
-                      </div>
+                        </motion.button>
+                      ))}
                     </div>
-
-                    {/* Warning */}
-                    <div className="mb-4 p-3 bg-red-500/10 rounded-lg border border-red-500/30">
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="h-4 w-4 text-red-400 mt-0.5" />
-                        <div className="text-sm text-red-400">
-                          <span className="font-semibold">High Risk Operation:</span> Failure will result in permanent loss of this item
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-3">
-                      <button
-                        onClick={handleUpgrade}
-                        disabled={!selectedMultiplier || selectedMultiplier < 1.1}
-                        className="flex-1 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-bold hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Upgrade (x{selectedMultiplier}) • {currentChance.toFixed(1)}%
-                      </button>
-                      <button
-                        onClick={onClose}
-                        className="px-6 py-3 bg-[#0f1318] text-gray-400 rounded-lg font-medium hover:text-white transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </>
-                )}
-
-                {/* Upgrading Animation */}
-                {isUpgrading && (
-                  <div className="text-center py-8">
-                    <motion.div
-                      animate={{ scale: [1, 1.1, 1] }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                      className="inline-block mb-4"
-                    >
-                      <Sparkles className="h-12 w-12 text-purple-400" />
-                    </motion.div>
-                    <p className="text-lg font-semibold text-white mb-2">
-                      Processing Upgrade...
-                    </p>
-                    <p className="text-sm text-gray-400">
-                      Multiplier x{selectedMultiplier} • Chance: {currentChance.toFixed(1)}%
-                    </p>
                   </div>
-                )}
-              </>
-            ) : (
-              /* Result Display */
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="text-center py-8"
-              >
-                {upgradeSuccess ? (
-                  <>
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: [0, 1.2, 1] }}
-                      transition={{ duration: 0.5 }}
-                      className="inline-block mb-4"
-                    >
-                      <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center">
-                        <Trophy className="h-10 w-10 text-green-400" />
+
+                  {/* Stats */}
+                  <div className="grid grid-cols-2 gap-3 mb-6">
+                    <div className="bg-gradient-to-br backdrop-blur-sm rounded-2xl p-4 border" style={{
+                      backgroundImage: `linear-gradient(to bottom right, rgba(var(--hybrid-accent-primary-rgb), 0.1), rgba(var(--hybrid-accent-secondary-rgb), 0.1))`,
+                      borderColor: 'rgba(var(--hybrid-accent-primary-rgb), 0.2)'
+                    }}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Target className="w-4 h-4" style={{ color: 'var(--hybrid-accent-primary)' }} />
+                        <span className="text-xs font-bold text-white/60 uppercase">Success Rate</span>
                       </div>
-                    </motion.div>
-                    
-                    <h3 className="text-2xl font-bold text-white mb-2">
-                      Upgrade Successful!
-                    </h3>
-                    
-                    <p className="text-gray-400 mb-4">
-                      Your item has been upgraded x{selectedMultiplier}
-                    </p>
-                    
-                    <div className="inline-flex items-center gap-2 px-6 py-3 bg-green-500/10 rounded-lg border border-green-500/30">
-                      <span className="text-gray-400">New Value:</span>
-                      <div className="flex items-center gap-1">
-                        <img 
-                          src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png" 
-                          alt="Coins" 
-                          className="h-5 w-5" 
+                      <div className="text-2xl font-black mb-2" style={{ color: 'var(--hybrid-accent-primary)' }}>{successRate.toFixed(1)}%</div>
+                      <div className="w-full h-1.5 bg-black/30 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${successRate}%` }}
+                          className="h-full"
+                          style={{ background: `linear-gradient(90deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))` }}
                         />
-                        <span className="text-xl font-bold text-green-400">
-                          {finalValue.toLocaleString()}
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-sm rounded-2xl p-4 border border-purple-500/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Sparkles className="w-4 h-4 text-purple-400" />
+                        <span className="text-xs font-bold text-white/60 uppercase">Potential Win</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <img
+                          src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
+                          alt="Coins"
+                          className="w-5 h-5"
+                        />
+                        <span className="text-2xl font-black bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+                          {potentialWin.toLocaleString()}
                         </span>
                       </div>
                     </div>
-                    
-                    <div className="mt-6">
-                      <button
-                        onClick={onClose}
-                        className="px-8 py-3 bg-green-500 text-white rounded-lg font-bold hover:bg-green-600 transition-colors"
-                      >
-                        Collect
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <>
+                  </div>
+
+                  {/* Upgrade button */}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleUpgrade}
+                    disabled={isUpgrading}
+                    className="relative w-full py-4 rounded-2xl font-black text-lg overflow-hidden group disabled:opacity-50"
+                  >
+                    <div className={`absolute inset-0 bg-gradient-to-r ${selectedMult.color}`} />
                     <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: [0, 1.2, 1] }}
-                      transition={{ duration: 0.5 }}
-                      className="inline-block mb-4"
-                    >
-                      <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center">
-                        <X className="h-10 w-10 text-red-400" />
-                      </div>
-                    </motion.div>
-                    
-                    <h3 className="text-2xl font-bold text-white mb-2">
-                      Upgrade Failed
-                    </h3>
-                    
-                    <p className="text-gray-400 mb-2">
-                      The upgrade was unsuccessful
-                    </p>
-                    <p className="text-sm text-gray-500 mb-6">
-                      You had {currentChance.toFixed(2)}% chance of success
-                    </p>
-                    
-                    <button
-                      onClick={onClose}
-                      className="px-8 py-3 bg-[#0f1318] text-gray-400 rounded-lg font-medium hover:text-white transition-colors"
-                    >
-                      Close
-                    </button>
-                  </>
-                )}
-              </motion.div>
-            )}
+                      animate={{ x: ['-200%', '200%'] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                    />
+
+                    <div className="relative flex items-center justify-center gap-3 text-white">
+                      {isUpgrading ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <span>UPGRADING...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-5 h-5" />
+                          <span>UPGRADE NOW</span>
+                          <ArrowRight className="w-5 h-5" />
+                        </>
+                      )}
+                    </div>
+                  </motion.button>
+                </>
+              ) : (
+                /* Result */
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="text-center py-12"
+                >
+                  {upgradeSuccess ? (
+                    <>
+                      <motion.div
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ type: 'spring', damping: 12, delay: 0.1 }}
+                        className="mb-6"
+                      >
+                        <div className="inline-block p-8 rounded-full shadow-2xl" style={{
+                          background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`,
+                          boxShadow: `0 25px 50px -12px rgba(var(--hybrid-accent-primary-rgb), 0.5)`
+                        }}>
+                          <Trophy className="w-16 h-16 text-white" />
+                        </div>
+                      </motion.div>
+
+                      <motion.h3
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.2 }}
+                        className="text-5xl font-black text-white mb-3"
+                      >
+                        SUCCESS!
+                      </motion.h3>
+
+                      <motion.p
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.3 }}
+                        className="text-white/60 mb-8"
+                      >
+                        You won the upgrade
+                      </motion.p>
+
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 0.4, type: 'spring', damping: 12 }}
+                        className="inline-flex items-center gap-3 backdrop-blur-xl border rounded-2xl px-10 py-5"
+                        style={{
+                          backgroundColor: 'rgba(var(--hybrid-accent-primary-rgb), 0.1)',
+                          borderColor: 'rgba(var(--hybrid-accent-primary-rgb), 0.3)'
+                        }}
+                      >
+                        <img
+                          src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
+                          alt="Coins"
+                          className="w-10 h-10"
+                        />
+                        <span className="text-5xl font-black" style={{ color: 'var(--hybrid-accent-primary)' }}>
+                          +{wonValue.toLocaleString()}
+                        </span>
+                      </motion.div>
+                    </>
+                  ) : (
+                    <>
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: 'spring', damping: 12, delay: 0.1 }}
+                        className="mb-6"
+                      >
+                        <div className="inline-block p-8 bg-gradient-to-br from-red-500 to-pink-600 rounded-full shadow-2xl shadow-red-500/50">
+                          <AlertCircle className="w-16 h-16 text-white" />
+                        </div>
+                      </motion.div>
+
+                      <motion.h3
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.2 }}
+                        className="text-5xl font-black text-white mb-3"
+                      >
+                        FAILED
+                      </motion.h3>
+
+                      <motion.p
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.3 }}
+                        className="text-white/60 mb-2"
+                      >
+                        Your item has been lost
+                      </motion.p>
+
+                      <motion.p
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.4 }}
+                        className="text-white/40 text-sm"
+                      >
+                        Better luck next time
+                      </motion.p>
+                    </>
+                  )}
+
+                  <motion.button
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.6 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={onClose}
+                    className="mt-8 px-12 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold transition-all"
+                  >
+                    Close
+                  </motion.button>
+                </motion.div>
+              )}
+            </div>
           </div>
         </motion.div>
       </motion.div>

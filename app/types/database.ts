@@ -17,8 +17,9 @@ export type Database = {
       affiliate_clicks: {
         Row: {
           affiliate_code: string
-          clicked_at: string
-          converted: boolean
+          clicked_at: string | null
+          conversion_date: string | null
+          converted: boolean | null
           id: string
           ip_address: unknown | null
           referrer_url: string | null
@@ -27,8 +28,9 @@ export type Database = {
         }
         Insert: {
           affiliate_code: string
-          clicked_at?: string
-          converted?: boolean
+          clicked_at?: string | null
+          conversion_date?: string | null
+          converted?: boolean | null
           id?: string
           ip_address?: unknown | null
           referrer_url?: string | null
@@ -37,8 +39,9 @@ export type Database = {
         }
         Update: {
           affiliate_code?: string
-          clicked_at?: string
-          converted?: boolean
+          clicked_at?: string | null
+          conversion_date?: string | null
+          converted?: boolean | null
           id?: string
           ip_address?: unknown | null
           referrer_url?: string | null
@@ -50,104 +53,208 @@ export type Database = {
       affiliate_payouts: {
         Row: {
           amount: number
-          created_at: string
           id: string
-          method: string
+          method: string | null
+          notes: string | null
           processed_at: string | null
-          status: string
+          requested_at: string | null
+          status: string | null
           transaction_id: string | null
           user_id: string
         }
         Insert: {
           amount: number
-          created_at?: string
           id?: string
-          method?: string
+          method?: string | null
+          notes?: string | null
           processed_at?: string | null
-          status?: string
+          requested_at?: string | null
+          status?: string | null
           transaction_id?: string | null
           user_id: string
         }
         Update: {
           amount?: number
-          created_at?: string
           id?: string
-          method?: string
+          method?: string | null
+          notes?: string | null
           processed_at?: string | null
-          status?: string
+          requested_at?: string | null
+          status?: string | null
           transaction_id?: string | null
           user_id?: string
         }
         Relationships: []
       }
-      affiliates: {
+      affiliate_profiles: {
         Row: {
-          clicks_count: number
-          code: string
-          commission_rate: number
-          conversions_count: number
-          created_at: string
+          affiliate_code: string
+          claimed_earnings: number | null
+          clicks_count: number | null
+          commission_rate: number | null
+          conversions_count: number | null
+          created_at: string | null
+          custom_share_message: string | null
           id: string
-          is_active: boolean
-          referrals_count: number
-          total_earnings: number
-          updated_at: string
+          is_active: boolean | null
+          pending_earnings: number | null
+          referrals_count: number | null
+          tier_level: number | null
+          tier_name: string | null
+          total_earnings: number | null
+          updated_at: string | null
           user_id: string
         }
         Insert: {
-          clicks_count?: number
-          code: string
-          commission_rate?: number
-          conversions_count?: number
-          created_at?: string
+          affiliate_code: string
+          claimed_earnings?: number | null
+          clicks_count?: number | null
+          commission_rate?: number | null
+          conversions_count?: number | null
+          created_at?: string | null
+          custom_share_message?: string | null
           id?: string
-          is_active?: boolean
-          referrals_count?: number
-          total_earnings?: number
-          updated_at?: string
+          is_active?: boolean | null
+          pending_earnings?: number | null
+          referrals_count?: number | null
+          tier_level?: number | null
+          tier_name?: string | null
+          total_earnings?: number | null
+          updated_at?: string | null
           user_id: string
         }
         Update: {
-          clicks_count?: number
-          code?: string
-          commission_rate?: number
-          conversions_count?: number
-          created_at?: string
+          affiliate_code?: string
+          claimed_earnings?: number | null
+          clicks_count?: number | null
+          commission_rate?: number | null
+          conversions_count?: number | null
+          created_at?: string | null
+          custom_share_message?: string | null
           id?: string
-          is_active?: boolean
-          referrals_count?: number
-          total_earnings?: number
-          updated_at?: string
+          is_active?: boolean | null
+          pending_earnings?: number | null
+          referrals_count?: number | null
+          tier_level?: number | null
+          tier_name?: string | null
+          total_earnings?: number | null
+          updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      affiliate_referrals: {
+        Row: {
+          affiliate_code: string
+          commission_earned: number | null
+          conversion_date: string | null
+          created_at: string | null
+          deposit_amount: number
+          id: string
+          referred_user_id: string
+          referrer_user_id: string
+          status: string | null
+        }
+        Insert: {
+          affiliate_code: string
+          commission_earned?: number | null
+          conversion_date?: string | null
+          created_at?: string | null
+          deposit_amount: number
+          id?: string
+          referred_user_id: string
+          referrer_user_id: string
+          status?: string | null
+        }
+        Update: {
+          affiliate_code?: string
+          commission_earned?: number | null
+          conversion_date?: string | null
+          created_at?: string | null
+          deposit_amount?: number
+          id?: string
+          referred_user_id?: string
+          referrer_user_id?: string
+          status?: string | null
+        }
+        Relationships: []
+      }
+      analytics_events: {
+        Row: {
+          event_name: string
+          id: string
+          ip_address: unknown | null
+          properties: Json | null
+          timestamp: string | null
+          url: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          event_name: string
+          id?: string
+          ip_address?: unknown | null
+          properties?: Json | null
+          timestamp?: string | null
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          event_name?: string
+          id?: string
+          ip_address?: unknown | null
+          properties?: Json | null
+          timestamp?: string | null
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
       battle_boxes: {
         Row: {
-          battle_id: string | null
+          battle_id: string
+          cost_per_box: number
           created_at: string | null
           id: string
-          loot_box_id: string | null
-          order_position: number | null
-          quantity: number | null
+          loot_box_id: string
+          order_position: number
+          quantity: number
         }
         Insert: {
-          battle_id?: string | null
+          battle_id: string
+          cost_per_box: number
           created_at?: string | null
           id?: string
-          loot_box_id?: string | null
-          order_position?: number | null
-          quantity?: number | null
+          loot_box_id: string
+          order_position: number
+          quantity?: number
         }
         Update: {
-          battle_id?: string | null
+          battle_id?: string
+          cost_per_box?: number
           created_at?: string | null
           id?: string
-          loot_box_id?: string | null
-          order_position?: number | null
-          quantity?: number | null
+          loot_box_id?: string
+          order_position?: number
+          quantity?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "battle_boxes_battle_id_fkey"
+            columns: ["battle_id"]
+            isOneToOne: false
+            referencedRelation: "battles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "battle_boxes_battle_id_fkey"
+            columns: ["battle_id"]
+            isOneToOne: false
+            referencedRelation: "battles_with_stats"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "battle_boxes_loot_box_id_fkey"
             columns: ["loot_box_id"]
@@ -157,33 +264,101 @@ export type Database = {
           },
         ]
       }
-      battle_invitations: {
+      battle_chat: {
         Row: {
-          battle_id: string | null
+          battle_id: string
           created_at: string | null
-          expires_at: string | null
-          from_user_id: string | null
           id: string
-          status: string | null
-          to_user_id: string | null
+          message: string
+          message_type: string
+          metadata: Json | null
+          participant_id: string | null
+          user_id: string | null
         }
         Insert: {
-          battle_id?: string | null
+          battle_id: string
           created_at?: string | null
-          expires_at?: string | null
-          from_user_id?: string | null
           id?: string
-          status?: string | null
-          to_user_id?: string | null
+          message: string
+          message_type?: string
+          metadata?: Json | null
+          participant_id?: string | null
+          user_id?: string | null
         }
         Update: {
-          battle_id?: string | null
+          battle_id?: string
+          created_at?: string | null
+          id?: string
+          message?: string
+          message_type?: string
+          metadata?: Json | null
+          participant_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "battle_chat_battle_id_fkey"
+            columns: ["battle_id"]
+            isOneToOne: false
+            referencedRelation: "battles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "battle_chat_battle_id_fkey"
+            columns: ["battle_id"]
+            isOneToOne: false
+            referencedRelation: "battles_with_stats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "battle_chat_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "battle_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "battle_chat_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "battle_participants_with_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      battle_invitations: {
+        Row: {
+          battle_id: string
+          created_at: string | null
+          expires_at: string | null
+          from_user_id: string
+          id: string
+          message: string | null
+          responded_at: string | null
+          status: string
+          to_user_id: string
+        }
+        Insert: {
+          battle_id: string
           created_at?: string | null
           expires_at?: string | null
-          from_user_id?: string | null
+          from_user_id: string
           id?: string
-          status?: string | null
-          to_user_id?: string | null
+          message?: string | null
+          responded_at?: string | null
+          status?: string
+          to_user_id: string
+        }
+        Update: {
+          battle_id?: string
+          created_at?: string | null
+          expires_at?: string | null
+          from_user_id?: string
+          id?: string
+          message?: string | null
+          responded_at?: string | null
+          status?: string
+          to_user_id?: string
         }
         Relationships: [
           {
@@ -193,80 +368,54 @@ export type Database = {
             referencedRelation: "battles"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      battle_messages: {
-        Row: {
-          battle_id: string
-          created_at: string | null
-          id: string
-          message: string
-          user_id: string
-          username: string
-        }
-        Insert: {
-          battle_id: string
-          created_at?: string | null
-          id?: string
-          message: string
-          user_id: string
-          username: string
-        }
-        Update: {
-          battle_id?: string
-          created_at?: string | null
-          id?: string
-          message?: string
-          user_id?: string
-          username?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "battle_messages_battle_id_fkey"
+            foreignKeyName: "battle_invitations_battle_id_fkey"
             columns: ["battle_id"]
             isOneToOne: false
-            referencedRelation: "battles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "battle_messages_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "battles_with_stats"
             referencedColumns: ["id"]
           },
         ]
       }
       battle_openings: {
         Row: {
-          battle_id: string | null
-          box_instance: number | null
+          battle_id: string
+          box_instance: number
           id: string
-          item_id: string | null
+          item_id: string
+          item_rarity: string
           item_value: number
-          loot_box_id: string | null
+          loot_box_id: string
           opened_at: string | null
-          user_id: string | null
+          opening_hash: string | null
+          opening_seed: string
+          participant_id: string
         }
         Insert: {
-          battle_id?: string | null
-          box_instance?: number | null
+          battle_id: string
+          box_instance?: number
           id?: string
-          item_id?: string | null
+          item_id: string
+          item_rarity: string
           item_value: number
-          loot_box_id?: string | null
+          loot_box_id: string
           opened_at?: string | null
-          user_id?: string | null
+          opening_hash?: string | null
+          opening_seed?: string
+          participant_id: string
         }
         Update: {
-          battle_id?: string | null
-          box_instance?: number | null
+          battle_id?: string
+          box_instance?: number
           id?: string
-          item_id?: string | null
+          item_id?: string
+          item_rarity?: string
           item_value?: number
-          loot_box_id?: string | null
+          loot_box_id?: string
           opened_at?: string | null
-          user_id?: string | null
+          opening_hash?: string | null
+          opening_seed?: string
+          participant_id?: string
         }
         Relationships: [
           {
@@ -274,6 +423,13 @@ export type Database = {
             columns: ["battle_id"]
             isOneToOne: false
             referencedRelation: "battles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "battle_openings_battle_id_fkey"
+            columns: ["battle_id"]
+            isOneToOne: false
+            referencedRelation: "battles_with_stats"
             referencedColumns: ["id"]
           },
           {
@@ -290,83 +446,109 @@ export type Database = {
             referencedRelation: "loot_boxes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "battle_openings_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "battle_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "battle_openings_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "battle_participants_with_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       battle_participants: {
         Row: {
-          battle_id: string | null
+          battle_id: string
+          bot_avatar_url: string | null
+          bot_name: string | null
+          final_rank: number | null
+          has_paid: boolean | null
           id: string
+          is_bot: boolean | null
           is_ready: boolean | null
+          is_winner: boolean | null
+          items_won: Json | null
           joined_at: string | null
-          position: number | null
+          position: number
           team: number | null
           total_value: number | null
           user_id: string | null
         }
         Insert: {
-          battle_id?: string | null
+          battle_id: string
+          bot_avatar_url?: string | null
+          bot_name?: string | null
+          final_rank?: number | null
+          has_paid?: boolean | null
           id?: string
+          is_bot?: boolean | null
           is_ready?: boolean | null
+          is_winner?: boolean | null
+          items_won?: Json | null
           joined_at?: string | null
-          position?: number | null
+          position: number
           team?: number | null
           total_value?: number | null
           user_id?: string | null
         }
         Update: {
-          battle_id?: string | null
+          battle_id?: string
+          bot_avatar_url?: string | null
+          bot_name?: string | null
+          final_rank?: number | null
+          has_paid?: boolean | null
           id?: string
+          is_bot?: boolean | null
           is_ready?: boolean | null
+          is_winner?: boolean | null
+          items_won?: Json | null
           joined_at?: string | null
-          position?: number | null
+          position?: number
           team?: number | null
           total_value?: number | null
           user_id?: string | null
         }
-        Relationships: []
-      }
-      battle_players: {
-        Row: {
-          battle_id: string | null
-          is_winner: boolean | null
-          joined_at: string | null
-          total_value: number | null
-          user_id: string | null
-        }
-        Insert: {
-          battle_id?: string | null
-          is_winner?: boolean | null
-          joined_at?: string | null
-          total_value?: number | null
-          user_id?: string | null
-        }
-        Update: {
-          battle_id?: string | null
-          is_winner?: boolean | null
-          joined_at?: string | null
-          total_value?: number | null
-          user_id?: string | null
-        }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "battle_participants_battle_id_fkey"
+            columns: ["battle_id"]
+            isOneToOne: false
+            referencedRelation: "battles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "battle_participants_battle_id_fkey"
+            columns: ["battle_id"]
+            isOneToOne: false
+            referencedRelation: "battles_with_stats"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       battle_spectators: {
         Row: {
-          battle_id: string | null
+          battle_id: string
           id: string
           joined_at: string | null
-          user_id: string | null
+          user_id: string
         }
         Insert: {
-          battle_id?: string | null
+          battle_id: string
           id?: string
           joined_at?: string | null
-          user_id?: string | null
+          user_id: string
         }
         Update: {
-          battle_id?: string | null
+          battle_id?: string
           id?: string
           joined_at?: string | null
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: [
           {
@@ -376,74 +558,126 @@ export type Database = {
             referencedRelation: "battles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "battle_spectators_battle_id_fkey"
+            columns: ["battle_id"]
+            isOneToOne: false
+            referencedRelation: "battles_with_stats"
+            referencedColumns: ["id"]
+          },
         ]
       }
       battles: {
         Row: {
+          bots_count: number | null
+          box_order: string
+          client_seed: string | null
+          combined_hash: string | null
+          countdown_starts_at: string | null
           created_at: string | null
           created_by: string | null
           creator_id: string | null
           current_box: number | null
+          description: string | null
           entry_cost: number
           expires_at: string | null
           finished_at: string | null
+          has_bots: boolean | null
           id: string
           is_private: boolean | null
           max_players: number
+          metadata: Json | null
           mode: string
+          name: string
+          nonce: number | null
           password: string | null
+          password_hash: string | null
+          player_distribution: string
+          server_seed: string
           started_at: string | null
-          status: string | null
-          total_boxes: number | null
+          status: string
+          team_mode: boolean | null
+          teams_count: number | null
+          total_boxes: number
           total_prize: number
           updated_at: string | null
-          winner_id: string | null
           winner_team: number | null
           winner_user_id: string | null
+          winning_value: number | null
         }
         Insert: {
+          bots_count?: number | null
+          box_order?: string
+          client_seed?: string | null
+          combined_hash?: string | null
+          countdown_starts_at?: string | null
           created_at?: string | null
           created_by?: string | null
           creator_id?: string | null
           current_box?: number | null
+          description?: string | null
           entry_cost: number
           expires_at?: string | null
           finished_at?: string | null
+          has_bots?: boolean | null
           id?: string
           is_private?: boolean | null
           max_players: number
-          mode: string
+          metadata?: Json | null
+          mode?: string
+          name?: string
+          nonce?: number | null
           password?: string | null
+          password_hash?: string | null
+          player_distribution?: string
+          server_seed?: string
           started_at?: string | null
-          status?: string | null
-          total_boxes?: number | null
-          total_prize: number
+          status?: string
+          team_mode?: boolean | null
+          teams_count?: number | null
+          total_boxes?: number
+          total_prize?: number
           updated_at?: string | null
-          winner_id?: string | null
           winner_team?: number | null
           winner_user_id?: string | null
+          winning_value?: number | null
         }
         Update: {
+          bots_count?: number | null
+          box_order?: string
+          client_seed?: string | null
+          combined_hash?: string | null
+          countdown_starts_at?: string | null
           created_at?: string | null
           created_by?: string | null
           creator_id?: string | null
           current_box?: number | null
+          description?: string | null
           entry_cost?: number
           expires_at?: string | null
           finished_at?: string | null
+          has_bots?: boolean | null
           id?: string
           is_private?: boolean | null
           max_players?: number
+          metadata?: Json | null
           mode?: string
+          name?: string
+          nonce?: number | null
           password?: string | null
+          password_hash?: string | null
+          player_distribution?: string
+          server_seed?: string
           started_at?: string | null
-          status?: string | null
-          total_boxes?: number | null
+          status?: string
+          team_mode?: boolean | null
+          teams_count?: number | null
+          total_boxes?: number
           total_prize?: number
           updated_at?: string | null
-          winner_id?: string | null
           winner_team?: number | null
           winner_user_id?: string | null
+          winning_value?: number | null
         }
         Relationships: [
           {
@@ -453,39 +687,249 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      chat_giveaway_participants_new: {
+        Row: {
+          captcha_token: string | null
+          captcha_verified: boolean
+          captcha_verified_at: string | null
+          giveaway_id: string
+          id: string
+          ip_address: unknown | null
+          joined_at: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          captcha_token?: string | null
+          captcha_verified?: boolean
+          captcha_verified_at?: string | null
+          giveaway_id: string
+          id?: string
+          ip_address?: unknown | null
+          joined_at?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          captcha_token?: string | null
+          captcha_verified?: boolean
+          captcha_verified_at?: string | null
+          giveaway_id?: string
+          id?: string
+          ip_address?: unknown | null
+          joined_at?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
           {
-            foreignKeyName: "battles_winner_id_fkey"
-            columns: ["winner_id"]
+            foreignKeyName: "chat_giveaway_participants_new_giveaway_id_fkey"
+            columns: ["giveaway_id"]
+            isOneToOne: false
+            referencedRelation: "chat_giveaways_new"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_giveaway_participants_new_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
       }
-      chat_messages: {
+      chat_giveaway_winners_new: {
+        Row: {
+          amount_won: number
+          awarded_at: string | null
+          giveaway_id: string
+          id: string
+          position: number
+          selected_at: string | null
+          selection_hash: string | null
+          selection_seed: string | null
+          user_id: string
+        }
+        Insert: {
+          amount_won: number
+          awarded_at?: string | null
+          giveaway_id: string
+          id?: string
+          position: number
+          selected_at?: string | null
+          selection_hash?: string | null
+          selection_seed?: string | null
+          user_id: string
+        }
+        Update: {
+          amount_won?: number
+          awarded_at?: string | null
+          giveaway_id?: string
+          id?: string
+          position?: number
+          selected_at?: string | null
+          selection_hash?: string | null
+          selection_seed?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_giveaway_winners_new_giveaway_id_fkey"
+            columns: ["giveaway_id"]
+            isOneToOne: false
+            referencedRelation: "chat_giveaways_new"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_giveaway_winners_new_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_giveaways_new: {
+        Row: {
+          announcement_message_id: string | null
+          completed_at: string | null
+          created_at: string | null
+          created_by: string
+          duration_minutes: number | null
+          ends_at: string
+          id: string
+          results_message_id: string | null
+          room_id: string
+          status: string | null
+          title: string
+          total_amount: number
+          winners_count: number
+        }
+        Insert: {
+          announcement_message_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          created_by: string
+          duration_minutes?: number | null
+          ends_at: string
+          id?: string
+          results_message_id?: string | null
+          room_id: string
+          status?: string | null
+          title: string
+          total_amount: number
+          winners_count: number
+        }
+        Update: {
+          announcement_message_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string
+          duration_minutes?: number | null
+          ends_at?: string
+          id?: string
+          results_message_id?: string | null
+          room_id?: string
+          status?: string | null
+          title?: string
+          total_amount?: number
+          winners_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_giveaways_new_announcement_message_id_fkey"
+            columns: ["announcement_message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages_new"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_giveaways_new_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_giveaways_new_results_message_id_fkey"
+            columns: ["results_message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages_new"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_giveaways_new_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_messages_new: {
         Row: {
           content: string
           created_at: string | null
           id: string
-          is_bot: boolean | null
           message_type: string | null
-          user_id: string | null
+          room_id: string | null
+          user_id: string
         }
         Insert: {
           content: string
           created_at?: string | null
           id?: string
-          is_bot?: boolean | null
           message_type?: string | null
-          user_id?: string | null
+          room_id?: string | null
+          user_id: string
         }
         Update: {
           content?: string
           created_at?: string | null
           id?: string
-          is_bot?: boolean | null
           message_type?: string | null
-          user_id?: string | null
+          room_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_new_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_rooms: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          max_messages: number | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_messages?: number | null
+          name?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_messages?: number | null
+          name?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -627,6 +1071,48 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_box_claims: {
+        Row: {
+          claimed_date: string
+          created_at: string
+          daily_box_id: string
+          id: string
+          item_id: string
+          user_id: string
+        }
+        Insert: {
+          claimed_date?: string
+          created_at?: string
+          daily_box_id: string
+          id?: string
+          item_id: string
+          user_id: string
+        }
+        Update: {
+          claimed_date?: string
+          created_at?: string
+          daily_box_id?: string
+          id?: string
+          item_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_box_claims_daily_box_id_fkey"
+            columns: ["daily_box_id"]
+            isOneToOne: false
+            referencedRelation: "loot_boxes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_box_claims_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_claims: {
         Row: {
           bonus_applied: boolean | null
@@ -673,95 +1159,88 @@ export type Database = {
       }
       friendships: {
         Row: {
-          addressee_id: string | null
+          addressee_id: string
           created_at: string | null
           id: string
-          requester_id: string | null
-          status: string | null
+          requester_id: string
+          status: string
           updated_at: string | null
         }
         Insert: {
-          addressee_id?: string | null
+          addressee_id: string
           created_at?: string | null
           id?: string
-          requester_id?: string | null
-          status?: string | null
+          requester_id: string
+          status?: string
           updated_at?: string | null
         }
         Update: {
-          addressee_id?: string | null
+          addressee_id?: string
           created_at?: string | null
           id?: string
-          requester_id?: string | null
-          status?: string | null
+          requester_id?: string
+          status?: string
           updated_at?: string | null
         }
         Relationships: []
       }
-      giveaway_participants: {
+      giveaway_audit_logs: {
         Row: {
+          action: string
+          admin_id: string | null
+          created_at: string | null
+          details: Json | null
           giveaway_id: string | null
           id: string
-          participated_at: string | null
+          ip_address: unknown | null
+          user_agent: string | null
           user_id: string | null
         }
         Insert: {
+          action: string
+          admin_id?: string | null
+          created_at?: string | null
+          details?: Json | null
           giveaway_id?: string | null
           id?: string
-          participated_at?: string | null
+          ip_address?: unknown | null
+          user_agent?: string | null
           user_id?: string | null
         }
         Update: {
+          action?: string
+          admin_id?: string | null
+          created_at?: string | null
+          details?: Json | null
           giveaway_id?: string | null
           id?: string
-          participated_at?: string | null
+          ip_address?: unknown | null
+          user_agent?: string | null
           user_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "giveaway_participants_giveaway_id_fkey"
+            foreignKeyName: "giveaway_audit_logs_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "giveaway_audit_logs_giveaway_id_fkey"
             columns: ["giveaway_id"]
             isOneToOne: false
-            referencedRelation: "giveaways"
+            referencedRelation: "chat_giveaways_new"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "giveaway_audit_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
-      }
-      giveaways: {
-        Row: {
-          created_at: string | null
-          ends_at: string
-          id: string
-          min_level: number
-          starts_at: string | null
-          status: string | null
-          title: string
-          total_amount: number
-          winners_count: number
-        }
-        Insert: {
-          created_at?: string | null
-          ends_at: string
-          id?: string
-          min_level?: number
-          starts_at?: string | null
-          status?: string | null
-          title: string
-          total_amount: number
-          winners_count?: number
-        }
-        Update: {
-          created_at?: string | null
-          ends_at?: string
-          id?: string
-          min_level?: number
-          starts_at?: string | null
-          status?: string | null
-          title?: string
-          total_amount?: number
-          winners_count?: number
-        }
-        Relationships: []
       }
       item_sales: {
         Row: {
@@ -1045,111 +1524,143 @@ export type Database = {
           },
         ]
       }
+      message_reactions: {
+        Row: {
+          created_at: string | null
+          emoji: string
+          id: string
+          message_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          emoji: string
+          id?: string
+          message_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          emoji?: string
+          id?: string
+          message_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages_new"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
+          banned_reason: string | null
+          banned_until: string | null
           bio: string | null
           birth_date: string | null
           coins_balance: number | null
           consecutive_days: number | null
           created_at: string | null
+          current_level_xp: number | null
+          current_streak: number | null
           email: string | null
+          grade: string | null
           id: string
           is_admin: boolean
+          is_banned: boolean | null
+          last_activity: string | null
           last_freedrop_claim: string | null
           level: number | null
           location: string | null
+          longest_streak: number | null
           loyalty_points: number
+          next_level_xp: number | null
           notifications_email: boolean | null
           notifications_push: boolean | null
           phone: string | null
           privacy_profile: string | null
           role: string
+          theme: Json | null
           total_exp: number | null
           updated_at: string | null
           username: string | null
           virtual_currency: number
+          website: string | null
         }
         Insert: {
           avatar_url?: string | null
+          banned_reason?: string | null
+          banned_until?: string | null
           bio?: string | null
           birth_date?: string | null
           coins_balance?: number | null
           consecutive_days?: number | null
           created_at?: string | null
+          current_level_xp?: number | null
+          current_streak?: number | null
           email?: string | null
+          grade?: string | null
           id: string
           is_admin?: boolean
+          is_banned?: boolean | null
+          last_activity?: string | null
           last_freedrop_claim?: string | null
           level?: number | null
           location?: string | null
+          longest_streak?: number | null
           loyalty_points?: number
+          next_level_xp?: number | null
           notifications_email?: boolean | null
           notifications_push?: boolean | null
           phone?: string | null
           privacy_profile?: string | null
           role?: string
+          theme?: Json | null
           total_exp?: number | null
           updated_at?: string | null
           username?: string | null
           virtual_currency?: number
+          website?: string | null
         }
         Update: {
           avatar_url?: string | null
+          banned_reason?: string | null
+          banned_until?: string | null
           bio?: string | null
           birth_date?: string | null
           coins_balance?: number | null
           consecutive_days?: number | null
           created_at?: string | null
+          current_level_xp?: number | null
+          current_streak?: number | null
           email?: string | null
+          grade?: string | null
           id?: string
           is_admin?: boolean
+          is_banned?: boolean | null
+          last_activity?: string | null
           last_freedrop_claim?: string | null
           level?: number | null
           location?: string | null
+          longest_streak?: number | null
           loyalty_points?: number
+          next_level_xp?: number | null
           notifications_email?: boolean | null
           notifications_push?: boolean | null
           phone?: string | null
           privacy_profile?: string | null
           role?: string
+          theme?: Json | null
           total_exp?: number | null
           updated_at?: string | null
           username?: string | null
           virtual_currency?: number
-        }
-        Relationships: []
-      }
-      referrals: {
-        Row: {
-          affiliate_code: string
-          commission_earned: number
-          conversion_date: string | null
-          created_at: string
-          id: string
-          referred_user_id: string
-          referrer_user_id: string
-          status: string
-        }
-        Insert: {
-          affiliate_code: string
-          commission_earned?: number
-          conversion_date?: string | null
-          created_at?: string
-          id?: string
-          referred_user_id: string
-          referrer_user_id: string
-          status?: string
-        }
-        Update: {
-          affiliate_code?: string
-          commission_earned?: number
-          conversion_date?: string | null
-          created_at?: string
-          id?: string
-          referred_user_id?: string
-          referrer_user_id?: string
-          status?: string
+          website?: string | null
         }
         Relationships: []
       }
@@ -1243,6 +1754,7 @@ export type Database = {
           item_id: string | null
           loot_box_id: string | null
           metadata: Json | null
+          reference_id: string | null
           stripe_payment_id: string | null
           type: string
           user_id: string | null
@@ -1257,6 +1769,7 @@ export type Database = {
           item_id?: string | null
           loot_box_id?: string | null
           metadata?: Json | null
+          reference_id?: string | null
           stripe_payment_id?: string | null
           type: string
           user_id?: string | null
@@ -1271,6 +1784,7 @@ export type Database = {
           item_id?: string | null
           loot_box_id?: string | null
           metadata?: Json | null
+          reference_id?: string | null
           stripe_payment_id?: string | null
           type?: string
           user_id?: string | null
@@ -1278,17 +1792,51 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "transactions_battle_id_fkey"
-            columns: ["battle_id"]
-            isOneToOne: false
-            referencedRelation: "battles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "transactions_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      upgrade_attempts: {
+        Row: {
+          created_at: string | null
+          id: string
+          item_id: string
+          item_value: number
+          success: boolean
+          target_multiplier: number
+          user_id: string
+          won_value: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          item_id: string
+          item_value: number
+          success?: boolean
+          target_multiplier: number
+          user_id: string
+          won_value?: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          item_id?: string
+          item_value?: number
+          success?: boolean
+          target_multiplier?: number
+          user_id?: string
+          won_value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "upgrade_attempts_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
             referencedColumns: ["id"]
           },
         ]
@@ -1499,6 +2047,138 @@ export type Database = {
         }
         Relationships: []
       }
+      affiliate_stats_view: {
+        Row: {
+          affiliate_code: string | null
+          claimed_earnings: number | null
+          clicks_count: number | null
+          commission_rate: number | null
+          conversion_rate: number | null
+          conversions_count: number | null
+          created_at: string | null
+          custom_share_message: string | null
+          id: string | null
+          is_active: boolean | null
+          pending_earnings: number | null
+          referrals_count: number | null
+          referrals_last_30_days: number | null
+          successful_conversions: number | null
+          tier_level: number | null
+          tier_name: string | null
+          total_clicks: number | null
+          total_earnings: number | null
+          total_referrals: number | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
+      battle_participants_with_profiles: {
+        Row: {
+          avatar_url: string | null
+          battle_id: string | null
+          bot_avatar_url: string | null
+          bot_name: string | null
+          final_rank: number | null
+          has_paid: boolean | null
+          id: string | null
+          is_bot: boolean | null
+          is_ready: boolean | null
+          is_winner: boolean | null
+          items_won: Json | null
+          joined_at: string | null
+          level: number | null
+          position: number | null
+          team: number | null
+          total_value: number | null
+          user_id: string | null
+          username: string | null
+          virtual_currency: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "battle_participants_battle_id_fkey"
+            columns: ["battle_id"]
+            isOneToOne: false
+            referencedRelation: "battles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "battle_participants_battle_id_fkey"
+            columns: ["battle_id"]
+            isOneToOne: false
+            referencedRelation: "battles_with_stats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      battle_statistics: {
+        Row: {
+          avg_boxes: number | null
+          avg_entry_cost: number | null
+          avg_players: number | null
+          avg_prize: number | null
+          battle_count: number | null
+          first_battle: string | null
+          last_battle: string | null
+          mode: string | null
+          status: string | null
+        }
+        Relationships: []
+      }
+      battles_with_stats: {
+        Row: {
+          bot_count: number | null
+          bots_count: number | null
+          box_order: string | null
+          client_seed: string | null
+          combined_hash: string | null
+          countdown_starts_at: string | null
+          created_at: string | null
+          created_by: string | null
+          creator_id: string | null
+          current_box: number | null
+          description: string | null
+          entry_cost: number | null
+          expires_at: string | null
+          fill_status: string | null
+          finished_at: string | null
+          has_bots: boolean | null
+          human_count: number | null
+          id: string | null
+          is_private: boolean | null
+          max_players: number | null
+          metadata: Json | null
+          mode: string | null
+          name: string | null
+          nonce: number | null
+          participant_count: number | null
+          password: string | null
+          password_hash: string | null
+          player_distribution: string | null
+          seconds_until_expiry: number | null
+          server_seed: string | null
+          started_at: string | null
+          status: string | null
+          team_mode: boolean | null
+          teams_count: number | null
+          total_boxes: number | null
+          total_prize: number | null
+          updated_at: string | null
+          winner_team: number | null
+          winner_user_id: string | null
+          winning_value: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "battles_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_claim_stats: {
         Row: {
           avg_item_value: number | null
@@ -1583,6 +2263,18 @@ export type Database = {
         Args: { p_friendship_id: string }
         Returns: boolean
       }
+      add_bot_to_battle: {
+        Args: {
+          p_battle_id: string
+          p_bot_avatar_url?: string
+          p_bot_name?: string
+        }
+        Returns: Json
+      }
+      add_bot_to_battle_simple: {
+        Args: { p_battle_id: string }
+        Returns: Json
+      }
       add_experience: {
         Args: { p_exp_amount: number; p_user_id: string }
         Returns: Json
@@ -1590,6 +2282,10 @@ export type Database = {
       add_friend: {
         Args: { p_friend_username: string }
         Returns: Json
+      }
+      add_track_to_playlist: {
+        Args: { p_added_by: string; p_title: string; p_url: string }
+        Returns: string
       }
       advance_crash_game: {
         Args: Record<PropertyKey, never>
@@ -1602,6 +2298,18 @@ export type Database = {
           p_user_id: string
         }
         Returns: Json
+      }
+      backup_chat_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      calculate_affiliate_tier: {
+        Args: { referral_count: number }
+        Returns: {
+          commission_rate: number
+          tier_level: number
+          tier_name: string
+        }[]
       }
       calculate_level_from_exp: {
         Args: { experience: number }
@@ -1640,11 +2348,33 @@ export type Database = {
         Returns: Json
       }
       claim_daily_freedrop: {
-        Args: { p_box_id: string; p_item_id: string; p_user_id: string }
+        Args:
+          | { p_box_id: string; p_item_id: string; p_user_id: string }
+          | { p_box_id: string; p_item_id: string; p_user_id: string }
         Returns: Json
       }
       claim_loyalty_bonus: {
         Args: { p_bonus_type: string; p_user_id: string }
+        Returns: Json
+      }
+      cleanup_expired_battles: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      cleanup_old_battles: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      cleanup_old_chat_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_old_chat_messages: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      cleanup_stuck_battles: {
+        Args: Record<PropertyKey, never>
         Returns: Json
       }
       crash_cashout: {
@@ -1652,51 +2382,73 @@ export type Database = {
         Returns: Json
       }
       create_battle: {
-        Args:
-          | {
-              p_box_configs: Json
-              p_entry_cost: number
-              p_is_private?: boolean
-              p_max_players: number
-              p_mode: string
-              p_password?: string
-            }
-          | {
-              p_box_configs: Json
-              p_entry_cost: number
-              p_is_private?: boolean
-              p_max_players: number
-              p_mode: string
-              p_password?: string
-            }
-        Returns: string
-      }
-      create_battle_rpc: {
         Args: {
-          p_entry_cost: number
+          p_box_ids: string[]
           p_is_private?: boolean
           p_max_players: number
           p_mode: string
+          p_name: string
           p_password?: string
-          p_total_prize?: number
+          p_user_id: string
         }
         Returns: Json
       }
-      create_battle_with_boxes: {
+      create_chat_giveaway: {
         Args: {
-          p_boxes: Json
-          p_entry_cost: number
-          p_is_private: boolean
-          p_max_players: number
-          p_mode: string
-          p_password?: string
-          p_total_prize: number
+          p_admin_id: string
+          p_amount: number
+          p_duration_minutes?: number
+          p_max_participants?: number
+          p_title: string
+          p_winners_count?: number
         }
         Returns: string
       }
-      create_simple_battle: {
-        Args: { p_entry_cost?: number; p_mode?: string }
+      create_chat_poll: {
+        Args: {
+          p_created_by: string
+          p_duration_minutes?: number
+          p_options: string[]
+          p_question: string
+        }
         Returns: string
+      }
+      create_test_battles: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      distribute_rewards_simple: {
+        Args: { p_battle_id: string }
+        Returns: Json
+      }
+      donate_coins_to_user: {
+        Args: {
+          p_amount: number
+          p_from_user_id: string
+          p_message?: string
+          p_to_user_id: string
+        }
+        Returns: string
+      }
+      enter_chat_giveaway: {
+        Args: { p_giveaway_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      finalize_battle: {
+        Args: { p_battle_id: string }
+        Returns: Json
+      }
+      finalize_expired_giveaways: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      finish_battle: {
+        Args: { p_battle_id: string; p_results: Json }
+        Returns: Json
+      }
+      force_start_battle: {
+        Args: { p_battle_id: string }
+        Returns: Json
       }
       generate_unique_username: {
         Args: { base_username: string }
@@ -1713,8 +2465,29 @@ export type Database = {
           total_referrals: number
         }[]
       }
-      get_battle_status: {
-        Args: { p_battle_id: string }
+      get_chat_messages_with_reactions: {
+        Args: { p_limit?: number }
+        Returns: {
+          avatar_url: string
+          badges: Json
+          content: string
+          created_at: string
+          id: string
+          is_bot: boolean
+          is_pinned: boolean
+          language: string
+          level: number
+          message_type: string
+          mood: string
+          reactions: Json
+          reply_to: string
+          translated_text: string
+          user_id: string
+          username: string
+        }[]
+      }
+      get_chat_statistics: {
+        Args: Record<PropertyKey, never>
         Returns: Json
       }
       get_detailed_giveaway_history: {
@@ -1723,7 +2496,16 @@ export type Database = {
       }
       get_giveaway_history: {
         Args: { p_limit?: number }
-        Returns: Json
+        Returns: {
+          created_at: string
+          ends_at: string
+          id: string
+          participants_count: number
+          status: string
+          title: string
+          total_amount: number
+          winners_count: number
+        }[]
       }
       get_loot_box_items_with_probabilities: {
         Args: { p_loot_box_id: string }
@@ -1766,6 +2548,27 @@ export type Database = {
           total_earnings: number
           user_id: string
         }[]
+      }
+      get_or_create_affiliate_profile: {
+        Args: { p_user_id: string; p_username?: string }
+        Returns: {
+          affiliate_code: string
+          claimed_earnings: number | null
+          clicks_count: number | null
+          commission_rate: number | null
+          conversions_count: number | null
+          created_at: string | null
+          custom_share_message: string | null
+          id: string
+          is_active: boolean | null
+          pending_earnings: number | null
+          referrals_count: number | null
+          tier_level: number | null
+          tier_name: string | null
+          total_earnings: number | null
+          updated_at: string | null
+          user_id: string
+        }
       }
       get_signup_stats: {
         Args: Record<PropertyKey, never>
@@ -1825,30 +2628,28 @@ export type Database = {
         Args: { p_email?: string; p_user_id: string }
         Returns: Json
       }
-      join_battle: {
-        Args: { p_battle_id: string }
-        Returns: boolean
-      }
-      join_battle_rpc: {
-        Args: { p_battle_id: string; p_password?: string }
+      join_battle_simple: {
+        Args: { p_battle_id: string; p_password?: string; p_user_id: string }
         Returns: Json
-      }
-      join_simple_battle: {
-        Args: { p_battle_id: string }
-        Returns: boolean
       }
       mark_item_as_shipped: {
         Args: { p_inventory_id: string; p_shipping_address_id?: string }
         Returns: boolean
       }
-      open_battle_boxes: {
-        Args:
-          | { p_battle_id: string }
-          | { p_battle_id: string; p_user_id: string }
+      open_battle_box: {
+        Args: {
+          p_battle_id: string
+          p_box_instance: number
+          p_participant_id: string
+        }
         Returns: Json
       }
       open_loot_box: {
         Args: { p_loot_box_id: string; p_user_id: string }
+        Returns: Json
+      }
+      participate_in_game: {
+        Args: { p_answer: string; p_game_id: string; p_user_id: string }
         Returns: Json
       }
       place_crash_bet: {
@@ -1893,6 +2694,14 @@ export type Database = {
         Args: { p_affiliate_code: string; p_referred_user_id: string }
         Returns: boolean
       }
+      reset_chat_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      select_giveaway_winners: {
+        Args: { p_admin_id: string; p_giveaway_id: string }
+        Returns: string[]
+      }
       sell_inventory_item: {
         Args: { p_inventory_item_id: string; p_sell_price?: number }
         Returns: Json
@@ -1917,9 +2726,31 @@ export type Database = {
         Args: { p_inventory_item_ids: string[] }
         Returns: Json
       }
+      simulate_battle_box_opening: {
+        Args: {
+          p_battle_id: string
+          p_loot_box_id: string
+          p_participant_id: string
+        }
+        Returns: Json
+      }
       simulate_loot_box_opening: {
         Args: { p_loot_box_id: string; p_quantity?: number }
         Returns: Json
+      }
+      start_battle_simple: {
+        Args: { p_battle_id: string }
+        Returns: Json
+      }
+      start_mini_game: {
+        Args: {
+          p_challenge_data: Json
+          p_duration_seconds?: number
+          p_game_type: string
+          p_name: string
+          p_started_by: string
+        }
+        Returns: string
       }
       stop_active_giveaway: {
         Args: Record<PropertyKey, never>
@@ -1948,6 +2779,22 @@ export type Database = {
           table_name: string
         }[]
       }
+      toggle_message_reaction: {
+        Args: { p_emoji: string; p_message_id: string; p_user_id: string }
+        Returns: Json
+      }
+      toggle_pin_message: {
+        Args: { p_message_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      validate_battle_system: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          component: string
+          details: string
+          status: string
+        }[]
+      }
       validate_referral_code: {
         Args: { code_to_check: string }
         Returns: {
@@ -1955,6 +2802,14 @@ export type Database = {
           referrer_id: string
           referrer_username: string
         }[]
+      }
+      vote_music_track: {
+        Args: { p_track_id: string; p_user_id: string; p_vote_type: string }
+        Returns: boolean
+      }
+      vote_on_poll: {
+        Args: { p_option_index: number; p_poll_id: string; p_user_id: string }
+        Returns: boolean
       }
     }
     Enums: {

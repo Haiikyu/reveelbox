@@ -306,19 +306,13 @@ export function Wheel({
   }
 
   return (
-    <div 
+    <div
       ref={containerRef}
       // ✅ OVERFLOW DYNAMIQUE BASÉ SUR L'ÉTAT
       className={`relative w-full ${shouldShowOverflow ? 'overflow-visible' : 'overflow-hidden'}`}
-      style={{ height: 285 }}
+      style={{ height: 450 }}
     >
-      {/* Gradients de fade - seulement quand overflow est hidden */}
-      {!shouldShowOverflow && (
-        <>
-          <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-white dark:from-gray-900 to-transparent z-20"></div>
-          <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-white dark:from-gray-900 to-transparent z-20"></div>
-        </>
-      )}
+
       
       {/* Container principal */}
       <div className="relative h-full will-change-transform">
@@ -396,9 +390,9 @@ const WinnerDisplay = ({ item, rarityColors }: WinnerDisplayProps) => {
         <motion.img
           src={item.image_url || 'https://via.placeholder.com/200x200/F3F4F6/9CA3AF?text=?'}
           alt={item.name}
-          className="relative w-61 h-60 object-contain" 
+          className="relative w-72 h-72 object-contain"
           style={{
-            filter: `drop-shadow(0 20px 60px ${glowColor}80) brightness(1.2)` 
+            filter: `drop-shadow(0 20px 60px ${glowColor}80) brightness(1.2)`
           }}
           animate={{
             rotateY: [0, 360],
@@ -415,25 +409,29 @@ const WinnerDisplay = ({ item, rarityColors }: WinnerDisplayProps) => {
         />
       </div>
       
-      <div className="text-center">
-        <motion.h3 
-          className="text-2xl font-bold text-gray-900 dark:text-white mb-4" 
-          style={{ color: glowColor }}
-        >
-          {item.name}
-        </motion.h3>
-        
-        <motion.div 
-          className="flex items-center gap-4 justify-center" 
-          animate={{ opacity: [0.7, 1, 0.7] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          <span className="text-2xl">💰</span> 
-          <span className="text-3xl font-bold text-gray-900 dark:text-white"> 
-            {item.market_value.toLocaleString()}
-          </span>
-        </motion.div>
-      </div>
+<div className="text-center">
+  <motion.h3 
+    className="text-2xl font-bold text-gray-900 dark:text-white mb-4" 
+    style={{ color: glowColor }}
+  >
+    {item.name}
+  </motion.h3>
+  
+  <motion.div 
+    className="flex items-center gap-4 justify-center" 
+    animate={{ opacity: [0.9, 1, 0.9] }}
+    transition={{ duration: 2, repeat: Infinity }}
+  >
+    <img 
+      src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"   // 🔹 ton lien ou chemin d'image ici
+      alt="coin"
+      className="w-10 h-10 object-contain"  // 🔹 taille et comportement de l'image
+    />
+    <span className="text-3xl font-bold text-gray-900 dark:text-white"> 
+      {item.market_value.toLocaleString()}
+    </span>
+  </motion.div>
+</div>
     </motion.div>
   )
 }
@@ -491,10 +489,10 @@ const WheelItem = ({ item, index, isWinning, rarityColors, isSpinning, isCenterI
             scale: isWinning && !isSpinning 
               ? 1.2 
               : (isCenterItem && isSpinning) 
-              ? 1.15
+              ? 1.3
               : shouldShowHover 
               ? 1.1 
-              : 1
+              : 1.5
           }}
           transition={{ duration: 0.3 }}
           draggable={false}
@@ -513,7 +511,7 @@ const WheelItem = ({ item, index, isWinning, rarityColors, isSpinning, isCenterI
             boxShadow: shouldShowHover || isWinning || isCenterItem
               ? `0 0 20px ${glowColor}` 
               : `0 0 10px ${glowColor}70`,
-            scale: (shouldShowHover || isWinning || isCenterItem) ? 1.6 : 1.2,
+            scale: (shouldShowHover || isWinning || isCenterItem) ? 1 : 1.2,
             opacity: 1
           }}
           transition={{ duration: 0.3 }}
@@ -532,8 +530,8 @@ const WheelItem = ({ item, index, isWinning, rarityColors, isSpinning, isCenterI
                   top: `${20 + (i % 3) * 20}%`
                 }}
                 animate={{
-                  scale: [0, 1.5, 0],
-                  opacity: [0, 1, 0],
+                  scale: [0, 1.2, 0],
+                  opacity: [0, 0.3, 0],
                   y: [0, -20, -40]
                 }}
                 transition={{

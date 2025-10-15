@@ -1,0 +1,1900 @@
+/* ============================================
+   DESIGN VARIANTS - 5 NEW ARTISTIC DIRECTIONS
+   ============================================ */
+
+/* ============================================
+   COMMON LAYOUT
+   ============================================ */
+
+.variant-container {
+  min-height: 100vh;
+  transition: background-color 0.3s ease;
+}
+
+.variant-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 1.5rem 0;
+}
+
+.variant-nav-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.variant-nav-header {
+  margin-bottom: 1.5rem;
+}
+
+.variant-nav-title {
+  font-size: 2rem;
+  font-weight: 900;
+  margin-bottom: 0.5rem;
+}
+
+.variant-nav-subtitle {
+  font-size: 1rem;
+  opacity: 0.7;
+}
+
+.variant-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.variant-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.variant-tab-emoji {
+  font-size: 1.25rem;
+}
+
+.variant-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+}
+
+.variant-hero {
+  text-align: center;
+  margin-bottom: 4rem;
+  padding: 3rem 0;
+}
+
+.variant-hero-badge {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.variant-hero-title {
+  font-size: 3.5rem;
+  font-weight: 900;
+  margin-bottom: 0.5rem;
+}
+
+.variant-hero-tagline {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  opacity: 0.8;
+}
+
+.variant-hero-description {
+  font-size: 1.125rem;
+  opacity: 0.7;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.variant-section {
+  margin-bottom: 4rem;
+}
+
+.variant-section-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin-bottom: 1.5rem;
+}
+
+.variant-showcase {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.variant-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.variant-footer {
+  text-align: center;
+  padding: 3rem 0;
+  opacity: 0.6;
+}
+
+.variant-characteristics {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.variant-char-item {
+  font-size: 1rem;
+  padding: 0.5rem 0;
+}
+
+/* ============================================
+   BRUTALISM STYLE - Raw, Bold, Unapologetic
+   ============================================ */
+
+.variant-brutalism {
+  background: #ffffff;
+  color: #000000;
+}
+
+.variant-brutalism .variant-nav {
+  background: #000000;
+  border-bottom: 6px solid #ff0000;
+}
+
+.variant-brutalism .variant-nav-title,
+.variant-brutalism .variant-nav-subtitle {
+  color: #ffffff;
+}
+
+.variant-brutalism .variant-tab {
+  background: #ffffff;
+  color: #000000;
+  border: 4px solid #000000;
+  box-shadow: 6px 6px 0 #000000;
+}
+
+.variant-brutalism .variant-tab:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 8px 8px 0 #000000;
+}
+
+.variant-brutalism .variant-tab-active {
+  background: #ff0000;
+  color: #ffffff;
+}
+
+/* Brutalism Buttons */
+.btn-brutalism {
+  padding: 1rem 2rem;
+  font-weight: 900;
+  font-size: 1.125rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 4px solid #000000;
+}
+
+.btn-brutalism-primary {
+  background: #ff0000;
+  color: #ffffff;
+  box-shadow: 6px 6px 0 #000000;
+}
+
+.btn-brutalism-primary:hover {
+  transform: translate(-3px, -3px);
+  box-shadow: 9px 9px 0 #000000;
+}
+
+.btn-brutalism-secondary {
+  background: #ffff00;
+  color: #000000;
+  box-shadow: 6px 6px 0 #000000;
+}
+
+.btn-brutalism-secondary:hover {
+  transform: translate(-3px, -3px);
+  box-shadow: 9px 9px 0 #000000;
+}
+
+.btn-brutalism-ghost {
+  background: transparent;
+  color: #000000;
+  box-shadow: 6px 6px 0 #000000;
+}
+
+.btn-brutalism-ghost:hover {
+  background: #000000;
+  color: #ffffff;
+}
+
+.btn-brutalism-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+.btn-brutalism-large {
+  padding: 1.25rem 2.5rem;
+  font-size: 1.25rem;
+}
+
+/* Brutalism Cards */
+.card-brutalism {
+  background: #ffffff;
+  border: 6px solid #000000;
+  box-shadow: 12px 12px 0 #000000;
+  padding: 0;
+  overflow: hidden;
+}
+
+.card-brutalism-featured {
+  border-color: #ff0000;
+  box-shadow: 12px 12px 0 #ff0000;
+}
+
+.card-brutalism-header {
+  background: #000000;
+  color: #ffffff;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 4px solid #ff0000;
+}
+
+.card-brutalism-title {
+  font-size: 1.5rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.card-brutalism-body {
+  padding: 1.5rem;
+}
+
+.card-brutalism-text {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.card-brutalism-footer {
+  padding: 1.5rem;
+  border-top: 4px solid #000000;
+  background: #f5f5f5;
+}
+
+/* Brutalism Badges */
+.badge-brutalism {
+  padding: 0.5rem 1rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  border: 3px solid #000000;
+  font-size: 0.875rem;
+  display: inline-block;
+}
+
+.badge-brutalism-primary {
+  background: #0000ff;
+  color: #ffffff;
+}
+
+.badge-brutalism-success {
+  background: #00ff00;
+  color: #000000;
+}
+
+.badge-brutalism-warning {
+  background: #ffff00;
+  color: #000000;
+}
+
+.badge-brutalism-error {
+  background: #ff0000;
+  color: #ffffff;
+}
+
+.badge-brutalism-legendary {
+  background: #ff00ff;
+  color: #ffffff;
+}
+
+.badge-brutalism-epic {
+  background: #9900ff;
+  color: #ffffff;
+}
+
+.badge-brutalism-rare {
+  background: #00ffff;
+  color: #000000;
+}
+
+/* Brutalism Box Card */
+.box-card-brutalism {
+  background: #ffffff;
+  border: 8px solid #000000;
+  box-shadow: 16px 16px 0 #000000;
+  overflow: hidden;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.box-card-brutalism-image {
+  background: #ff0000;
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border-bottom: 8px solid #000000;
+}
+
+.box-card-brutalism-image-placeholder {
+  font-size: 8rem;
+}
+
+.box-card-badge {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+}
+
+.box-card-brutalism-content {
+  padding: 2rem;
+}
+
+.box-card-brutalism-title {
+  font-size: 2rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+}
+
+.box-card-brutalism-description {
+  font-size: 1.125rem;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.box-card-brutalism-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.box-card-brutalism-stat {
+  text-align: center;
+  padding: 1rem;
+  border: 4px solid #000000;
+  background: #f5f5f5;
+}
+
+.box-card-brutalism-stat-value {
+  font-size: 2rem;
+  font-weight: 900;
+}
+
+.box-card-brutalism-stat-label {
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-top: 0.25rem;
+}
+
+.box-card-brutalism-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+/* ============================================
+   NEUMORPHISM STYLE - Soft, Tactile, Modern
+   ============================================ */
+
+.variant-neumorphism {
+  background: #e0e5ec;
+  color: #4a5568;
+}
+
+.variant-neumorphism .variant-nav {
+  background: #e0e5ec;
+  border-bottom: none;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.variant-neumorphism .variant-nav-title {
+  color: #2d3748;
+}
+
+.variant-neumorphism .variant-nav-subtitle {
+  color: #718096;
+}
+
+.variant-neumorphism .variant-tab {
+  background: #e0e5ec;
+  color: #4a5568;
+  border: none;
+  box-shadow: 6px 6px 12px #a3b1c6, -6px -6px 12px #ffffff;
+}
+
+.variant-neumorphism .variant-tab:hover {
+  box-shadow: 4px 4px 8px #a3b1c6, -4px -4px 8px #ffffff;
+}
+
+.variant-neumorphism .variant-tab-active {
+  box-shadow: inset 4px 4px 8px #a3b1c6, inset -4px -4px 8px #ffffff;
+  color: #667eea;
+}
+
+.variant-neumorphism .variant-section-title {
+  color: #2d3748;
+}
+
+/* Neumorphism Buttons */
+.btn-neumorphism {
+  padding: 1rem 2rem;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  background: #e0e5ec;
+  color: #4a5568;
+  border-radius: 16px;
+  box-shadow: 6px 6px 12px #a3b1c6, -6px -6px 12px #ffffff;
+}
+
+.btn-neumorphism:hover {
+  box-shadow: 8px 8px 16px #a3b1c6, -8px -8px 16px #ffffff;
+}
+
+.btn-neumorphism:active {
+  box-shadow: inset 4px 4px 8px #a3b1c6, inset -4px -4px 8px #ffffff;
+}
+
+.btn-neumorphism-primary {
+  background: linear-gradient(145deg, #667eea, #764ba2);
+  color: #ffffff;
+  box-shadow: 6px 6px 12px #a3b1c6, -6px -6px 12px #ffffff;
+}
+
+.btn-neumorphism-primary:hover {
+  box-shadow: 8px 8px 16px #a3b1c6, -8px -8px 16px #ffffff;
+  transform: translateY(-2px);
+}
+
+.btn-neumorphism-secondary {
+  background: #e0e5ec;
+  color: #667eea;
+}
+
+.btn-neumorphism-ghost {
+  background: transparent;
+  box-shadow: none;
+  color: #667eea;
+}
+
+.btn-neumorphism-ghost:hover {
+  background: #e0e5ec;
+  box-shadow: 6px 6px 12px #a3b1c6, -6px -6px 12px #ffffff;
+}
+
+.btn-neumorphism-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  border-radius: 12px;
+}
+
+.btn-neumorphism-large {
+  padding: 1.25rem 2.5rem;
+  font-size: 1.125rem;
+  border-radius: 20px;
+}
+
+/* Neumorphism Cards */
+.card-neumorphism {
+  background: #e0e5ec;
+  border: none;
+  border-radius: 24px;
+  box-shadow: 12px 12px 24px #a3b1c6, -12px -12px 24px #ffffff;
+  padding: 0;
+  overflow: hidden;
+}
+
+.card-neumorphism-featured {
+  box-shadow: 12px 12px 24px #a3b1c6, -12px -12px 24px #ffffff,
+    inset 2px 2px 4px rgba(102, 126, 234, 0.1);
+}
+
+.card-neumorphism-header {
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(145deg, #e8edf5, #d7dce8);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.card-neumorphism-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.card-neumorphism-body {
+  padding: 1.5rem;
+}
+
+.card-neumorphism-text {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: #4a5568;
+}
+
+.card-neumorphism-footer {
+  padding: 1.5rem;
+  background: linear-gradient(145deg, #e8edf5, #d7dce8);
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Neumorphism Badges */
+.badge-neumorphism {
+  padding: 0.5rem 1rem;
+  font-weight: 700;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  display: inline-block;
+  box-shadow: 4px 4px 8px #a3b1c6, -4px -4px 8px #ffffff;
+}
+
+.badge-neumorphism-primary {
+  background: linear-gradient(145deg, #667eea, #764ba2);
+  color: #ffffff;
+}
+
+.badge-neumorphism-success {
+  background: linear-gradient(145deg, #48bb78, #38a169);
+  color: #ffffff;
+}
+
+.badge-neumorphism-warning {
+  background: linear-gradient(145deg, #ed8936, #dd6b20);
+  color: #ffffff;
+}
+
+.badge-neumorphism-error {
+  background: linear-gradient(145deg, #f56565, #e53e3e);
+  color: #ffffff;
+}
+
+.badge-neumorphism-legendary {
+  background: linear-gradient(145deg, #f6ad55, #ed8936);
+  color: #ffffff;
+}
+
+.badge-neumorphism-epic {
+  background: linear-gradient(145deg, #9f7aea, #805ad5);
+  color: #ffffff;
+}
+
+.badge-neumorphism-rare {
+  background: linear-gradient(145deg, #4299e1, #3182ce);
+  color: #ffffff;
+}
+
+/* Neumorphism Box Card */
+.box-card-neumorphism {
+  background: #e0e5ec;
+  border: none;
+  border-radius: 32px;
+  box-shadow: 16px 16px 32px #a3b1c6, -16px -16px 32px #ffffff;
+  overflow: hidden;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.box-card-neumorphism-image {
+  background: linear-gradient(145deg, #667eea, #764ba2);
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.box-card-neumorphism-image-placeholder {
+  font-size: 8rem;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.2));
+}
+
+.box-card-neumorphism-content {
+  padding: 2rem;
+}
+
+.box-card-neumorphism-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 1rem;
+}
+
+.box-card-neumorphism-description {
+  font-size: 1.125rem;
+  color: #4a5568;
+  margin-bottom: 2rem;
+  line-height: 1.7;
+}
+
+.box-card-neumorphism-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.box-card-neumorphism-stat {
+  text-align: center;
+  padding: 1rem;
+  border-radius: 16px;
+  box-shadow: inset 4px 4px 8px #a3b1c6, inset -4px -4px 8px #ffffff;
+}
+
+.box-card-neumorphism-stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #667eea;
+}
+
+.box-card-neumorphism-stat-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #718096;
+  margin-top: 0.25rem;
+}
+
+.box-card-neumorphism-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+/* ============================================
+   VINTAGE GAMING - Retro, Nostalgic, Fun
+   ============================================ */
+
+.variant-vintage {
+  background: #2a1810;
+  color: #f5e6d3;
+  font-family: 'Courier New', monospace;
+}
+
+.variant-vintage .variant-nav {
+  background: #1a0f08;
+  border-bottom: 4px solid #ff6b35;
+  box-shadow: 0 4px 0 #4a2511;
+}
+
+.variant-vintage .variant-nav-title {
+  color: #ff6b35;
+  text-shadow: 3px 3px 0 #4a2511;
+  font-family: 'Courier New', monospace;
+}
+
+.variant-vintage .variant-nav-subtitle {
+  color: #f5e6d3;
+}
+
+.variant-vintage .variant-tab {
+  background: #3a2518;
+  color: #f5e6d3;
+  border: 3px solid #ff6b35;
+  box-shadow: 4px 4px 0 #4a2511;
+  font-family: 'Courier New', monospace;
+}
+
+.variant-vintage .variant-tab:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 #4a2511;
+}
+
+.variant-vintage .variant-tab-active {
+  background: #ff6b35;
+  color: #1a0f08;
+  box-shadow: 4px 4px 0 #4a2511, inset 2px 2px 0 rgba(255, 255, 255, 0.3);
+}
+
+.variant-vintage .variant-hero-title {
+  color: #ff6b35;
+  text-shadow: 4px 4px 0 #4a2511;
+}
+
+.variant-vintage .variant-section-title {
+  color: #ff6b35;
+  text-shadow: 3px 3px 0 #4a2511;
+}
+
+/* Vintage Buttons */
+.btn-vintage {
+  padding: 1rem 2rem;
+  font-weight: 900;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  border: 4px solid;
+  font-family: 'Courier New', monospace;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  position: relative;
+}
+
+.btn-vintage::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  right: -4px;
+  bottom: -4px;
+  z-index: -1;
+}
+
+.btn-vintage-primary {
+  background: #ff6b35;
+  color: #1a0f08;
+  border-color: #ffa07a;
+  box-shadow: 5px 5px 0 #4a2511;
+}
+
+.btn-vintage-primary::after {
+  background: #4a2511;
+}
+
+.btn-vintage-primary:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 7px 7px 0 #4a2511;
+}
+
+.btn-vintage-secondary {
+  background: #f4d03f;
+  color: #1a0f08;
+  border-color: #f9e79f;
+  box-shadow: 5px 5px 0 #4a2511;
+}
+
+.btn-vintage-secondary::after {
+  background: #4a2511;
+}
+
+.btn-vintage-secondary:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 7px 7px 0 #4a2511;
+}
+
+.btn-vintage-ghost {
+  background: transparent;
+  color: #f5e6d3;
+  border-color: #ff6b35;
+  box-shadow: 5px 5px 0 #4a2511;
+}
+
+.btn-vintage-ghost::after {
+  background: #4a2511;
+}
+
+.btn-vintage-ghost:hover {
+  background: #3a2518;
+}
+
+.btn-vintage-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  border-width: 3px;
+  letter-spacing: 1px;
+}
+
+.btn-vintage-large {
+  padding: 1.25rem 2.5rem;
+  font-size: 1.25rem;
+  border-width: 5px;
+}
+
+/* Vintage Cards */
+.card-vintage {
+  background: #3a2518;
+  border: 4px solid #ff6b35;
+  box-shadow: 8px 8px 0 #4a2511;
+  padding: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.card-vintage::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.1) 2px,
+    rgba(0, 0, 0, 0.1) 4px
+  );
+  pointer-events: none;
+}
+
+.card-vintage-featured {
+  border-color: #f4d03f;
+  box-shadow: 8px 8px 0 #4a2511, 0 0 20px rgba(255, 107, 53, 0.5);
+}
+
+.card-vintage-header {
+  background: #1a0f08;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 4px solid #ff6b35;
+}
+
+.card-vintage-title {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #ff6b35;
+  text-transform: uppercase;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 2px;
+}
+
+.card-vintage-body {
+  padding: 1.5rem;
+}
+
+.card-vintage-text {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #f5e6d3;
+  font-family: 'Courier New', monospace;
+}
+
+.card-vintage-footer {
+  padding: 1.5rem;
+  border-top: 4px solid #ff6b35;
+  background: #2a1810;
+}
+
+/* Vintage Badges */
+.badge-vintage {
+  padding: 0.5rem 1rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  border: 3px solid;
+  font-size: 0.875rem;
+  display: inline-block;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 1px;
+  box-shadow: 3px 3px 0 #4a2511;
+}
+
+.badge-vintage-primary {
+  background: #ff6b35;
+  color: #1a0f08;
+  border-color: #ffa07a;
+}
+
+.badge-vintage-success {
+  background: #2ecc71;
+  color: #1a0f08;
+  border-color: #58d68d;
+}
+
+.badge-vintage-warning {
+  background: #f4d03f;
+  color: #1a0f08;
+  border-color: #f9e79f;
+}
+
+.badge-vintage-error {
+  background: #e74c3c;
+  color: #ffffff;
+  border-color: #ec7063;
+}
+
+.badge-vintage-legendary {
+  background: #f39c12;
+  color: #1a0f08;
+  border-color: #f5b041;
+  animation: vintage-pulse 2s ease-in-out infinite;
+}
+
+.badge-vintage-epic {
+  background: #9b59b6;
+  color: #ffffff;
+  border-color: #bb8fce;
+}
+
+.badge-vintage-rare {
+  background: #3498db;
+  color: #ffffff;
+  border-color: #5dade2;
+}
+
+@keyframes vintage-pulse {
+  0%,
+  100% {
+    box-shadow: 3px 3px 0 #4a2511;
+  }
+  50% {
+    box-shadow: 3px 3px 0 #4a2511, 0 0 20px rgba(243, 156, 18, 0.8);
+  }
+}
+
+/* Vintage Box Card */
+.box-card-vintage {
+  background: #3a2518;
+  border: 5px solid #ff6b35;
+  box-shadow: 12px 12px 0 #4a2511;
+  overflow: hidden;
+  max-width: 600px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.box-card-vintage::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.1) 2px,
+    rgba(0, 0, 0, 0.1) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+.box-card-vintage-image {
+  background: #1a0f08;
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border-bottom: 5px solid #ff6b35;
+}
+
+.box-card-vintage-image-placeholder {
+  font-size: 8rem;
+  filter: drop-shadow(0 0 20px rgba(255, 107, 53, 0.5));
+}
+
+.box-card-vintage-content {
+  padding: 2rem;
+  position: relative;
+  z-index: 2;
+}
+
+.box-card-vintage-title {
+  font-size: 2rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 2px;
+  color: #ff6b35;
+  text-shadow: 3px 3px 0 #4a2511;
+  margin-bottom: 1rem;
+}
+
+.box-card-vintage-description {
+  font-size: 1.125rem;
+  color: #f5e6d3;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+  font-family: 'Courier New', monospace;
+}
+
+.box-card-vintage-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.box-card-vintage-stat {
+  text-align: center;
+  padding: 1rem;
+  border: 3px solid #ff6b35;
+  background: #2a1810;
+  box-shadow: 4px 4px 0 #4a2511;
+}
+
+.box-card-vintage-stat-value {
+  font-size: 2rem;
+  font-weight: 900;
+  color: #f4d03f;
+  font-family: 'Courier New', monospace;
+  text-shadow: 2px 2px 0 #4a2511;
+}
+
+.box-card-vintage-stat-label {
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #f5e6d3;
+  margin-top: 0.25rem;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 1px;
+}
+
+.box-card-vintage-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+/* ============================================
+   LUXURY MINIMALIST - Elegant, Premium, Refined
+   ============================================ */
+
+.variant-luxury {
+  background: #0a0a0a;
+  color: #e8e8e8;
+}
+
+.variant-luxury .variant-nav {
+  background: rgba(10, 10, 10, 0.95);
+  border-bottom: 1px solid #d4af37;
+  backdrop-filter: blur(20px);
+}
+
+.variant-luxury .variant-nav-title {
+  color: #d4af37;
+  font-weight: 300;
+  letter-spacing: 4px;
+}
+
+.variant-luxury .variant-nav-subtitle {
+  color: #b8b8b8;
+  font-weight: 300;
+}
+
+.variant-luxury .variant-tab {
+  background: transparent;
+  color: #b8b8b8;
+  border: 1px solid #3a3a3a;
+  font-weight: 300;
+  letter-spacing: 2px;
+}
+
+.variant-luxury .variant-tab:hover {
+  border-color: #d4af37;
+  color: #d4af37;
+}
+
+.variant-luxury .variant-tab-active {
+  background: linear-gradient(135deg, #d4af37 0%, #f4e4a0 100%);
+  color: #0a0a0a;
+  border-color: #d4af37;
+  font-weight: 400;
+}
+
+.variant-luxury .variant-hero-title {
+  color: #ffffff;
+  font-weight: 200;
+  letter-spacing: 8px;
+}
+
+.variant-luxury .variant-hero-tagline {
+  color: #d4af37;
+  font-weight: 300;
+  letter-spacing: 4px;
+}
+
+.variant-luxury .variant-section-title {
+  color: #ffffff;
+  font-weight: 300;
+  letter-spacing: 4px;
+}
+
+/* Luxury Buttons */
+.btn-luxury {
+  padding: 1.25rem 3rem;
+  font-weight: 300;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-luxury::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.btn-luxury:hover::before {
+  left: 100%;
+}
+
+.btn-luxury-primary {
+  background: linear-gradient(135deg, #d4af37 0%, #f4e4a0 100%);
+  color: #0a0a0a;
+  border-color: #d4af37;
+}
+
+.btn-luxury-primary:hover {
+  box-shadow: 0 0 30px rgba(212, 175, 55, 0.4);
+  transform: translateY(-2px);
+}
+
+.btn-luxury-secondary {
+  background: transparent;
+  color: #d4af37;
+  border-color: #d4af37;
+}
+
+.btn-luxury-secondary:hover {
+  background: rgba(212, 175, 55, 0.1);
+}
+
+.btn-luxury-ghost {
+  background: transparent;
+  color: #e8e8e8;
+  border-color: #3a3a3a;
+}
+
+.btn-luxury-ghost:hover {
+  border-color: #d4af37;
+  color: #d4af37;
+}
+
+.btn-luxury-sm {
+  padding: 0.75rem 2rem;
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+}
+
+.btn-luxury-large {
+  padding: 1.5rem 4rem;
+  font-size: 1rem;
+  letter-spacing: 4px;
+}
+
+/* Luxury Cards */
+.card-luxury {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  padding: 0;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-luxury:hover {
+  border-color: #d4af37;
+  box-shadow: 0 0 40px rgba(212, 175, 55, 0.1);
+  transform: translateY(-4px);
+}
+
+.card-luxury-featured {
+  border-color: #d4af37;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+}
+
+.card-luxury-header {
+  padding: 2.5rem 2.5rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.card-luxury-title {
+  font-size: 1.5rem;
+  font-weight: 300;
+  color: #ffffff;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.card-luxury-body {
+  padding: 0 2.5rem 1.5rem;
+}
+
+.card-luxury-text {
+  font-size: 1rem;
+  line-height: 1.8;
+  color: #b8b8b8;
+  font-weight: 300;
+}
+
+.card-luxury-footer {
+  padding: 2rem 2.5rem 2.5rem;
+  border-top: 1px solid #2a2a2a;
+}
+
+/* Luxury Badges */
+.badge-luxury {
+  padding: 0.5rem 1.5rem;
+  font-weight: 300;
+  border: 1px solid;
+  font-size: 0.75rem;
+  display: inline-block;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.badge-luxury-primary {
+  background: linear-gradient(135deg, #d4af37 0%, #f4e4a0 100%);
+  color: #0a0a0a;
+  border-color: #d4af37;
+}
+
+.badge-luxury-success {
+  background: transparent;
+  color: #48bb78;
+  border-color: #48bb78;
+}
+
+.badge-luxury-warning {
+  background: transparent;
+  color: #d4af37;
+  border-color: #d4af37;
+}
+
+.badge-luxury-error {
+  background: transparent;
+  color: #f56565;
+  border-color: #f56565;
+}
+
+.badge-luxury-legendary {
+  background: linear-gradient(135deg, #d4af37 0%, #f4e4a0 100%);
+  color: #0a0a0a;
+  border-color: #d4af37;
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+}
+
+.badge-luxury-epic {
+  background: transparent;
+  color: #9f7aea;
+  border-color: #9f7aea;
+}
+
+.badge-luxury-rare {
+  background: transparent;
+  color: #4299e1;
+  border-color: #4299e1;
+}
+
+/* Luxury Box Card */
+.box-card-luxury {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  overflow: hidden;
+  max-width: 600px;
+  margin: 0 auto;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.box-card-luxury:hover {
+  border-color: #d4af37;
+  box-shadow: 0 0 60px rgba(212, 175, 55, 0.2);
+}
+
+.box-card-luxury-image {
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+  height: 350px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border-bottom: 1px solid #d4af37;
+}
+
+.box-card-luxury-image-placeholder {
+  font-size: 8rem;
+  filter: drop-shadow(0 0 30px rgba(212, 175, 55, 0.5));
+}
+
+.box-card-luxury-content {
+  padding: 3rem;
+}
+
+.box-card-luxury-title {
+  font-size: 2rem;
+  font-weight: 200;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  color: #ffffff;
+  margin-bottom: 1.5rem;
+}
+
+.box-card-luxury-description {
+  font-size: 1rem;
+  color: #b8b8b8;
+  margin-bottom: 3rem;
+  line-height: 1.8;
+  font-weight: 300;
+}
+
+.box-card-luxury-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+.box-card-luxury-stat {
+  text-align: center;
+  padding: 2rem 1rem;
+  border: 1px solid #2a2a2a;
+  background: #0a0a0a;
+  transition: all 0.3s ease;
+}
+
+.box-card-luxury-stat:hover {
+  border-color: #d4af37;
+}
+
+.box-card-luxury-stat-value {
+  font-size: 2.5rem;
+  font-weight: 200;
+  color: #d4af37;
+  letter-spacing: 2px;
+}
+
+.box-card-luxury-stat-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  font-weight: 300;
+  color: #b8b8b8;
+  margin-top: 0.5rem;
+  letter-spacing: 2px;
+}
+
+.box-card-luxury-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+/* ============================================
+   NEON CYBERPUNK - Electric, Futuristic, Bold
+   ============================================ */
+
+.variant-cyberpunk {
+  background: #0d0221;
+  color: #e0e0ff;
+  position: relative;
+}
+
+.variant-cyberpunk::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 255, 255, 0.03) 2px,
+      rgba(0, 255, 255, 0.03) 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 2px,
+      rgba(255, 0, 255, 0.03) 2px,
+      rgba(255, 0, 255, 0.03) 4px
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.variant-cyberpunk > * {
+  position: relative;
+  z-index: 1;
+}
+
+.variant-cyberpunk .variant-nav {
+  background: rgba(13, 2, 33, 0.95);
+  border-bottom: 2px solid #00ffff;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5), 0 4px 0 #ff00ff;
+}
+
+.variant-cyberpunk .variant-nav-title {
+  color: #00ffff;
+  text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
+}
+
+.variant-cyberpunk .variant-nav-subtitle {
+  color: #ff00ff;
+}
+
+.variant-cyberpunk .variant-tab {
+  background: #1a0f3e;
+  color: #e0e0ff;
+  border: 2px solid #00ffff;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+}
+
+.variant-cyberpunk .variant-tab:hover {
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.6), inset 0 0 10px rgba(0, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.variant-cyberpunk .variant-tab-active {
+  background: #00ffff;
+  color: #0d0221;
+  border-color: #ff00ff;
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.8), 0 0 15px rgba(255, 0, 255, 0.5);
+}
+
+.variant-cyberpunk .variant-hero-title {
+  color: #00ffff;
+  text-shadow: 0 0 20px #00ffff, 0 0 40px #00ffff, 0 0 60px #00ffff;
+  animation: cyber-glow 3s ease-in-out infinite;
+}
+
+.variant-cyberpunk .variant-hero-tagline {
+  color: #ff00ff;
+  text-shadow: 0 0 10px #ff00ff;
+}
+
+.variant-cyberpunk .variant-section-title {
+  color: #00ffff;
+  text-shadow: 0 0 10px #00ffff;
+}
+
+@keyframes cyber-glow {
+  0%,
+  100% {
+    text-shadow: 0 0 20px #00ffff, 0 0 40px #00ffff, 0 0 60px #00ffff;
+  }
+  50% {
+    text-shadow: 0 0 30px #00ffff, 0 0 60px #00ffff, 0 0 90px #00ffff,
+      0 0 40px #ff00ff;
+  }
+}
+
+/* Cyberpunk Buttons */
+.btn-cyberpunk {
+  padding: 1rem 2rem;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  position: relative;
+  clip-path: polygon(
+    0 0,
+    calc(100% - 12px) 0,
+    100% 12px,
+    100% 100%,
+    12px 100%,
+    0 calc(100% - 12px)
+  );
+}
+
+.btn-cyberpunk::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: inherit;
+  filter: blur(10px);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+}
+
+.btn-cyberpunk:hover::before {
+  opacity: 0.7;
+}
+
+.btn-cyberpunk-primary {
+  background: #00ffff;
+  color: #0d0221;
+  border-color: #00ffff;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5), inset 0 0 20px rgba(0, 255, 255, 0.1);
+}
+
+.btn-cyberpunk-primary:hover {
+  box-shadow: 0 0 40px rgba(0, 255, 255, 0.8), inset 0 0 30px rgba(0, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.btn-cyberpunk-secondary {
+  background: #ff00ff;
+  color: #0d0221;
+  border-color: #ff00ff;
+  box-shadow: 0 0 20px rgba(255, 0, 255, 0.5), inset 0 0 20px rgba(255, 0, 255, 0.1);
+}
+
+.btn-cyberpunk-secondary:hover {
+  box-shadow: 0 0 40px rgba(255, 0, 255, 0.8), inset 0 0 30px rgba(255, 0, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.btn-cyberpunk-ghost {
+  background: transparent;
+  color: #00ffff;
+  border-color: #00ffff;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+}
+
+.btn-cyberpunk-ghost:hover {
+  background: rgba(0, 255, 255, 0.1);
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.6);
+}
+
+.btn-cyberpunk-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  letter-spacing: 1px;
+}
+
+.btn-cyberpunk-large {
+  padding: 1.25rem 2.5rem;
+  font-size: 1.125rem;
+}
+
+/* Cyberpunk Cards */
+.card-cyberpunk {
+  background: #1a0f3e;
+  border: 2px solid #00ffff;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.3), inset 0 0 20px rgba(0, 255, 255, 0.05);
+  padding: 0;
+  overflow: hidden;
+  position: relative;
+  clip-path: polygon(
+    0 0,
+    calc(100% - 20px) 0,
+    100% 20px,
+    100% 100%,
+    20px 100%,
+    0 calc(100% - 20px)
+  );
+}
+
+.card-cyberpunk::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(0, 255, 255, 0.1),
+    transparent
+  );
+  animation: cyber-scan 3s ease-in-out infinite;
+}
+
+@keyframes cyber-scan {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+.card-cyberpunk-featured {
+  border-color: #ff00ff;
+  box-shadow: 0 0 30px rgba(255, 0, 255, 0.5), 0 0 15px rgba(0, 255, 255, 0.3),
+    inset 0 0 30px rgba(255, 0, 255, 0.05);
+}
+
+.card-cyberpunk-header {
+  background: #0d0221;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #00ffff;
+}
+
+.card-cyberpunk-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #00ffff;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px #00ffff;
+}
+
+.card-cyberpunk-body {
+  padding: 1.5rem;
+}
+
+.card-cyberpunk-text {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #e0e0ff;
+}
+
+.card-cyberpunk-footer {
+  padding: 1.5rem;
+  border-top: 2px solid #00ffff;
+  background: rgba(0, 255, 255, 0.03);
+}
+
+/* Cyberpunk Badges */
+.badge-cyberpunk {
+  padding: 0.5rem 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  border: 2px solid;
+  font-size: 0.875rem;
+  display: inline-block;
+  letter-spacing: 1px;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+}
+
+.badge-cyberpunk-primary {
+  background: #00ffff;
+  color: #0d0221;
+  border-color: #00ffff;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+}
+
+.badge-cyberpunk-success {
+  background: #00ff00;
+  color: #0d0221;
+  border-color: #00ff00;
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+}
+
+.badge-cyberpunk-warning {
+  background: #ffff00;
+  color: #0d0221;
+  border-color: #ffff00;
+  box-shadow: 0 0 15px rgba(255, 255, 0, 0.5);
+}
+
+.badge-cyberpunk-error {
+  background: #ff0066;
+  color: #ffffff;
+  border-color: #ff0066;
+  box-shadow: 0 0 15px rgba(255, 0, 102, 0.5);
+}
+
+.badge-cyberpunk-legendary {
+  background: #ff00ff;
+  color: #ffffff;
+  border-color: #ff00ff;
+  box-shadow: 0 0 20px rgba(255, 0, 255, 0.7);
+  animation: cyber-pulse 2s ease-in-out infinite;
+}
+
+.badge-cyberpunk-epic {
+  background: #9933ff;
+  color: #ffffff;
+  border-color: #9933ff;
+  box-shadow: 0 0 15px rgba(153, 51, 255, 0.5);
+}
+
+.badge-cyberpunk-rare {
+  background: #0099ff;
+  color: #ffffff;
+  border-color: #0099ff;
+  box-shadow: 0 0 15px rgba(0, 153, 255, 0.5);
+}
+
+@keyframes cyber-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(255, 0, 255, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(255, 0, 255, 1), 0 0 20px rgba(0, 255, 255, 0.5);
+  }
+}
+
+/* Cyberpunk Box Card */
+.box-card-cyberpunk {
+  background: #1a0f3e;
+  border: 3px solid #00ffff;
+  box-shadow: 0 0 40px rgba(0, 255, 255, 0.4), inset 0 0 30px rgba(0, 255, 255, 0.05);
+  overflow: hidden;
+  max-width: 600px;
+  margin: 0 auto;
+  position: relative;
+  clip-path: polygon(
+    0 0,
+    calc(100% - 30px) 0,
+    100% 30px,
+    100% 100%,
+    30px 100%,
+    0 calc(100% - 30px)
+  );
+}
+
+.box-card-cyberpunk::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(0, 255, 255, 0.2),
+    transparent
+  );
+  animation: cyber-scan 4s ease-in-out infinite;
+}
+
+.box-card-cyberpunk-image {
+  background: linear-gradient(135deg, #0d0221 0%, #1a0f3e 100%);
+  height: 350px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border-bottom: 3px solid #00ffff;
+}
+
+.box-card-cyberpunk-image::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 4px,
+    rgba(0, 255, 255, 0.1) 4px,
+    rgba(0, 255, 255, 0.1) 8px
+  );
+}
+
+.box-card-cyberpunk-image-placeholder {
+  font-size: 8rem;
+  filter: drop-shadow(0 0 30px #00ffff) drop-shadow(0 0 60px #ff00ff);
+  animation: cyber-float 3s ease-in-out infinite;
+}
+
+@keyframes cyber-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+.box-card-cyberpunk-content {
+  padding: 2.5rem;
+  position: relative;
+}
+
+.box-card-cyberpunk-title {
+  font-size: 2rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  color: #00ffff;
+  text-shadow: 0 0 15px #00ffff, 0 0 30px #00ffff;
+  margin-bottom: 1.5rem;
+}
+
+.box-card-cyberpunk-description {
+  font-size: 1.125rem;
+  color: #e0e0ff;
+  margin-bottom: 2.5rem;
+  line-height: 1.7;
+}
+
+.box-card-cyberpunk-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.box-card-cyberpunk-stat {
+  text-align: center;
+  padding: 1.5rem 1rem;
+  border: 2px solid #00ffff;
+  background: rgba(0, 255, 255, 0.05);
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.2), inset 0 0 15px rgba(0, 255, 255, 0.05);
+  clip-path: polygon(
+    0 0,
+    calc(100% - 12px) 0,
+    100% 12px,
+    100% 100%,
+    12px 100%,
+    0 calc(100% - 12px)
+  );
+}
+
+.box-card-cyberpunk-stat-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #ff00ff;
+  text-shadow: 0 0 10px #ff00ff;
+}
+
+.box-card-cyberpunk-stat-label {
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #00ffff;
+  margin-top: 0.5rem;
+  letter-spacing: 1px;
+}
+
+.box-card-cyberpunk-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .variant-nav-content {
+    padding: 0 1rem;
+  }
+
+  .variant-content {
+    padding: 2rem 1rem;
+  }
+
+  .variant-hero-title {
+    font-size: 2.5rem;
+  }
+
+  .variant-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .box-card-brutalism-stats,
+  .box-card-neumorphism-stats,
+  .box-card-vintage-stats,
+  .box-card-luxury-stats,
+  .box-card-cyberpunk-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .variant-tab {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+  }
+
+  .variant-tab-emoji {
+    font-size: 1rem;
+  }
+}

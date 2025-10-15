@@ -15,7 +15,7 @@ export async function GET(request: Request) {
       )
     }
 
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // Vérifier que l'utilisateur est authentifié et qu'il demande ses propres données
 const { data: { user }, error: authError } = await supabase.auth.getUser()

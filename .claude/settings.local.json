@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__ide__getDiagnostics",
+      "Bash(npx tsc:*)",
+      "Bash(sed:*)",
+      "Bash(npm run build:*)",
+      "WebSearch",
+      "Bash(find:*)",
+      "mcp__supabase__execute_sql",
+      "Bash(npm run lint:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "supabase"
+  ]
+}

@@ -1,61 +1,152 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { ReactNode } from 'react'
 
 interface ButtonProps {
-  children: React.ReactNode
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost'
-  size?: 'sm' | 'md' | 'lg'
+  children: ReactNode
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'success' | 'outline'
+  size?: 'sm' | 'md' | 'lg' | 'xl'
   disabled?: boolean
   loading?: boolean
+  shimmer?: boolean
   fullWidth?: boolean
+  icon?: ReactNode
+  iconPosition?: 'left' | 'right'
   onClick?: () => void
   className?: string
+  type?: 'button' | 'submit' | 'reset'
 }
 
-export function Button({
+function Button({
   children,
   variant = 'primary',
   size = 'md',
   disabled = false,
   loading = false,
+  shimmer = false,
   fullWidth = false,
+  icon,
+  iconPosition = 'left',
   onClick,
-  className = ''
+  className = '',
+  type = 'button',
 }: ButtonProps) {
-  const baseClasses = 'inline-flex items-center justify-center font-semibold rounded-xl transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-primary-200'
-  
-  const variants = {
-    primary: 'bg-primary-500 hover:bg-primary-600 text-white shadow-primary hover:shadow-primary-lg hover:-translate-y-0.5',
-    secondary: 'bg-gray-100 hover:bg-gray-200 text-gray-800 shadow-soft hover:shadow-soft-lg',
-    outline: 'border-2 border-primary-500 text-primary-600 hover:bg-primary-50',
-    ghost: 'text-primary-600 hover:bg-primary-50'
-  }
-  
-  const sizes = {
-    sm: 'px-4 py-2 text-sm',
-    md: 'px-6 py-3 text-base',
-    lg: 'px-8 py-4 text-lg'
+  // Variant styles - Use hybrid design system
+  const variantStyles = {
+    primary: `
+      text-white font-bold
+      shadow-lg
+      hover:shadow-xl
+      border border-white/10
+      hybrid-btn-primary-gradient
+    `,
+    secondary: `
+      text-white font-bold
+      shadow-lg
+      hover:shadow-xl
+      border border-white/10
+      hybrid-btn-secondary-gradient
+    `,
+    ghost: `
+      bg-white/5 hover:bg-white/10
+      backdrop-blur-xl border border-white/20
+      text-white font-bold
+      hover:border-white/40
+    `,
+    outline: `
+      bg-transparent hover:bg-gray-50
+      border-2 border-gray-300
+      text-gray-700 font-bold
+      hover:border-gray-400
+    `,
+    danger: `
+      bg-gradient-to-r from-red-500 to-red-600
+      hover:from-red-600 hover:to-red-700
+      text-white font-bold
+      shadow-lg shadow-red-500/30
+      hover:shadow-xl hover:shadow-red-500/50
+      border border-red-400/30
+    `,
+    success: `
+      text-white font-bold
+      shadow-lg
+      hover:shadow-xl
+      border border-white/10
+      hybrid-btn-success-gradient
+    `,
   }
 
-  const disabledClasses = disabled || loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-  const widthClasses = fullWidth ? 'w-full' : ''
+  // Size styles
+  const sizeStyles = {
+    sm: 'px-4 py-2 text-sm',
+    md: 'px-6 py-3 text-base',
+    lg: 'px-8 py-4 text-lg',
+    xl: 'px-10 py-5 text-xl',
+  }
+
+  const isDisabled = disabled || loading
 
   return (
     <motion.button
-      whileHover={!disabled && !loading ? { scale: 1.02 } : {}}
-      whileTap={!disabled && !loading ? { scale: 0.98 } : {}}
-      className={`${baseClasses} ${variants[variant]} ${sizes[size]} ${disabledClasses} ${widthClasses} ${className}`}
-      disabled={disabled || loading}
+      whileHover={!isDisabled ? { scale: 1.05 } : {}}
+      whileTap={!isDisabled ? { scale: 0.95 } : {}}
+      type={type}
       onClick={onClick}
+      disabled={isDisabled}
+      className={`
+        ${variantStyles[variant]}
+        ${sizeStyles[size]}
+        rounded-xl
+        inline-flex items-center justify-center gap-2
+        transition-all duration-300
+        relative overflow-hidden
+        ${fullWidth ? 'w-full' : ''}
+        ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+        ${className}
+      `}
     >
-      {loading && (
-        <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
+      {/* Shimmer effect */}
+      {shimmer && !loading && (
+        <motion.div
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+          animate={{ x: ['-200%', '200%'] }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            ease: 'linear',
+          }}
+        />
       )}
-      {children}
+
+      {/* Loading spinner */}
+      {loading && (
+        <motion.div
+          className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
+          animate={{ rotate: 360 }}
+          transition={{
+            duration: 1,
+            repeat: Infinity,
+            ease: 'linear',
+          }}
+        />
+      )}
+
+      {/* Icon left */}
+      {icon && iconPosition === 'left' && !loading && (
+        <span className="relative z-10">{icon}</span>
+      )}
+
+      {/* Content */}
+      <span className="relative z-10">{children}</span>
+
+      {/* Icon right */}
+      {icon && iconPosition === 'right' && !loading && (
+        <span className="relative z-10">{icon}</span>
+      )}
     </motion.button>
   )
 }
+
+export { Button }
+export default Button

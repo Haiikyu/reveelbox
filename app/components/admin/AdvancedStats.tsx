@@ -309,7 +309,7 @@ export const AdvancedStats = ({
                       initial={{ width: 0 }}
                       animate={{ width: `${percentage}%` }}
                       transition={{ delay: i * 0.1, duration: 0.5 }}
-                      className="bg-gradient-to-r from-green-500 to-emerald-600 h-3 rounded-full"
+                      className="bg-gradient-to-r from-green-500 to-teal-600 h-3 rounded-full"
                     />
                   </div>
                 </div>

@@ -3,9 +3,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence, Variants } from 'framer-motion'
-import { 
-  Package, 
-  Coins, 
+import {
+  Package,
+  Coins,
   Search,
   ArrowLeft,
   CheckCircle,
@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../components/AuthProvider'
 import { createClient } from '@/utils/supabase/client'
+import ParticlesBackground from '@/app/components/affiliate/ParticlesBackground'
 
 // Types simplifiés
 interface InventoryItem {
@@ -309,7 +310,7 @@ export default function InventoryPage() {
 
   if (loading || inventoryLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 flex items-center justify-center">
         <div className="text-center">
           <motion.div
             animate={{ rotate: 360 }}
@@ -327,8 +328,10 @@ export default function InventoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
-      
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 relative">
+      {/* Particles Background */}
+      <ParticlesBackground />
+
       {/* Notifications */}
       <AnimatePresence>
         {notification.message && (
@@ -632,7 +635,7 @@ function InventoryItemCard({
   return (
     <motion.div
       variants={itemVariants}
-      whileHover={{ 
+      whileHover={{
         y: -20,
         rotateY: 15,
         rotateX: -5,
@@ -640,11 +643,28 @@ function InventoryItemCard({
       }}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
-      className="group cursor-pointer"
+      onClick={onSelect}
+      className={`group cursor-pointer transition-all ${
+        isSelected ? 'ring-4 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900 rounded-2xl' : ''
+      }`}
       style={{ perspective: '1000px' }}
     >
-      <motion.div className="relative">
+      <motion.div className="relative"
+        animate={{
+          scale: isSelected ? 1.02 : 1
+        }}
+        transition={{ duration: 0.2 }}
+      >
         
+        {/* Selection overlay */}
+        {isSelected && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 bg-blue-500/10 dark:bg-blue-400/10 rounded-2xl pointer-events-none z-10"
+          />
+        )}
+
         {/* Checkbox de sélection */}
         <div className="absolute -top-2 -left-2 z-20">
           <motion.button
@@ -655,16 +675,14 @@ function InventoryItemCard({
               onSelect()
             }}
             className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-              isSelected 
-                ? 'bg-blue-500 border-blue-500 text-white shadow-lg' 
+              isSelected
+                ? 'bg-blue-500 border-blue-500 text-white shadow-lg'
                 : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:border-blue-400'
             }`}
           >
             {isSelected && <CheckCircle size={16} />}
           </motion.button>
         </div>
-
-
 
         {/* Badge de quantité */}
         {item.quantity && item.quantity > 1 && (

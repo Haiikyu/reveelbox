@@ -127,14 +127,14 @@ function SuccessPageContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50/50 via-white to-emerald-50/50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-green-50/50 via-white to-teal-50/50 flex items-center justify-center">
         <LoadingState size="lg" text="🎉 Finalisation de votre achat..." />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50/50 via-white to-emerald-50/50 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-green-50/50 via-white to-teal-50/50 relative overflow-hidden">
       
       {/* Confettis animés */}
       <AnimatePresence>
@@ -213,7 +213,7 @@ function SuccessPageContent() {
             }}
             className="relative inline-block mb-8"
           >
-            <div className="w-32 h-32 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center shadow-2xl shadow-green-200/50 relative">
+            <div className="w-32 h-32 bg-gradient-to-br from-green-400 to-teal-600 rounded-full flex items-center justify-center shadow-2xl shadow-green-200/50 relative">
               <CheckCircle className="w-16 h-16 text-white" />
               
               {/* Anneaux de succès */}
@@ -236,7 +236,7 @@ function SuccessPageContent() {
             transition={{ delay: 0.4 }}
             className="text-5xl md:text-6xl font-black text-gray-900 mb-6"
           >
-            🎉 Achat <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-emerald-600">Réussi</span> !
+            🎉 Achat <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-teal-600">Réussi</span> !
           </motion.h1>
           
           <motion.p 
@@ -283,11 +283,11 @@ function SuccessPageContent() {
             <Card className="p-8 bg-white shadow-xl border-0 relative overflow-hidden">
               
               {/* Gradient de fond */}
-              <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-green-400 via-emerald-500 to-teal-600"></div>
+              <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-green-400 via-teal-500 to-teal-600"></div>
               
               <div className="relative z-10">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-600 rounded-xl flex items-center justify-center">
+                  <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-teal-600 rounded-xl flex items-center justify-center">
                     <Trophy className="w-6 h-6 text-white" />
                   </div>
                   <div>
@@ -300,7 +300,7 @@ function SuccessPageContent() {
                   <div className="space-y-6">
                     
                     {/* Package acheté */}
-                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-200/50">
+                    <div className="bg-gradient-to-r from-green-50 to-teal-50 rounded-2xl p-6 border border-green-200/50">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-bold text-gray-900">
                           {purchaseDetails.packageName}
@@ -639,7 +639,7 @@ function SuccessPageContent() {
 export default function BuyCoinsSuccessPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-green-50/50 via-white to-emerald-50/50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-green-50/50 via-white to-teal-50/50 flex items-center justify-center">
         <LoadingState size="lg" text="🎉 Chargement..." />
       </div>
     }>

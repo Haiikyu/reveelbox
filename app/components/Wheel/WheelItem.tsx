@@ -58,48 +58,7 @@ export function WheelItem({
         {item.rarity.charAt(0).toUpperCase()}
       </div>
 
-      {/* Effet de particules pour l'item gagnant */}
-      {isWinning && !isSpinning && (
-        <motion.div
-          className="absolute inset-0 pointer-events-none"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-        >
-          {Array.from({ length: 8 }).map((_, i) => {
-            const angle = (i * 45) * (Math.PI / 180) // Convertir en radians
-            const distance = 20
-            
-            return (
-              <motion.div
-                key={i}
-                className={`absolute w-1 h-1 ${rarity.bg.replace('/10', '')} rounded-full`}
-                initial={{ 
-                  x: 0, 
-                  y: 0, 
-                  opacity: 0, 
-                  scale: 0 
-                }}
-                animate={{
-                  x: Math.cos(angle) * distance,
-                  y: Math.sin(angle) * distance,
-                  opacity: [0, 1, 0],
-                  scale: [0, 1.5, 0],
-                }}
-                transition={{
-                  duration: 1.5,
-                  delay: i * 0.1 + 0.5,
-                  repeat: Infinity,
-                  repeatDelay: 2
-                }}
-                style={{
-                  left: '50%',
-                  top: '50%',
-                }}
-              />
-            )
-          })}
-        </motion.div>
-      )}
+
 
       {/* Pulse effect pour l'item gagnant */}
       {isWinning && !isSpinning && (

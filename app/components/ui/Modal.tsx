@@ -1,59 +1,183 @@
-// app/components/ui/Modal.tsx
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { X } from 'lucide-react'
+import { ReactNode, useEffect } from 'react'
 
 interface ModalProps {
   isOpen: boolean
   onClose: () => void
-  children: React.ReactNode
+  children: ReactNode
   title?: string
-  size?: 'sm' | 'md' | 'lg' | 'xl'
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
+  showCloseButton?: boolean
+  closeOnBackdropClick?: boolean
+  className?: string
 }
 
-export function Modal({ isOpen, onClose, children, title, size = 'md' }: ModalProps) {
-  const sizes = {
+function Modal({
+  isOpen,
+  onClose,
+  children,
+  title,
+  size = 'md',
+  showCloseButton = true,
+  closeOnBackdropClick = true,
+  className = '',
+}: ModalProps) {
+  // Size styles
+  const sizeStyles = {
     sm: 'max-w-md',
-    md: 'max-w-lg',
-    lg: 'max-w-2xl',
-    xl: 'max-w-4xl'
+    md: 'max-w-2xl',
+    lg: 'max-w-4xl',
+    xl: 'max-w-6xl',
+    full: 'max-w-[95vw]',
   }
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [isOpen])
+
+  // Handle escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', handleEscape)
+    return () => window.removeEventListener('keydown', handleEscape)
+  }, [isOpen, onClose])
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+        >
+          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm"
-            onClick={onClose}
+            onClick={closeOnBackdropClick ? onClose : undefined}
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
           />
+
+          {/* Modal */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className={`relative bg-white rounded-xl shadow-soft-lg ${sizes[size]} w-full mx-4 max-h-[90vh] overflow-y-auto`}
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className={`
+              relative glass-card
+              ${sizeStyles[size]} w-full
+              max-h-[90vh] overflow-y-auto
+              ${className}
+            `}
           >
-            {title && (
-              <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
-                <button
-                  onClick={onClose}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+            {/* Glow effect */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 via-violet-500/20 to-indigo-500/20 opacity-30 blur-xl -z-10 rounded-2xl" />
+
+            {/* Close button */}
+            {showCloseButton && (
+              <motion.button
+                whileHover={{ scale: 1.1, rotate: 90 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={onClose}
+                className="absolute top-4 right-4 z-20
+                           w-10 h-10 rounded-xl
+                           bg-white/5 hover:bg-white/10
+                           border border-white/10
+                           flex items-center justify-center
+                           text-white/60 hover:text-white
+                           transition-all duration-300"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
                 >
-                  <X size={24} />
-                </button>
-              </div>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </motion.button>
             )}
-            <div className={title ? "p-6" : "p-6"}>
+
+            {/* Content */}
+            <div className="p-6 sm:p-8">
+              {title && (
+                <ModalHeader>
+                  {title}
+                </ModalHeader>
+              )}
               {children}
             </div>
           </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
   )
 }
+
+// Subcomponents for semantic usage
+export function ModalHeader({
+  children,
+  className = '',
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <h2 className={`text-3xl font-black text-white mb-6 ${className}`}>
+      {children}
+    </h2>
+  )
+}
+
+export function ModalContent({
+  children,
+  className = '',
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div className={`text-white/70 ${className}`}>
+      {children}
+    </div>
+  )
+}
+
+export function ModalFooter({
+  children,
+  className = '',
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div className={`mt-8 flex items-center justify-end gap-3 ${className}`}>
+      {children}
+    </div>
+  )
+}
+
+export { Modal }
+export default Modal

@@ -1,11 +1,16 @@
 // app/layout.tsx
 import { Inter } from 'next/font/google'
 import './globals.css'
+import './styles/design-tokens.css'
+import './styles/design-clean.css'
+import './styles/hybrid-design-system.css'
 import { AuthProvider } from './components/AuthProvider'
 import { ThemeProvider } from './components/ThemeProvider'
 import { Providers } from './providers'
-import Navbar from './components/Navbar'
-import Footer from './components/Footer'
+import { NotificationProvider } from './components/ui/NotificationSystem'
+import './styles/chat.css'
+import LayoutContent from './components/LayoutContent'
+
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -30,17 +35,9 @@ export default function RootLayout({
         <ThemeProvider defaultTheme="light" storageKey="reveelbox-theme">
           <Providers>
             <AuthProvider>
-              <div className="flex flex-col min-h-screen">
-                <Navbar />
-                
-                {/* Le ThemeToggle est maintenant intégré dans la Navbar */}
-                
-                <main className="flex-1">
-                  {children}
-                </main>
-                
-                <Footer />
-              </div>
+              <NotificationProvider>
+                <LayoutContent>{children}</LayoutContent>
+              </NotificationProvider>
             </AuthProvider>
           </Providers>
         </ThemeProvider>

@@ -105,13 +105,13 @@ const ReveelBoxFooter = () => {
   }
 
   return (
-    <footer className="relative bg-gradient-to-br from-gray-50 via-blue-50/30 to-emerald-50/30 dark:from-gray-900 dark:via-blue-900/20 dark:to-emerald-900/20 overflow-hidden">
-      {/* Motifs de fond décoratifs */}
-      <div className="absolute inset-0 opacity-5 dark:opacity-10 pointer-events-none">
-        <div className="absolute top-10 left-10 w-20 h-20 bg-emerald-500 rounded-full blur-xl animate-pulse"></div>
-        <div className="absolute top-32 right-20 w-16 h-16 bg-blue-500 rounded-full blur-xl animate-pulse delay-1000"></div>
-        <div className="absolute bottom-20 left-1/3 w-24 h-24 bg-purple-500 rounded-full blur-xl animate-pulse delay-2000"></div>
-        <div className="absolute bottom-10 right-10 w-18 h-18 bg-pink-500 rounded-full blur-xl animate-pulse delay-3000"></div>
+    <footer className="relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 overflow-hidden">
+      {/* Motifs de fond décoratifs - plus subtils */}
+      <div className="absolute inset-0 opacity-3 dark:opacity-5 pointer-events-none">
+        <div className="absolute top-10 left-10 w-20 h-20 bg-indigo-500 rounded-full blur-xl animate-pulse"></div>
+        <div className="absolute top-32 right-20 w-16 h-16 bg-purple-500 rounded-full blur-xl animate-pulse delay-1000"></div>
+        <div className="absolute bottom-20 left-1/3 w-24 h-24 bg-indigo-500 rounded-full blur-xl animate-pulse delay-2000"></div>
+        <div className="absolute bottom-10 right-10 w-18 h-18 bg-purple-500 rounded-full blur-xl animate-pulse delay-3000"></div>
       </div>
 
       <div className="relative">
@@ -132,7 +132,7 @@ const ReveelBoxFooter = () => {
                 </div>
                 <div>
                   <div className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
-                    Reveel<span className="text-emerald-500">Box</span>
+                    Reveel<span style={{ color: 'var(--hybrid-accent-primary)' }}>Box</span>
                   </div>
                   <div className="text-sm text-gray-500 dark:text-gray-400 font-medium -mt-1">
                     Unbox the future
@@ -150,7 +150,7 @@ const ReveelBoxFooter = () => {
               {/* Newsletter */}
               <div className="space-y-3">
                 <h4 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-emerald-500" />
+                  <Zap className="w-4 h-4" style={{ color: 'var(--hybrid-accent-primary)' }} />
                   Restez dans la boucle
                 </h4>
                 <form onSubmit={handleNewsletterSubmit} className="flex">
@@ -159,13 +159,18 @@ const ReveelBoxFooter = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Votre adresse email"
-                    className="flex-1 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-l-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-colors"
+                    className="flex-1 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-l-2xl focus:outline-none focus:ring-2 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-colors"
+                    style={{
+                      '--tw-ring-color': 'var(--hybrid-accent-primary)'
+                    } as React.CSSProperties}
+                    onFocus={(e) => e.currentTarget.style.borderColor = 'var(--hybrid-accent-primary)'}
+                    onBlur={(e) => e.currentTarget.style.borderColor = ''}
                     disabled={isSubscribing}
                   />
-                  <button 
+                  <button
                     type="submit"
                     disabled={isSubscribing || !email}
-                    className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-6 py-3 rounded-r-2xl transition-all duration-200 font-medium flex items-center gap-2 shadow-lg disabled:cursor-not-allowed"
+                    className="text-white px-6 py-3 rounded-r-2xl transition-all duration-200 font-medium flex items-center gap-2 shadow-lg disabled:cursor-not-allowed hybrid-btn-primary-gradient disabled:from-gray-400 disabled:to-gray-500"
                   >
                     {isSubscribing ? (
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -186,7 +191,7 @@ const ReveelBoxFooter = () => {
               {/* Produits */}
               <div className="space-y-4">
                 <h5 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                  <Package className="w-4 h-4 text-emerald-500" />
+                  <Package className="w-4 h-4" style={{ color: 'var(--hybrid-accent-primary)' }} />
                   Produits
                 </h5>
                 <ul className="space-y-3">
@@ -194,9 +199,11 @@ const ReveelBoxFooter = () => {
                     const Icon = link.icon
                     return (
                       <li key={link.name}>
-                        <a 
+                        <a
                           href={link.href}
-                          className="text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-2 text-sm group"
+                          className="text-gray-600 dark:text-gray-400 transition-colors flex items-center gap-2 text-sm group"
+                          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--hybrid-accent-primary)'}
+                          onMouseLeave={(e) => e.currentTarget.style.color = ''}
                         >
                           {Icon && <Icon className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />}
                           {link.name}
@@ -211,7 +218,7 @@ const ReveelBoxFooter = () => {
               {/* Support */}
               <div className="space-y-4">
                 <h5 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                  <MessageCircle className="w-4 h-4 text-emerald-500" />
+                  <MessageCircle className="w-4 h-4" style={{ color: 'var(--hybrid-accent-primary)' }} />
                   Support
                 </h5>
                 <ul className="space-y-3">
@@ -219,9 +226,11 @@ const ReveelBoxFooter = () => {
                     const Icon = link.icon
                     return (
                       <li key={link.name}>
-                        <a 
+                        <a
                           href={link.href}
-                          className="text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-2 text-sm group"
+                          className="text-gray-600 dark:text-gray-400 transition-colors flex items-center gap-2 text-sm group"
+                          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--hybrid-accent-primary)'}
+                          onMouseLeave={(e) => e.currentTarget.style.color = ''}
                         >
                           {Icon && <Icon className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />}
                           {link.name}
@@ -262,15 +271,17 @@ const ReveelBoxFooter = () => {
               {/* Légal & Communauté */}
               <div className="space-y-4">
                 <h5 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-emerald-500" />
+                  <Shield className="w-4 h-4" style={{ color: 'var(--hybrid-accent-primary)' }} />
                   Légal
                 </h5>
                 <ul className="space-y-3">
                   {legalLinks.map((link) => (
                     <li key={link.name}>
-                      <a 
+                      <a
                         href={link.href}
-                        className="text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors text-sm flex items-center gap-2 group"
+                        className="text-gray-600 dark:text-gray-400 transition-colors text-sm flex items-center gap-2 group"
+                        onMouseEnter={(e) => e.currentTarget.style.color = 'var(--hybrid-accent-primary)'}
+                        onMouseLeave={(e) => e.currentTarget.style.color = ''}
                       >
                         {link.name}
                         <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity" />
@@ -282,7 +293,7 @@ const ReveelBoxFooter = () => {
                 {/* Badges de confiance */}
                 <div className="pt-4 space-y-3">
                   <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                    <Shield className="w-3 h-3 text-emerald-500" />
+                    <Shield className="w-3 h-3" style={{ color: 'var(--hybrid-accent-primary)' }} />
                     Paiements 100% sécurisés
                   </div>
                   <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
@@ -313,18 +324,20 @@ const ReveelBoxFooter = () => {
               
               <div className="flex items-center gap-6 text-xs text-gray-500 dark:text-gray-400">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                  <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--hybrid-accent-primary)' }}></div>
                   <span>Tous systèmes opérationnels</span>
                 </div>
                 <div className="h-3 w-px bg-gray-300 dark:bg-gray-600"></div>
                 <span>Version 2.1.0</span>
                 <div className="h-3 w-px bg-gray-300 dark:bg-gray-600"></div>
-                <a 
-                  href="/status" 
-                  className="hover:text-emerald-500 transition-colors flex items-center gap-1"
+                <a
+                  href="/status"
+                  className="transition-colors flex items-center gap-1"
+                  onMouseEnter={(e) => e.currentTarget.style.color = 'var(--hybrid-accent-primary)'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = ''}
                 >
                   Status
-                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
+                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--hybrid-accent-primary)' }}></div>
                 </a>
               </div>
             </div>

@@ -174,7 +174,9 @@ export default function ContactPage() {
       )}
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 py-16 transition-colors duration-300">
+      <section className="py-16 transition-colors duration-300" style={{
+        background: `linear-gradient(135deg, var(--hybrid-bg-secondary), var(--hybrid-bg-tertiary))`
+      }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -183,7 +185,9 @@ export default function ContactPage() {
             className="text-center"
           >
             <div className="flex justify-center mb-6">
-              <div className="h-16 w-16 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <div className="h-16 w-16 rounded-2xl flex items-center justify-center shadow-lg" style={{
+                background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
+              }}>
                 <MessageSquare className="h-8 w-8 text-white" />
               </div>
             </div>
@@ -210,8 +214,11 @@ export default function ContactPage() {
               const Icon = info.icon
               return (
                 <div key={index} className="text-center group">
-                  <div className="h-12 w-12 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 dark:group-hover:bg-green-800/40 transition-colors">
-                    <Icon className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  <div className="h-12 w-12 rounded-xl flex items-center justify-center mx-auto mb-4 transition-colors" style={{
+                    backgroundColor: 'var(--hybrid-bg-secondary)',
+                    color: 'var(--hybrid-accent-primary)'
+                  }}>
+                    <Icon className="h-6 w-6" />
                   </div>
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-2 transition-colors">{info.title}</h3>
                   <p className="text-gray-700 dark:text-gray-300 font-medium mb-1 transition-colors">{info.content}</p>
@@ -248,7 +255,7 @@ export default function ContactPage() {
                       name="category"
                       value={formData.category}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all bg-gray-50 dark:bg-gray-700 focus:bg-white dark:focus:bg-gray-600 text-gray-900 dark:text-white"
+                      className="w-full px-4 py-3 border rounded-xl transition-all text-gray-900 dark:text-white hybrid-input"
                     >
                       <option value="general">Question générale</option>
                       <option value="order">Problème de commande</option>
@@ -270,7 +277,7 @@ export default function ContactPage() {
                         required
                         value={formData.name}
                         onChange={handleChange}
-                        className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all bg-gray-50 dark:bg-gray-700 focus:bg-white dark:focus:bg-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                        className="hybrid-input"
                         placeholder="Votre nom"
                       />
                     </div>
@@ -285,7 +292,7 @@ export default function ContactPage() {
                         required
                         value={formData.email}
                         onChange={handleChange}
-                        className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all bg-gray-50 dark:bg-gray-700 focus:bg-white dark:focus:bg-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                        className="hybrid-input"
                         placeholder="votre@email.com"
                       />
                     </div>
@@ -301,7 +308,7 @@ export default function ContactPage() {
                       name="subject"
                       value={formData.subject}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all bg-gray-50 dark:bg-gray-700 focus:bg-white dark:focus:bg-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                      className="hybrid-input"
                       placeholder="Résumé de votre demande"
                     />
                   </div>
@@ -317,7 +324,8 @@ export default function ContactPage() {
                       rows={6}
                       value={formData.message}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all bg-gray-50 dark:bg-gray-700 focus:bg-white dark:focus:bg-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 resize-none"
+                      className="hybrid-input resize-none"
+                      style={{ height: 'auto', minHeight: '150px' }}
                       placeholder="Décrivez votre demande en détail..."
                     />
                   </div>
@@ -328,7 +336,7 @@ export default function ContactPage() {
                     whileTap={{ scale: loading ? 1 : 0.98 }}
                     type="submit"
                     disabled={loading}
-                    className="w-full flex justify-center items-center gap-2 py-3 px-6 border border-transparent rounded-xl shadow-sm text-white bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
+                    className="hybrid-btn hybrid-btn-primary hybrid-btn-lg hybrid-btn-full"
                   >
                     {loading ? (
                       <>
@@ -417,7 +425,9 @@ export default function ContactPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-gradient-to-br from-green-500 to-green-600">
+      <section className="py-16" style={{
+        background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
+      }}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}

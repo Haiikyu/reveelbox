@@ -7,6 +7,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { LoadingState } from '@/app/components/ui/LoadingState'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Crown, Award, Clock, Timer, AlertCircle } from 'lucide-react'
+import ParticlesBackground from '@/app/components/affiliate/ParticlesBackground'
 
 // Import des composants
 import { BoxPresentation } from '@/app/components/BoxPresentation/BoxPresentation'
@@ -361,36 +362,9 @@ export default function FreedropOpeningPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 pt-20 transition-colors duration-300">
-      
-      {/* Messages */}
-      <AnimatePresence mode="wait">
-        {error && (
-          <motion.div
-            key="error"
-            initial={{ opacity: 0, y: -50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            className="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-xl shadow-lg z-50 max-w-md"
-          >
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              <span className="text-sm">{error}</span>
-            </div>
-          </motion.div>
-        )}
-        {success && (
-          <motion.div
-            key="success"
-            initial={{ opacity: 0, y: -50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg z-50 max-w-md"
-          >
-            <span className="text-sm">{success}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <div className="min-h-screen bg-white dark:bg-gray-900 pt-20 transition-colors duration-300 relative overflow-hidden">
+      {/* Particles Background */}
+      <ParticlesBackground />
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         

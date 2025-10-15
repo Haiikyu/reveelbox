@@ -8,6 +8,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { LoadingState } from '@/app/components/ui/LoadingState'
 import { Package } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import ParticlesBackground from '@/app/components/affiliate/ParticlesBackground'
 
 // Import des composants optimisés
 import { BoxPresentation } from '@/app/components/BoxPresentation/BoxPresentation'
@@ -47,6 +48,7 @@ export default function BoxOpeningPage() {
   const [winningItem, setWinningItem] = useState<LootItem | null>(null)
   const [fastMode, setFastMode] = useState(false)
   const [showResult, setShowResult] = useState(false)
+  const [isFreeWin, setIsFreeWin] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -221,6 +223,7 @@ export default function BoxOpeningPage() {
     setWinningItem(selectedItem)
     setIsSpinning(true)
     setShowResult(false)
+    setIsFreeWin(false)
     setError('')
 
     try {
@@ -273,6 +276,7 @@ export default function BoxOpeningPage() {
     setWinningItem(selectedItem)
     setIsSpinning(true)
     setShowResult(false)
+    setIsFreeWin(true)
   }, [box, isSpinning, selectRandomItem])
 
   // Toggle fast mode mémorisé
@@ -287,10 +291,45 @@ export default function BoxOpeningPage() {
   }, [])
 
   // Vente d'item optimisée
-  const handleSellItem = useCallback((item: LootItem) => {
-    showMessage(`${item.name} vendu pour ${item.market_value} coins`, 'success')
-    // TODO: Implémenter la vente réelle
-  }, [showMessage])
+  const handleSellItem = useCallback(async (item: LootItem) => {
+    if (!user || !profile) return
+
+    try {
+      // 1. Supprimer l'item de l'inventaire s'il y est (il a été ajouté par process_box_opening)
+      const { error: deleteError } = await supabase
+        .from('user_inventory')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('item_id', item.id)
+        .order('obtained_at', { ascending: false })
+        .limit(1)
+
+      if (deleteError) {
+        console.error('Erreur suppression inventaire:', deleteError)
+      }
+
+      // 2. Créditer les coins de vente
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          virtual_currency: (profile.virtual_currency || 0) + item.market_value
+        })
+        .eq('id', user.id)
+
+      if (updateError) throw updateError
+
+      // 3. Rafraîchir le profil
+      await refreshProfile()
+
+      showMessage(`${item.name} vendu pour ${item.market_value} coins`, 'success')
+
+      // 4. NE PAS fermer le résultat - garder l'affichage de l'item gagné
+      // L'utilisateur peut fermer manuellement ou ouvrir une autre boîte
+    } catch (error) {
+      console.error('Erreur lors de la vente:', error)
+      showMessage('Erreur lors de la vente', 'error')
+    }
+  }, [user, profile, supabase, refreshProfile, showMessage])
 
   // Mémorisation des propriétés pour éviter les re-renders
   const canAfford = useMemo(() => {
@@ -299,7 +338,7 @@ export default function BoxOpeningPage() {
 
   if (authLoading || loading || !isAuthenticated) {
     return (
-      <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
         <LoadingState text="Chargement de la boîte..." />
       </div>
     )
@@ -307,7 +346,7 @@ export default function BoxOpeningPage() {
 
   if (!box) {
     return (
-      <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
         <div className="text-center text-gray-500 dark:text-gray-400">
           <Package className="w-16 h-16 mx-auto mb-4" />
           <h2 className="text-xl font-bold mb-2">Boîte introuvable</h2>
@@ -318,33 +357,8 @@ export default function BoxOpeningPage() {
   }
 
 return (
-  <div className="min-h-screen bg-white dark:bg-gray-900 pt-20 transition-colors duration-300">
-    
-    {/* Messages */}
-    <AnimatePresence mode="wait">
-      {error && (
-        <motion.div
-          key="error"
-          initial={{ opacity: 0, y: -50 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -50 }}
-          className="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-xl shadow-lg z-50"
-        >
-          {error}
-        </motion.div>
-      )}
-      {success && (
-        <motion.div
-          key="success"
-          initial={{ opacity: 0, y: -50 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -50 }}
-          className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg z-50"
-        >
-          {success}
-        </motion.div>
-      )}
-    </AnimatePresence>
+  <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pt-20 transition-colors duration-300 relative">
+    <ParticlesBackground />
 
     <div className="max-w-7xl mx-auto px-6 py-8">
       
@@ -363,8 +377,8 @@ return (
         />
       </motion.div>
 
-      {/* Roue avec overflow visible pour le halo */}
-      <div className="mb-16 overflow-visible"> {/* overflow-visible ajouté */}
+      {/* Roue */}
+      <div className="mb-24 overflow-hidden">
         <Wheel
           items={box.items}
           winningItem={winningItem}
@@ -377,17 +391,18 @@ return (
       {/* Résultat */}
       <AnimatePresence>
         {showResult && winningItem && (
-          <WinningResult 
+          <WinningResult
             item={winningItem}
             isOpen={showResult}
             onClose={() => setShowResult(false)}
             onSell={handleSellItem}
+            isFree={isFreeWin}
           />
         )}
       </AnimatePresence>
-	  
-	        {/* Boutons d'action */}
-      <div className="mb-16 -mt-8"> {/* Superposition légère avec -mt-8 */}
+
+      {/* Boutons d'action */}
+      <div className="mb-16">
         <OpeningButtons
           boxPrice={box.price_virtual}
           userCoins={profile?.virtual_currency || 0}

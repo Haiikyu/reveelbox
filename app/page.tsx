@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence, Variants } from 'framer-motion'
-import { 
-  Gift, 
-  Package, 
-  Truck, 
-  Shield, 
-  Star, 
+import {
+  Gift,
+  Package,
+  Truck,
+  Shield,
+  Star,
   ArrowRight,
   CheckCircle,
   Users,
@@ -131,7 +131,10 @@ function FloatingBoxCard({
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.4 }}
-              className="bg-gradient-to-r from-green-500 to-green-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg"
+              className="text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg"
+              style={{
+                background: 'linear-gradient(135deg, var(--hybrid-success), var(--hybrid-accent-secondary))'
+              }}
             >
               NEW
             </motion.div>
@@ -201,26 +204,33 @@ function FloatingBoxCard({
             </span>
           </div>
 
-          {/* Indicateur de disponibilité avec classes thématiques */}
-          <div className={`text-sm font-bold mb-3 px-3 py-1 rounded-full ${
-            canAfford && user ? 'state-success' : 'state-error'
-          }`}>
-            {!user ? 'Connexion requise' : !canAfford ? 'Coins insuffisants' : 'Disponible'}
-          </div>
+          {/* Indicateur de disponibilité avec bouton hybride */}
+          {user ? (
+            canAfford ? (
+              <button className="hybrid-btn hybrid-btn-success hybrid-btn-sm w-full">
+                Disponible
+              </button>
+            ) : (
+              <button className="hybrid-btn hybrid-btn-outline hybrid-btn-sm w-full" disabled>
+                Coins insuffisants
+              </button>
+            )
+          ) : (
+            <button className="hybrid-btn hybrid-btn-outline hybrid-btn-sm w-full" disabled>
+              Connexion requise
+            </button>
+          )}
 
-          {/* Action au hover avec classe thématique */}
+          {/* Action au hover avec classe hybride */}
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: isHovered ? 1 : 0 }}
-            className="text-center"
+            animate={{ opacity: isHovered && canAfford && user ? 1 : 0 }}
+            className="text-center mt-2"
           >
-            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 ${
-              canAfford && user 
-                ? 'state-success hover:brightness-110' 
-                : 'surface border'
-            }`}>
+            <div className="inline-flex items-center gap-2 text-sm font-bold"
+              style={{ color: 'var(--hybrid-accent-primary)' }}>
               <ArrowRight size={14} />
-              {canAfford && user ? 'Cliquez pour ouvrir' : 'Non disponible'}
+              Cliquez pour ouvrir
             </div>
           </motion.div>
         </motion.div>
@@ -472,24 +482,32 @@ useEffect(() => {
   ]
 
   return (
-    <div className="min-h-screen bg-[rgb(var(--background))] text-[rgb(var(--foreground))] transition-colors duration-300">
-      
-      {/* Hero Section avec classes thématiques */}
-      <section className="relative pt-20 pb-16 bg-gradient-primary overflow-hidden">
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-[rgb(var(--primary))] rounded-full mix-blend-multiply blur-xl animate-pulse" />
-          <div className="absolute top-40 right-10 w-72 h-72 bg-[rgb(var(--primary-light))] rounded-full mix-blend-multiply blur-xl animate-pulse" style={{ animationDelay: '2s' }} />
+    <div className="hybrid-container">
+
+      {/* Hero Section avec système hybride */}
+      <section className="relative pt-20 pb-16 overflow-hidden" style={{
+        background: 'var(--hybrid-bg-secondary)'
+      }}>
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-20 left-10 w-72 h-72 rounded-full mix-blend-multiply blur-xl animate-pulse"
+            style={{ background: 'var(--hybrid-accent-primary)' }} />
+          <div className="absolute top-40 right-10 w-72 h-72 rounded-full mix-blend-multiply blur-xl animate-pulse"
+            style={{ background: 'var(--hybrid-accent-secondary)', animationDelay: '2s' }} />
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="relative hybrid-wrapper">
           <div className="text-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="inline-flex items-center gap-2 surface-elevated px-4 py-2 rounded-full shadow-lg mb-8"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8"
+              style={{
+                background: 'var(--hybrid-bg-tertiary)',
+                boxShadow: 'var(--hybrid-shadow-md)'
+              }}
             >
-              <Sparkles className="h-4 w-4 text-primary" />
-              <span className="text-sm font-semibold text-primary">
+              <Sparkles className="h-4 w-4" style={{ color: 'var(--hybrid-accent-primary)' }} />
+              <span className="text-sm font-semibold" style={{ color: 'var(--hybrid-text-primary)' }}>
                 Nouvelles boîtes exclusives disponibles
               </span>
             </motion.div>
@@ -498,10 +516,15 @@ useEffect(() => {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="text-5xl md:text-7xl font-black text-primary mb-6"
+              className="hybrid-display mb-6"
             >
               Déballez l'
-              <span className="text-gradient">
+              <span style={{
+                background: 'linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text'
+              }}>
                 Impossible
               </span>
             </motion.h1>
@@ -510,9 +533,9 @@ useEffect(() => {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="text-xl text-secondary mb-12 max-w-3xl mx-auto"
+              className="hybrid-lead mb-12"
             >
-              L'expérience d'unboxing la plus addictive au monde ! Découvrez des produits réels 
+              L'expérience d'unboxing la plus addictive au monde ! Découvrez des produits réels
               de grandes marques avec des animations époustouflantes.
             </motion.p>
 
@@ -522,16 +545,16 @@ useEffect(() => {
               transition={{ delay: 0.3 }}
               className="flex flex-col sm:flex-row justify-center gap-4"
             >
-              <Link 
+              <Link
                 href={isAuthenticated ? "/boxes" : "/signup"}
-                className="btn-primary inline-flex items-center gap-3"
+                className="hybrid-btn hybrid-btn-primary hybrid-btn-lg inline-flex items-center gap-3"
               >
                 <Gift className="h-6 w-6" />
                 {isAuthenticated ? "Découvrir les boîtes" : "Commencer l'aventure"}
                 <ArrowRight className="h-6 w-6" />
               </Link>
-              
-              <button className="btn-secondary inline-flex items-center gap-3">
+
+              <button className="hybrid-btn hybrid-btn-secondary hybrid-btn-lg inline-flex items-center gap-3">
                 <Play className="h-6 w-6" />
                 Voir la démo
               </button>
@@ -541,23 +564,23 @@ useEffect(() => {
       </section>
 
       {/* Section Boîtes Iconiques */}
-      <section className="py-20 bg-gradient-primary">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="hybrid-section">
+        <div className="hybrid-wrapper">
           <div className="text-center mb-16">
-            <motion.h2 
+            <motion.h2
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="text-4xl font-black text-primary mb-4"
+              className="hybrid-section-title"
             >
               Nos Boîtes Iconiques
             </motion.h2>
-            <motion.p 
+            <motion.p
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
               viewport={{ once: true }}
-              className="text-xl text-secondary max-w-3xl mx-auto"
+              className="hybrid-section-description"
             >
               Chaque boîte contient des objets réels authentiques avec une garantie 100% ou remboursé
             </motion.p>
@@ -609,7 +632,7 @@ useEffect(() => {
             >
               <Link
                 href="/boxes"
-                className="btn-primary inline-flex items-center gap-3"
+                className="hybrid-btn hybrid-btn-primary hybrid-btn-lg inline-flex items-center gap-3"
               >
                 <Package className="h-6 w-6" />
                 Voir toutes les boîtes
@@ -621,18 +644,18 @@ useEffect(() => {
       </section>
 
       {/* Section Features */}
-      <section className="py-20 bg-[rgb(var(--background))]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="hybrid-section">
+        <div className="hybrid-wrapper">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-black text-primary mb-4">
+            <h2 className="hybrid-section-title">
               Pourquoi ReveelBox ?
             </h2>
-            <p className="text-xl text-secondary max-w-3xl mx-auto">
+            <p className="hybrid-section-description">
               L'expérience d'unboxing la plus authentique et sécurisée
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="hybrid-grid hybrid-grid-4">
             {features.map((feature, index) => {
               const Icon = feature.icon
               return (
@@ -642,15 +665,18 @@ useEffect(() => {
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                   viewport={{ once: true }}
-                  className="card text-center"
+                  className="hybrid-card text-center"
                 >
-                  <div className="h-16 w-16 bg-gradient-to-r from-[rgb(var(--primary))] to-[rgb(var(--primary-dark))] rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <div className="h-16 w-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                    style={{
+                      background: 'linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))'
+                    }}>
                     <Icon className="h-8 w-8 text-white" />
                   </div>
-                  <h3 className="text-xl font-bold text-primary mb-3">
+                  <h3 className="hybrid-card-title mb-3">
                     {feature.title}
                   </h3>
-                  <p className="text-secondary leading-relaxed">
+                  <p className="hybrid-card-text">
                     {feature.description}
                   </p>
                 </motion.div>
@@ -661,13 +687,21 @@ useEffect(() => {
       </section>
 
       {/* Section Statistiques */}
-      <section className="py-20 bg-gradient-to-r from-[rgb(var(--primary))] to-[rgb(var(--primary-dark))] text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-20 relative overflow-hidden text-white"
+        style={{
+          background: 'linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))'
+        }}>
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl" />
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative hybrid-wrapper">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-black text-white mb-4">
               ReveelBox en Chiffres
             </h2>
-            <p className="text-xl text-green-200 opacity-90">
+            <p className="text-xl text-white/80 opacity-90">
               Rejoignez une communauté passionnée qui grandit chaque jour
             </p>
           </div>
@@ -684,13 +718,13 @@ useEffect(() => {
                   viewport={{ once: true }}
                   className="text-center"
                 >
-                  <div className="h-16 w-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <div className="h-16 w-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
                     <Icon className="h-8 w-8 text-white" />
                   </div>
                   <div className="text-4xl font-black text-white mb-2">
                     {stat.number}
                   </div>
-                  <div className="text-green-200 font-semibold">
+                  <div className="text-white/80 font-semibold">
                     {stat.label}
                   </div>
                 </motion.div>
@@ -701,18 +735,18 @@ useEffect(() => {
       </section>
 
       {/* Section Témoignages */}
-      <section className="py-20 bg-[rgb(var(--background))]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="hybrid-section">
+        <div className="hybrid-wrapper">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-black text-primary mb-4">
+            <h2 className="hybrid-section-title">
               Ils Adorent ReveelBox
             </h2>
-            <p className="text-xl text-secondary">
+            <p className="hybrid-section-description">
               Découvrez les expériences de notre communauté
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="hybrid-grid hybrid-grid-3">
             {testimonials.map((testimonial, index) => (
               <motion.div
                 key={index}
@@ -720,28 +754,33 @@ useEffect(() => {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
                 viewport={{ once: true }}
-                className="card"
+                className="hybrid-card"
               >
                 <div className="flex items-center mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 text-[rgb(var(--warning))] fill-current" />
+                    <Star key={i} className="h-5 w-5 fill-current" style={{ color: 'var(--hybrid-warning)' }} />
                   ))}
                 </div>
-                
-                <p className="text-secondary mb-6 italic">
+
+                <p className="hybrid-card-text mb-6 italic">
                   "{testimonial.comment}"
                 </p>
-                
+
                 <div className="flex items-center">
-                  <div className="h-12 w-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mr-4 text-xl">
+                  <div className="h-12 w-12 rounded-full flex items-center justify-center mr-4 text-xl"
+                    style={{
+                      background: 'linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))'
+                    }}>
                     {testimonial.avatar}
                   </div>
                   <div>
-                    <div className="font-bold text-primary flex items-center gap-2">
+                    <div className="font-bold flex items-center gap-2" style={{ color: 'var(--hybrid-text-primary)' }}>
                       {testimonial.name}
-                      <CheckCircle className="h-4 w-4 state-success" />
+                      <CheckCircle className="h-4 w-4" style={{ color: 'var(--hybrid-success)' }} />
                     </div>
-                    <div className="text-muted text-sm">Utilisateur vérifié</div>
+                    <div className="text-sm" style={{ color: 'var(--hybrid-text-tertiary)' }}>
+                      Utilisateur vérifié
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -749,15 +788,23 @@ useEffect(() => {
           </div>
 
           <div className="text-center mt-12">
-            <div className="surface-elevated px-6 py-4 rounded-full inline-flex items-center gap-4">
+            <div className="px-6 py-4 rounded-full inline-flex items-center gap-4"
+              style={{
+                background: 'var(--hybrid-bg-secondary)',
+                boxShadow: 'var(--hybrid-shadow-md)'
+              }}>
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 state-success" />
-                <span className="font-bold text-primary">99.2% de satisfaction</span>
+                <TrendingUp className="h-5 w-5" style={{ color: 'var(--hybrid-success)' }} />
+                <span className="font-bold" style={{ color: 'var(--hybrid-text-primary)' }}>
+                  99.2% de satisfaction
+                </span>
               </div>
-              <div className="w-px h-6 bg-[rgb(var(--border))]" />
+              <div className="w-px h-6" style={{ background: 'var(--hybrid-border)' }} />
               <div className="flex items-center gap-2">
-                <Shield className="h-5 w-5 state-info" />
-                <span className="font-bold text-primary">Paiement sécurisé</span>
+                <Shield className="h-5 w-5" style={{ color: 'var(--hybrid-info)' }} />
+                <span className="font-bold" style={{ color: 'var(--hybrid-text-primary)' }}>
+                  Paiement sécurisé
+                </span>
               </div>
             </div>
           </div>
@@ -765,13 +812,16 @@ useEffect(() => {
       </section>
 
       {/* CTA Final */}
-      <section className="py-20 bg-gradient-to-r from-[rgb(var(--primary))] to-[rgb(var(--primary-dark))] relative overflow-hidden">
+      <section className="py-20 relative overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))'
+        }}>
         <div className="absolute inset-0">
           <div className="absolute top-0 left-0 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
           <div className="absolute bottom-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
         </div>
-        
-        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
+
+        <div className="relative hybrid-wrapper text-center text-white">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -783,7 +833,7 @@ useEffect(() => {
             <p className="text-xl mb-12 max-w-3xl mx-auto opacity-90">
               Rejoignez 45 000+ aventuriers qui découvrent l'expérience d'unboxing la plus addictive au monde
             </p>
-            
+
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
               <motion.div
                 whileHover={{ scale: 1.05 }}
@@ -791,14 +841,15 @@ useEffect(() => {
               >
                 <Link
                   href={isAuthenticated ? "/boxes" : "/signup"}
-                  className="bg-white text-[rgb(var(--primary))] px-8 py-4 rounded-full text-xl font-black shadow-2xl hover:shadow-3xl transition-all duration-300 flex items-center gap-3"
+                  className="bg-white px-8 py-4 rounded-full text-xl font-black shadow-2xl hover:shadow-3xl transition-all duration-300 flex items-center gap-3"
+                  style={{ color: 'var(--hybrid-accent-primary)' }}
                 >
                   <Gift className="h-6 w-6" />
                   {isAuthenticated ? "Ouvrir ma première boîte" : "Commencer l'aventure"}
                   <ArrowRight className="h-6 w-6" />
                 </Link>
               </motion.div>
-              
+
               {!isAuthenticated && (
                 <motion.div
                   whileHover={{ scale: 1.05 }}
@@ -806,7 +857,10 @@ useEffect(() => {
                 >
                   <Link
                     href="/login"
-                    className="border-2 border-white text-white px-8 py-4 rounded-full text-xl font-bold hover:bg-white hover:text-[rgb(var(--primary))] transition-all duration-300 flex items-center gap-3"
+                    className="border-2 border-white text-white px-8 py-4 rounded-full text-xl font-bold hover:bg-white transition-all duration-300 flex items-center gap-3 hover:text-current"
+                    style={{
+                      '--hover-color': 'var(--hybrid-accent-primary)'
+                    } as React.CSSProperties}
                   >
                     <Users className="h-6 w-6" />
                     J'ai déjà un compte

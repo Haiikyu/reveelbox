@@ -55,43 +55,62 @@ export interface LootBoxItem {
 
 export interface Battle {
   id: string;
-  mode: '1v1' | '2v2' | 'group';
-  status: 'waiting' | 'countdown' | 'opening' | 'finished';
+  name: string;
+  description: string | null;
+  mode: 'classic' | 'crazy' | 'shared' | 'fast' | 'jackpot' | 'terminal' | 'clutch';
   max_players: number;
   entry_cost: number;
   total_prize: number;
+  status: 'waiting' | 'countdown' | 'active' | 'finished' | 'cancelled' | 'expired';
   is_private: boolean;
-  password?: string;
-  created_by: string;
-  winner_user_id?: string;
-  created_at: string;
+  total_boxes: number;
+  current_box: number;
   expires_at: string;
-  finished_at?: string;
-  creator?: User;
-  participants?: BattleParticipant[];
-  battle_boxes?: BattleBox[];
-  spectator_count?: any[];
+  created_at: string;
+  creator_id: string | null;
+  participants: BattleParticipant[];
+  battle_boxes: BattleBox[];
+  creator: {
+    username: string | null;
+    avatar_url: string | null;
+    level: number;
+  } | null;
 }
 
 export interface BattleParticipant {
   id: string;
   battle_id: string;
-  user_id: string;
-  team?: number;
+  user_id: string | null;
+  is_bot: boolean;
+  bot_name: string | null;
+  bot_avatar_url: string | null;
+  position: number;
+  team: number;
+  total_value: number;
   is_ready: boolean;
-  total_value?: number;
-  position?: number;
+  is_winner: boolean;
+  final_rank: number | null;
   joined_at: string;
-  user?: User;
+  has_paid: boolean;
+  profiles?: {
+    username: string | null;
+    avatar_url: string | null;
+    level: number;
+  } | null;
 }
 
 export interface BattleBox {
   id: string;
-  battle_id: string;
   loot_box_id: string;
   quantity: number;
   order_position: number;
-  loot_box?: LootBox;
+  cost_per_box: number;
+  loot_boxes: {
+    id: string;
+    name: string;
+    image_url: string | null;
+    price_virtual: number;
+  } | null;
 }
 
 export interface BattleOpening {

@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Gift, Clock, Star, Lock, Timer, ArrowRight } from 'lucide-react'
 import { LoadingState } from '../components/ui/LoadingState'
+import ParticlesBackground from '@/app/components/affiliate/ParticlesBackground'
 // Import des types depuis le bon fichier
 import type { DailyBox, UserStats } from '@/types/freedrop'
 
@@ -158,11 +159,10 @@ export default function FreedropPage() {
           // Charger les réclamations d'aujourd'hui
           const today = new Date().toISOString().split('T')[0]
           const { data: claimsData } = await supabase
-            .from('daily_claims')
-            .select('daily_box_id, claimed_at')
+            .from('daily_box_claims')
+            .select('daily_box_id, claimed_date')
             .eq('user_id', user.id)
-            .gte('claimed_at', `${today}T00:00:00.000Z`)
-            .lt('claimed_at', `${today}T23:59:59.999Z`)
+            .eq('claimed_date', today)
 
           // Stats basiques utilisateur
           const stats: UserStats = {
@@ -236,7 +236,7 @@ export default function FreedropPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 flex items-center justify-center transition-colors duration-300">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center transition-colors duration-300">
         <LoadingState size="lg" text="Chargement des freedrops..." />
       </div>
     )
@@ -247,20 +247,27 @@ export default function FreedropPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 transition-colors duration-300">
-      
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300 relative overflow-hidden">
+      {/* Particles Background */}
+      <ParticlesBackground />
+
       {/* Header */}
       <div className="pt-16 pb-8">
         <div className="max-w-6xl mx-auto px-6 text-center">
           
-          <motion.h1 
+          <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
             className="text-6xl font-black text-gray-900 dark:text-white mb-4 transition-colors flex items-center justify-center"
           >
-            <Gift className="inline-block mr-4 mb-2 text-green-400 dark:text-green-500" size={56} />
-            <span className="bg-gradient-to-r from-green-400 to-green-500 bg-clip-text text-transparent">
+            <Gift className="inline-block mr-4 mb-2" style={{ color: 'var(--hybrid-accent-primary)' }} size={56} />
+            <span style={{
+              background: `linear-gradient(90deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`,
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>
               Freedrop
             </span>
           </motion.h1>
@@ -284,36 +291,39 @@ export default function FreedropPage() {
               transition={{ delay: 0.2, duration: 0.5 }}
               className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 mb-8"
             >
-              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-lg border border-gray-200/50 dark:border-gray-700/50">
+              <div className="bg-white dark:bg-gray-900 rounded-xl px-6 py-4 shadow-lg border border-gray-200 dark:border-gray-800">
                 <div className="flex items-center gap-2 mb-2">
                   <Star className="text-yellow-500" size={20} />
-                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Niveau</span>
+                  <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">Niveau</span>
                 </div>
-                <div className="text-2xl font-black text-gray-900 dark:text-white">{userStats.level}</div>
+                <div className="text-3xl font-black text-gray-900 dark:text-white">{userStats.level}</div>
               </div>
-              
-              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-lg border border-gray-200/50 dark:border-gray-700/50">
+
+              <div className="bg-white dark:bg-gray-900 rounded-xl px-6 py-4 shadow-lg border border-gray-200 dark:border-gray-800">
                 <div className="flex items-center gap-2 mb-2">
-                  <Clock className="text-green-500" size={20} />
-                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Expérience</span>
+                  <Clock className="" style={{ color: 'var(--hybrid-accent-primary)' }} size={20} />
+                  <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">Expérience</span>
                 </div>
                 <div className="text-lg font-bold text-gray-900 dark:text-white mb-2">
                   {userStats.current_exp}/100
                 </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2.5">
                   <div
-                    className="bg-gradient-to-r from-green-400 to-green-500 h-2 rounded-full transition-all duration-1000"
-                    style={{ width: `${Math.min((userStats.current_exp % 100), 100)}%` }}
+                    className="h-2.5 rounded-full transition-all duration-1000"
+                    style={{
+                      width: `${Math.min((userStats.current_exp % 100), 100)}%`,
+                      background: `linear-gradient(90deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
+                    }}
                   />
                 </div>
               </div>
-              
-              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-lg border border-gray-200/50 dark:border-gray-700/50">
+
+              <div className="bg-white dark:bg-gray-900 rounded-xl px-6 py-4 shadow-lg border border-gray-200 dark:border-gray-800">
                 <div className="flex items-center gap-2 mb-2">
-                  <Gift className="text-green-400 dark:text-green-500" size={20} />
-                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Total ouvertes</span>
+                  <Gift className="" style={{ color: 'var(--hybrid-accent-primary)' }} size={20} />
+                  <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">Total ouvertes</span>
                 </div>
-                <div className="text-2xl font-black text-gray-900 dark:text-white">{userStats.total_daily_claims}</div>
+                <div className="text-3xl font-black text-gray-900 dark:text-white">{userStats.total_daily_claims}</div>
               </div>
             </motion.div>
           )}

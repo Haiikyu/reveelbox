@@ -63,14 +63,15 @@ export function ThemeProvider({
   // Appliquer le thème au DOM
   useEffect(() => {
     const root = window.document.documentElement
-    
-    root.classList.remove('light', 'dark')
-    
+
+    // Remove both old and new theme classes
+    root.classList.remove('light', 'dark', 'hybrid-light', 'hybrid-dark')
+
     if (resolvedTheme === 'dark') {
-      root.classList.add('dark')
+      root.classList.add('dark', 'hybrid-dark')
       root.style.colorScheme = 'dark'
     } else {
-      root.classList.add('light')
+      root.classList.add('light', 'hybrid-light')
       root.style.colorScheme = 'light'
     }
   }, [resolvedTheme])

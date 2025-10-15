@@ -1,0 +1,478 @@
+/**
+ * 🎨 REVEELBOX - DIRECTIONS ARTISTIQUES ALTERNATIVES
+ * 5 styles modernes et professionnels
+ */
+
+/* ============================================
+   STYLE 1: NEOMORPHISM (Soft UI)
+   Style: Soft, relief 3D subtil, ombres douces
+   Exemples: Dribbble trending 2020-2021
+   ============================================ */
+
+.neo-background {
+  background: #e8ecf1;
+  min-height: 100vh;
+}
+
+.neo-card {
+  background: #e8ecf1;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow:
+    8px 8px 16px #c5c9d0,
+    -8px -8px 16px #ffffff;
+  transition: all 0.3s ease;
+}
+
+.neo-card:hover {
+  box-shadow:
+    12px 12px 24px #c5c9d0,
+    -12px -12px 24px #ffffff;
+}
+
+.neo-card-inset {
+  background: #e8ecf1;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow:
+    inset 4px 4px 8px #c5c9d0,
+    inset -4px -4px 8px #ffffff;
+}
+
+.neo-button {
+  background: linear-gradient(145deg, #f0f4f8, #d9dfe6);
+  border: none;
+  border-radius: 16px;
+  padding: 14px 32px;
+  font-weight: 600;
+  color: #2d3748;
+  box-shadow:
+    6px 6px 12px #c5c9d0,
+    -6px -6px 12px #ffffff;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.neo-button:hover {
+  box-shadow:
+    4px 4px 8px #c5c9d0,
+    -4px -4px 8px #ffffff;
+}
+
+.neo-button:active {
+  box-shadow:
+    inset 4px 4px 8px #c5c9d0,
+    inset -4px -4px 8px #ffffff;
+}
+
+.neo-button-primary {
+  background: linear-gradient(145deg, #14b478, #0f9461);
+  color: white;
+  box-shadow:
+    6px 6px 12px #0d7d51,
+    -6px -6px 12px #1beb9f;
+}
+
+/* ============================================
+   STYLE 2: BRUTALISM MODERNE (Neo-Brutalism)
+   Style: Bordures épaisses, couleurs vives, grilles strictes
+   Exemples: Gumroad, Figma community
+   ============================================ */
+
+.brutal-background {
+  background: #fafafa;
+  min-height: 100vh;
+}
+
+.brutal-card {
+  background: #ffffff;
+  border: 3px solid #000000;
+  border-radius: 0;
+  padding: 24px;
+  box-shadow: 8px 8px 0 #000000;
+  transition: all 0.2s ease;
+}
+
+.brutal-card:hover {
+  transform: translate(-4px, -4px);
+  box-shadow: 12px 12px 0 #000000;
+}
+
+.brutal-card-color-1 {
+  background: #FFE66D;
+  border: 3px solid #000000;
+  box-shadow: 8px 8px 0 #000000;
+}
+
+.brutal-card-color-2 {
+  background: #FF6B6B;
+  border: 3px solid #000000;
+  box-shadow: 8px 8px 0 #000000;
+}
+
+.brutal-card-color-3 {
+  background: #4ECDC4;
+  border: 3px solid #000000;
+  box-shadow: 8px 8px 0 #000000;
+}
+
+.brutal-button {
+  background: #000000;
+  color: #ffffff;
+  border: 3px solid #000000;
+  padding: 14px 32px;
+  font-weight: 700;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.brutal-button:hover {
+  background: #ffffff;
+  color: #000000;
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 #000000;
+}
+
+.brutal-button-primary {
+  background: #10b981;
+  border: 3px solid #000000;
+  color: #000000;
+  box-shadow: 4px 4px 0 #000000;
+}
+
+.brutal-badge {
+  display: inline-block;
+  padding: 6px 16px;
+  background: #FFE66D;
+  border: 2px solid #000000;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+
+/* ============================================
+   STYLE 3: BENTO BOX / CARD GRID
+   Style: Grilles asymétriques, espacements larges, minimaliste
+   Exemples: Apple, Notion, Linear
+   ============================================ */
+
+.bento-background {
+  background: #f8f9fa;
+  min-height: 100vh;
+}
+
+.bento-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.bento-card {
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 24px;
+  padding: 32px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bento-card:hover {
+  border-color: #10b981;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.06);
+  transform: translateY(-4px);
+}
+
+.bento-card-large {
+  grid-column: span 2;
+}
+
+.bento-card-tall {
+  grid-row: span 2;
+}
+
+.bento-card-feature {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+}
+
+.bento-card-gradient-green {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+}
+
+.bento-button {
+  background: #000000;
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bento-button:hover {
+  background: #1f1f1f;
+  transform: scale(1.02);
+}
+
+.bento-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: #f1f3f5;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #495057;
+}
+
+/* ============================================
+   STYLE 4: GRADIENT MESH (Moderne Coloré)
+   Style: Gradients complexes, blur, minimal
+   Exemples: Stripe, Vercel, Raycast
+   ============================================ */
+
+.mesh-background {
+  background: #0a0a0a;
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.mesh-background::before {
+  content: '';
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%);
+  top: -300px;
+  right: -300px;
+  animation: float-mesh 20s ease-in-out infinite;
+}
+
+.mesh-background::after {
+  content: '';
+  position: absolute;
+  width: 800px;
+  height: 800px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, transparent 70%);
+  bottom: -400px;
+  left: -400px;
+  animation: float-mesh 25s ease-in-out infinite reverse;
+}
+
+@keyframes float-mesh {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(50px, 50px) scale(1.1); }
+}
+
+.mesh-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 24px;
+  padding: 32px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.mesh-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 24px;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(99, 102, 241, 0.3));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.mesh-card:hover::before {
+  opacity: 1;
+}
+
+.mesh-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-4px);
+}
+
+.mesh-button {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 28px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.mesh-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.mesh-button:hover::before {
+  opacity: 1;
+}
+
+.mesh-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+}
+
+.mesh-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #10b981;
+  backdrop-filter: blur(10px);
+}
+
+/* ============================================
+   STYLE 5: SWISS MINIMALISM (Typographie)
+   Style: Grilles strictes, typo massive, espaces blancs
+   Exemples: Swiss design, Bauhaus
+   ============================================ */
+
+.swiss-background {
+  background: #ffffff;
+  min-height: 100vh;
+}
+
+.swiss-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.swiss-card {
+  background: #ffffff;
+  border: 1px solid #000000;
+  padding: 40px;
+  transition: all 0.2s ease;
+}
+
+.swiss-card:hover {
+  background: #000000;
+  color: #ffffff;
+}
+
+.swiss-card:hover * {
+  color: #ffffff;
+}
+
+.swiss-title {
+  font-size: 72px;
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: -3px;
+  color: #000000;
+  margin: 0;
+  font-family: 'Helvetica Neue', -apple-system, sans-serif;
+}
+
+.swiss-subtitle {
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: #666666;
+  margin: 16px 0 0 0;
+}
+
+.swiss-button {
+  background: #000000;
+  color: #ffffff;
+  border: 2px solid #000000;
+  padding: 16px 48px;
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.swiss-button:hover {
+  background: #ffffff;
+  color: #000000;
+}
+
+.swiss-button-outline {
+  background: #ffffff;
+  color: #000000;
+  border: 2px solid #000000;
+}
+
+.swiss-button-outline:hover {
+  background: #000000;
+  color: #ffffff;
+}
+
+.swiss-badge {
+  display: inline-block;
+  padding: 8px 20px;
+  background: #000000;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.swiss-divider {
+  width: 100%;
+  height: 1px;
+  background: #000000;
+  margin: 80px 0;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 768px) {
+  .neo-card,
+  .brutal-card,
+  .bento-card,
+  .mesh-card,
+  .swiss-card {
+    padding: 20px;
+  }
+
+  .swiss-title {
+    font-size: 48px;
+    letter-spacing: -2px;
+  }
+
+  .bento-card-large,
+  .bento-card-tall {
+    grid-column: span 1;
+    grid-row: span 1;
+  }
+}

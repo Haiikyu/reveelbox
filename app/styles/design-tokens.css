@@ -1,0 +1,409 @@
+/**
+ * 🎨 REVEELBOX DESIGN TOKENS
+ * Variables CSS globales pour une direction artistique cohérente
+ */
+
+:root {
+  /* ============================================
+     COULEURS PRINCIPALES
+     ============================================ */
+
+  /* Primary - Emerald (Gaming, Success) */
+  --color-primary: 16 185 129;        /* #10b981 */
+  --color-primary-dark: 4 120 87;     /* #047857 */
+  --color-primary-light: 52 211 153;  /* #34d399 */
+
+  /* Secondary - Blue (Trust, Tech) */
+  --color-secondary: 59 130 246;      /* #3b82f6 */
+  --color-secondary-dark: 30 64 175;  /* #1e40af */
+  --color-secondary-light: 96 165 250; /* #60a5fa */
+
+  /* Accent - Purple (Mystery, Premium) */
+  --color-accent: 168 85 247;         /* #a855f7 */
+  --color-accent-dark: 126 34 206;    /* #7e22ce */
+  --color-accent-light: 192 132 252;  /* #c084fc */
+
+  /* ============================================
+     COULEURS D'ÉTAT
+     ============================================ */
+
+  --color-success: 16 185 129;        /* #10b981 */
+  --color-warning: 245 158 11;        /* #f59e0b */
+  --color-error: 239 68 68;           /* #ef4444 */
+  --color-info: 59 130 246;           /* #3b82f6 */
+
+  /* ============================================
+     COULEURS DE RARETÉ
+     ============================================ */
+
+  --rarity-common: 148 163 184;       /* #94a3b8 Slate */
+  --rarity-uncommon: 34 197 94;       /* #22c55e Green */
+  --rarity-rare: 59 130 246;          /* #3b82f6 Blue */
+  --rarity-epic: 168 85 247;          /* #a855f7 Purple */
+  --rarity-legendary: 245 158 11;     /* #f59e0b Amber */
+  --rarity-mythic: 239 68 68;         /* #ef4444 Red */
+
+  /* ============================================
+     COULEURS NEUTRES (DARK THEME)
+     ============================================ */
+
+  --color-slate-950: 2 6 23;          /* #020617 */
+  --color-slate-900: 15 23 42;        /* #0f172a */
+  --color-slate-800: 30 41 59;        /* #1e293b */
+  --color-slate-700: 51 65 85;        /* #334155 */
+  --color-slate-600: 71 85 105;       /* #475569 */
+  --color-slate-500: 100 116 139;     /* #64748b */
+
+  /* ============================================
+     EFFETS GLASSMORPHISM
+     ============================================ */
+
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-blur: 20px;
+
+  /* ============================================
+     OMBRES & GLOWS
+     ============================================ */
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.15);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.2);
+  --shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.3);
+
+  /* Glows */
+  --glow-indigo: 0 0 20px rgba(99, 102, 241, 0.5),
+                  0 0 40px rgba(99, 102, 241, 0.3),
+                  0 0 60px rgba(99, 102, 241, 0.1);
+
+  --glow-purple: 0 0 20px rgba(168, 85, 247, 0.5),
+                 0 0 40px rgba(168, 85, 247, 0.3);
+
+  --glow-blue: 0 0 20px rgba(59, 130, 246, 0.5),
+               0 0 40px rgba(59, 130, 246, 0.3);
+
+  /* ============================================
+     TYPOGRAPHIE
+     ============================================ */
+
+  /* Font Families */
+  --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-heading: 'Space Grotesk', 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+
+  /* Font Sizes */
+  --text-xs: 0.75rem;      /* 12px */
+  --text-sm: 0.875rem;     /* 14px */
+  --text-base: 1rem;       /* 16px */
+  --text-lg: 1.125rem;     /* 18px */
+  --text-xl: 1.25rem;      /* 20px */
+  --text-2xl: 1.5rem;      /* 24px */
+  --text-3xl: 1.875rem;    /* 30px */
+  --text-4xl: 2.25rem;     /* 36px */
+  --text-5xl: 3rem;        /* 48px */
+  --text-6xl: 3.75rem;     /* 60px */
+
+  /* Font Weights */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  --font-black: 900;
+
+  /* Line Heights */
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.75;
+
+  /* ============================================
+     SPACING
+     ============================================ */
+
+  --space-1: 0.25rem;      /* 4px */
+  --space-2: 0.5rem;       /* 8px */
+  --space-3: 0.75rem;      /* 12px */
+  --space-4: 1rem;         /* 16px */
+  --space-5: 1.25rem;      /* 20px */
+  --space-6: 1.5rem;       /* 24px */
+  --space-8: 2rem;         /* 32px */
+  --space-10: 2.5rem;      /* 40px */
+  --space-12: 3rem;        /* 48px */
+  --space-16: 4rem;        /* 64px */
+  --space-20: 5rem;        /* 80px */
+  --space-24: 6rem;        /* 96px */
+
+  /* ============================================
+     BORDER RADIUS
+     ============================================ */
+
+  --radius-sm: 0.5rem;     /* 8px */
+  --radius-md: 0.75rem;    /* 12px */
+  --radius-lg: 1rem;       /* 16px */
+  --radius-xl: 1.5rem;     /* 24px */
+  --radius-2xl: 2rem;      /* 32px */
+  --radius-3xl: 3rem;      /* 48px */
+  --radius-full: 9999px;
+
+  /* ============================================
+     TRANSITIONS
+     ============================================ */
+
+  /* Durations */
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --duration-slow: 500ms;
+
+  /* Easing Functions */
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-gaming: cubic-bezier(0.87, 0, 0.13, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ============================================
+     Z-INDEX LAYERS
+     ============================================ */
+
+  --z-base: 0;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-fixed: 300;
+  --z-modal-backdrop: 400;
+  --z-modal: 500;
+  --z-popover: 600;
+  --z-tooltip: 700;
+  --z-toast: 800;
+  --z-overlay: 900;
+  --z-max: 9999;
+
+  /* ============================================
+     BREAKPOINTS (for JS)
+     ============================================ */
+
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+}
+
+/* ============================================
+   CLASSES UTILITAIRES CUSTOM
+   ============================================ */
+
+/* Glassmorphism */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+}
+
+.glass-card {
+  @apply glass rounded-2xl shadow-2xl;
+}
+
+/* Glows */
+.glow-indigo {
+  box-shadow: var(--glow-indigo);
+}
+
+.glow-purple {
+  box-shadow: var(--glow-purple);
+}
+
+.glow-blue {
+  box-shadow: var(--glow-blue);
+}
+
+/* Text Gradients */
+.text-gradient-indigo {
+  background: linear-gradient(135deg,
+    rgb(var(--color-primary-light)) 0%,
+    rgb(var(--color-primary)) 50%,
+    rgb(var(--color-primary-dark)) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-rainbow {
+  background: linear-gradient(90deg,
+    rgb(var(--color-primary)) 0%,
+    rgb(var(--color-secondary)) 33%,
+    rgb(var(--color-accent)) 66%,
+    rgb(var(--color-primary)) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 200% auto;
+  animation: shimmer 3s linear infinite;
+}
+
+/* Rarity Badges */
+.rarity-badge {
+  @apply px-3 py-1 text-xs font-black uppercase rounded-full border-2;
+}
+
+.rarity-common {
+  color: rgb(var(--rarity-common));
+  background: rgba(var(--rarity-common), 0.1);
+  border-color: rgba(var(--rarity-common), 0.3);
+}
+
+.rarity-uncommon {
+  color: rgb(var(--rarity-uncommon));
+  background: rgba(var(--rarity-uncommon), 0.1);
+  border-color: rgba(var(--rarity-uncommon), 0.3);
+}
+
+.rarity-rare {
+  color: rgb(var(--rarity-rare));
+  background: rgba(var(--rarity-rare), 0.1);
+  border-color: rgba(var(--rarity-rare), 0.3);
+}
+
+.rarity-epic {
+  color: rgb(var(--rarity-epic));
+  background: rgba(var(--rarity-epic), 0.1);
+  border-color: rgba(var(--rarity-epic), 0.3);
+}
+
+.rarity-legendary {
+  color: rgb(var(--rarity-legendary));
+  background: rgba(var(--rarity-legendary), 0.1);
+  border-color: rgba(var(--rarity-legendary), 0.3);
+}
+
+.rarity-mythic {
+  color: rgb(var(--rarity-mythic));
+  background: rgba(var(--rarity-mythic), 0.1);
+  border-color: rgba(var(--rarity-mythic), 0.3);
+}
+
+/* Animations Keyframes */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 0% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes rotate-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+/* Animation Classes */
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-rotate-slow {
+  animation: rotate-slow 8s linear infinite;
+}
+
+.animate-scan {
+  animation: scan 4s linear infinite;
+}
+
+/* Hover Effects */
+.hover-lift {
+  transition: transform var(--duration-normal) var(--ease-smooth),
+              box-shadow var(--duration-normal) var(--ease-smooth);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+}
+
+.hover-glow {
+  transition: box-shadow var(--duration-normal) var(--ease-smooth);
+}
+
+.hover-glow:hover {
+  box-shadow: var(--glow-indigo);
+}
+
+/* Scrollbar Custom */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.5);
+}
+
+/* Selection */
+::selection {
+  background: rgba(99, 102, 241, 0.3);
+  color: white;
+}
+
+::-moz-selection {
+  background: rgba(99, 102, 241, 0.3);
+  color: white;
+}

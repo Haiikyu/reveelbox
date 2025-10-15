@@ -61,7 +61,7 @@ export default function BuyCoinsPage() {
       coins: 150,
       price: 4.99,
       icon: '🎯',
-      gradient: 'from-green-400 to-emerald-600',
+      gradient: 'from-green-400 to-teal-600',
       features: [
         'Parfait pour commencer',
         '1-2 boîtes mystères',
@@ -238,7 +238,7 @@ export default function BuyCoinsPage() {
             className={`fixed top-6 right-6 z-50 px-6 py-4 rounded-2xl shadow-2xl text-white font-bold backdrop-blur-sm ${
               notification.type === 'error' 
                 ? 'bg-gradient-to-r from-red-500 to-red-600 border border-red-400/50' 
-                : 'bg-gradient-to-r from-green-500 to-emerald-600 border border-green-400/50'
+                : 'bg-gradient-to-r from-green-500 to-teal-600 border border-green-400/50'
             }`}
           >
             <div className="flex items-center gap-2">
@@ -403,7 +403,7 @@ export default function BuyCoinsPage() {
                     )}
                     
                     {savings > 0 && (
-                      <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-3 py-1 text-xs font-bold shadow-lg ml-auto rounded-full">
+                      <div className="bg-gradient-to-r from-green-500 to-violet-500 text-white px-3 py-1 text-xs font-bold shadow-lg ml-auto rounded-full">
                         -{savings}%
                       </div>
                     )}
@@ -597,7 +597,7 @@ export default function BuyCoinsPage() {
                     icon: <Shield className="w-8 h-8" />,
                     title: 'Paiement Sécurisé',
                     description: 'Chiffrement SSL et protection Stripe. Vos données sont en sécurité.',
-                    gradient: 'from-green-400 to-emerald-500'
+                    gradient: 'from-green-400 to-violet-500'
                   },
                   {
                     icon: <Zap className="w-8 h-8" />,

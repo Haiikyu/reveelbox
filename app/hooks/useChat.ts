@@ -1,497 +1,269 @@
-// Fichier: hooks/useChat.ts
-'use client';
+// ============================================
+// useChat.ts - Version Corrigée
+// ============================================
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { useToast } from '@/components/ui/use-toast';
+import { useState, useEffect, useCallback } from 'react'
+import { supabase } from '@/lib/supabase-chat'
 
-import type {
-  ChatMessage,
-  ChatUser,
-  ChatState,
-  UseChatReturn,
-  SendMessageRequest,
-  TranslateMessageRequest
-} from '@/types/chat';
-import type { Database } from '@/types/database';
-
-interface UseChatOptions {
-  userId: string;
-  initialMessages?: ChatMessage[];
-  pageSize?: number;
-  autoConnect?: boolean;
+interface Profile {
+  id: string;
+  username?: string;
+  avatar_url?: string;
+  level?: number;
+  is_admin?: boolean;
+  is_banned?: boolean;
+  total_exp?: number;
 }
 
-interface UseChatState extends ChatState {
-  hasNextPage: boolean;
-  currentPage: number;
+interface Message {
+  id: string;
+  user_id: string;
+  content: string;
+  message_type: string | null;
+  created_at: string;
+  profiles?: Profile;
 }
 
-export const useChat = (options: UseChatOptions): UseChatReturn => {
-  const { userId, initialMessages = [], pageSize = 50, autoConnect = true } = options;
-  const supabase = createClientComponentClient<Database>();
-  const { toast } = useToast();
-  
-  const [state, setState] = useState<UseChatState>({
-    messages: initialMessages,
-    users: new Map<string, ChatUser>(),
-    activeGiveaways: [],
-    activePolls: [],
-    pinnedMessage: null,
-    isLoading: false,
-    error: null,
-    lastMessageId: null,
-    hasNextPage: true,
-    currentPage: 0
-  });
-
-  const [loading, setLoading] = useState({
-    sendingMessage: false,
-    loadingMessages: false,
-    translating: null as string | null
-  });
-
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Fonction utilitaire pour gérer les erreurs
-  const handleError = useCallback((error: unknown, action: string) => {
-    console.error(`Erreur ${action}:`, error);
-    const errorMessage = error instanceof Error ? error.message : 'Une erreur inattendue est survenue';
-    
-    setState(prev => ({ ...prev, error: errorMessage }));
-    
-    toast({
-      title: 'Erreur',
-      description: errorMessage,
-      variant: 'destructive'
-    });
-  }, [toast]);
-
-  // Charger les messages avec pagination
-  const loadMessages = useCallback(async (page = 0, append = false) => {
-    if (!autoConnect) return;
-
-    // Annuler la requête précédente si elle existe
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    abortControllerRef.current = new AbortController();
-    setLoading(prev => ({ ...prev, loadingMessages: true }));
-
+const chatAPI = {
+  async getDefaultRoomId(): Promise<string | null> {
     try {
-      const offset = page * pageSize;
-      const { data: messagesData, error: messagesError } = await supabase
-        .from('chat_messages')
-        .select(`
-          id,
-          user_id,
-          content,
-          message_type,
-          is_bot,
-          created_at,
-          pinned,
-          pinned_at,
-          pinned_by,
-          translated_text,
-          reply_to,
-          metadata
-        `)
-        .order('created_at', { ascending: false })
-        .range(offset, offset + pageSize - 1)
-        .abortSignal(abortControllerRef.current.signal);
+      // Récupérer la première room Global active (gère le problème des doublons)
+      const { data: rooms, error } = await supabase
+        .from('chat_rooms')
+        .select('id')
+        .eq('name', 'Global')
+        .eq('is_active', true)
+        .order('created_at', { ascending: true }) // Prendre la plus ancienne
+        .limit(1);
 
-      if (messagesError) throw messagesError;
-
-      // Charger les profils des utilisateurs
-      const userIds = messagesData
-        ?.filter(msg => msg.user_id && !msg.is_bot)
-        .map(msg => msg.user_id as string) || [];
-      
-      let usersMap = new Map<string, ChatUser>();
-      
-      if (userIds.length > 0) {
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select(`
-            id,
-            username,
-            avatar_url,
-            total_exp,
-            virtual_currency,
-            theme,
-            grade,
-            is_admin,
-            is_banned,
-            banned_until
-          `)
-          .in('id', [...new Set(userIds)])
-          .abortSignal(abortControllerRef.current.signal);
-
-        if (profilesError) {
-          console.warn('Erreur chargement profils:', profilesError);
-        } else {
-          profiles?.forEach(profile => {
-            const level = Math.floor((profile.total_exp || 0) / 100) + 1;
-            usersMap.set(profile.id, {
-              id: profile.id,
-              username: profile.username || 'Utilisateur',
-              avatar_url: profile.avatar_url,
-              level,
-              virtual_currency: profile.virtual_currency || 0,
-              theme: profile.theme || {
-                primary: '#3B82F6',
-                secondary: '#1E40AF',
-                accent: '#F59E0B'
-              },
-              grade: profile.grade,
-              is_admin: profile.is_admin || false,
-              is_banned: profile.is_banned || false,
-              banned_until: profile.banned_until
-            });
-          });
-        }
+      if (error) {
+        console.error('Erreur récupération room:', error);
+        return null;
       }
 
-      const processedMessages = messagesData?.reverse() || [];
-      const pinnedMsg = processedMessages.find(msg => msg.pinned);
+      if (!rooms || rooms.length === 0) {
+        console.warn('Aucune room Global trouvée');
+        return null;
+      }
 
-      setState(prev => ({
-        ...prev,
-        messages: append ? [...prev.messages, ...processedMessages] : processedMessages,
-        users: new Map([...prev.users, ...usersMap]),
-        pinnedMessage: pinnedMsg || prev.pinnedMessage,
-        lastMessageId: processedMessages[processedMessages.length - 1]?.id || prev.lastMessageId,
-        hasNextPage: messagesData?.length === pageSize,
-        currentPage: page,
-        isLoading: false,
-        error: null
-      }));
+      return rooms[0].id;
+    } catch (error) {
+      console.error('Erreur getDefaultRoomId:', error);
+      return null;
+    }
+  },
+
+  async getMessages(): Promise<{ success: boolean; data?: Message[]; error?: string }> {
+    try {
+      const { data: messages, error } = await supabase
+        .from('chat_messages_new')
+        .select('id, user_id, content, message_type, created_at')
+        .order('created_at', { ascending: false })
+        .limit(60);
+
+      if (error) {
+        console.error('Erreur Supabase getMessages:', error);
+        return { success: false, error: error.message };
+      }
+
+      if (!messages || messages.length === 0) {
+        return { success: true, data: [] };
+      }
+
+      // Récupérer les profils séparément
+      const userIds = [...new Set(messages.map(msg => msg.user_id).filter(Boolean))];
+      
+      if (userIds.length === 0) {
+        return { 
+          success: true, 
+          data: messages.reverse().map(msg => ({
+            ...msg,
+            profiles: {
+              id: msg.user_id,
+              username: 'Utilisateur',
+              avatar_url: undefined,
+              level: 1
+            }
+          }))
+        };
+      }
+
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url, level, is_admin, is_banned, total_exp')
+        .in('id', userIds);
+
+      const profilesMap = new Map<string, Profile>();
+      (profiles || []).forEach(profile => {
+        profilesMap.set(profile.id, profile);
+      });
+
+      const messagesWithProfiles = messages.map(msg => ({
+        ...msg,
+        profiles: profilesMap.get(msg.user_id) || {
+          id: msg.user_id,
+          username: 'Utilisateur',
+          avatar_url: undefined,
+          level: 1
+        }
+      })).reverse();
+
+      return { success: true, data: messagesWithProfiles };
 
     } catch (error: any) {
-      if (error.name === 'AbortError') return;
-      handleError(error, 'chargement des messages');
-    } finally {
-      setLoading(prev => ({ ...prev, loadingMessages: false }));
+      console.error('Erreur chatAPI.getMessages:', error);
+      return { success: false, error: error.message || 'Erreur inconnue' };
     }
-  }, [supabase, pageSize, autoConnect, handleError]);
+  },
 
-  // Charger plus de messages (pagination)
-  const loadMoreMessages = useCallback(async () => {
-    if (!state.hasNextPage || loading.loadingMessages) return;
-    await loadMessages(state.currentPage + 1, true);
-  }, [state.hasNextPage, state.currentPage, loading.loadingMessages, loadMessages]);
-
-  // Envoyer un message
-  const sendMessage = useCallback(async (content: string, messageType: ChatMessage['message_type'] = 'text') => {
-    if (!content.trim() || loading.sendingMessage) return;
-
-    setLoading(prev => ({ ...prev, sendingMessage: true }));
-
+  async sendMessage(content: string): Promise<{ success: boolean; data?: Message; error?: string }> {
     try {
-      const messageData: SendMessageRequest = {
-        content: content.trim(),
-        message_type: messageType
+      // Vérifier l'authentification
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        return { success: false, error: 'Session expirée - Veuillez vous reconnecter' };
+      }
+
+      // Valider le contenu
+      const trimmedContent = content.trim();
+      if (!trimmedContent) {
+        return { success: false, error: 'Le message ne peut pas être vide' };
+      }
+
+      if (trimmedContent.length > 1000) {
+        return { success: false, error: 'Message trop long (max 1000 caractères)' };
+      }
+
+      // Récupérer la room par défaut (corrigé pour gérer les doublons)
+      const defaultRoomId = await this.getDefaultRoomId();
+      if (!defaultRoomId) {
+        return { success: false, error: 'Room de chat non trouvée' };
+      }
+
+      // Insérer le message
+      const { data: messageData, error: insertError } = await supabase
+        .from('chat_messages_new')
+        .insert({
+          room_id: defaultRoomId,
+          user_id: user.id,
+          content: trimmedContent,
+          message_type: 'user_message'
+        })
+        .select('id, user_id, content, message_type, created_at')
+        .single();
+
+      if (insertError) {
+        console.error('Erreur insertion message:', insertError);
+        return { success: false, error: `Erreur envoi: ${insertError.message}` };
+      }
+
+      // Récupérer le profil de l'utilisateur
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url, level, is_admin, is_banned, total_exp')
+        .eq('id', user.id)
+        .single();
+
+      const messageWithProfile: Message = {
+        ...messageData,
+        profiles: profile || {
+          id: user.id,
+          username: 'Utilisateur',
+          avatar_url: undefined,
+          level: 1
+        }
       };
 
-      const response = await fetch('/api/chat/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(messageData)
-      });
+      return { success: true, data: messageWithProfile };
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Erreur lors de l\'envoi du message');
-      }
-
-      const { data: newMessage } = await response.json();
-
-      // Ajouter le message à la liste locale
-      setState(prev => ({
-        ...prev,
-        messages: [...prev.messages, newMessage],
-        lastMessageId: newMessage.id
-      }));
-
-    } catch (error) {
-      handleError(error, 'envoi du message');
-    } finally {
-      setLoading(prev => ({ ...prev, sendingMessage: false }));
+    } catch (error: any) {
+      console.error('Erreur chatAPI.sendMessage:', error);
+      return { success: false, error: error.message || 'Erreur inconnue' };
     }
-  }, [loading.sendingMessage, handleError]);
+  }
+};
 
-  // Épingler/désépingler un message
-  const pinMessage = useCallback(async (messageId: string) => {
+export const useChat = () => {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchMessages = useCallback(async (): Promise<void> => {
     try {
-      const response = await fetch(`/api/chat/messages/${messageId}/pin`, {
-        method: 'POST'
-      });
-
-      if (!response.ok) {
-        throw new Error('Erreur lors de l\'épinglage');
-      }
-
-      const { data: updatedMessage } = await response.json();
-
-      setState(prev => ({
-        ...prev,
-        messages: prev.messages.map(msg => 
-          msg.id === messageId ? { ...msg, ...updatedMessage } : msg
-        ),
-        pinnedMessage: updatedMessage.pinned ? updatedMessage : null
-      }));
-
-    } catch (error) {
-      handleError(error, 'épinglage du message');
-    }
-  }, [handleError]);
-
-  const unpinMessage = useCallback(async (messageId: string) => {
-    try {
-      const response = await fetch(`/api/chat/messages/${messageId}/unpin`, {
-        method: 'POST'
-      });
-
-      if (!response.ok) {
-        throw new Error('Erreur lors du désépinglage');
-      }
-
-      setState(prev => ({
-        ...prev,
-        messages: prev.messages.map(msg => 
-          msg.id === messageId ? { ...msg, pinned: false, pinned_at: null, pinned_by: null } : msg
-        ),
-        pinnedMessage: null
-      }));
-
-    } catch (error) {
-      handleError(error, 'désépinglage du message');
-    }
-  }, [handleError]);
-
-  // Traduire un message
-  const translateMessage = useCallback(async (messageId: string, targetLang: string) => {
-    setLoading(prev => ({ ...prev, translating: messageId }));
-
-    try {
-      const requestData: TranslateMessageRequest = {
-        message_id: messageId,
-        target_language: targetLang
-      };
-
-      const response = await fetch('/api/chat/messages/translate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestData)
-      });
-
-      if (!response.ok) {
-        throw new Error('Erreur lors de la traduction');
-      }
-
-      const { data: translation } = await response.json();
-
-      setState(prev => ({
-        ...prev,
-        messages: prev.messages.map(msg => 
-          msg.id === messageId 
-            ? { 
-                ...msg, 
-                translated_text: {
-                  ...msg.translated_text,
-                  [targetLang]: translation.text
-                }
-              }
-            : msg
-        )
-      }));
-
-    } catch (error) {
-      handleError(error, 'traduction du message');
-    } finally {
-      setLoading(prev => ({ ...prev, translating: null }));
-    }
-  }, [handleError]);
-
-  // Réagir à un message
-  const reactToMessage = useCallback(async (messageId: string, emoji: string) => {
-    try {
-      const response = await fetch('/api/chat/messages/react', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ message_id: messageId, emoji })
-      });
-
-      if (!response.ok) {
-        throw new Error('Erreur lors de l\'ajout de réaction');
-      }
-
-      // Les réactions seront mises à jour via WebSocket ou rechargement
+      setLoading(true);
+      setError(null);
       
-    } catch (error) {
-      handleError(error, 'ajout de réaction');
+      const result = await chatAPI.getMessages();
+      
+      if (result.success && result.data) {
+        setMessages(result.data);
+      } else {
+        setError(result.error || 'Erreur inconnue');
+        setMessages([]);
+      }
+    } catch (err: any) {
+      console.error('Erreur fetchMessages:', err);
+      setError(err?.message || 'Erreur inconnue');
+      setMessages([]);
+    } finally {
+      setLoading(false);
     }
-  }, [handleError]);
+  }, []);
 
-  // Répondre à un message
-  const replyToMessage = useCallback(async (messageId: string, content: string) => {
-    if (!content.trim()) return;
-
+  const sendMessage = async (content: string): Promise<Message> => {
     try {
-      const messageData: SendMessageRequest = {
-        content: content.trim(),
-        message_type: 'text',
-        reply_to: messageId
-      };
+      const result = await chatAPI.sendMessage(content);
+      
+      if (result.success && result.data) {
+        setMessages(prev => [...prev, result.data!]);
+        return result.data;
+      } else {
+        const errorMessage = result.error || 'Erreur envoi message';
+        setError(errorMessage);
+        throw new Error(errorMessage);
+      }
+    } catch (err: any) {
+      const errorMessage = err?.message || 'Erreur envoi message';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  };
 
-      const response = await fetch('/api/chat/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
+  const clearError = useCallback((): void => {
+    setError(null);
+  }, []);
+
+  useEffect(() => {
+    fetchMessages();
+  }, [fetchMessages]);
+
+  useEffect(() => {
+    const subscription = supabase
+      .channel('chat_messages_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages_new'
         },
-        body: JSON.stringify(messageData)
-      });
-
-      if (!response.ok) {
-        throw new Error('Erreur lors de la réponse');
-      }
-
-      const { data: newMessage } = await response.json();
-
-      setState(prev => ({
-        ...prev,
-        messages: [...prev.messages, newMessage],
-        lastMessageId: newMessage.id
-      }));
-
-    } catch (error) {
-      handleError(error, 'réponse au message');
-    }
-  }, [handleError]);
-
-  // Supprimer un message (admin)
-  const deleteMessage = useCallback(async (messageId: string) => {
-    try {
-      const response = await fetch(`/api/chat/messages/${messageId}`, {
-        method: 'DELETE'
-      });
-
-      if (!response.ok) {
-        throw new Error('Erreur lors de la suppression');
-      }
-
-      setState(prev => ({
-        ...prev,
-        messages: prev.messages.filter(msg => msg.id !== messageId),
-        pinnedMessage: prev.pinnedMessage?.id === messageId ? null : prev.pinnedMessage
-      }));
-
-    } catch (error) {
-      handleError(error, 'suppression du message');
-    }
-  }, [handleError]);
-
-  // Ajouter un message (pour WebSocket)
-  const addMessage = useCallback((message: ChatMessage) => {
-    setState(prev => ({
-      ...prev,
-      messages: [...prev.messages, message],
-      lastMessageId: message.id
-    }));
-  }, []);
-
-  // Ajouter un utilisateur (pour WebSocket)
-  const addUser = useCallback((user: ChatUser) => {
-    setState(prev => ({
-      ...prev,
-      users: new Map(prev.users.set(user.id, user))
-    }));
-  }, []);
-
-  // Supprimer un utilisateur (pour WebSocket)
-  const removeUser = useCallback((userId: string) => {
-    setState(prev => {
-      const newUsers = new Map(prev.users);
-      newUsers.delete(userId);
-      return { ...prev, users: newUsers };
-    });
-  }, []);
-
-  // Mettre à jour l'épinglage d'un message (pour WebSocket)
-  const updateMessagePin = useCallback((messageId: string, pinned: boolean) => {
-    setState(prev => ({
-      ...prev,
-      messages: prev.messages.map(msg => 
-        msg.id === messageId ? { ...msg, pinned } : msg
-      ),
-      pinnedMessage: pinned 
-        ? prev.messages.find(msg => msg.id === messageId) || null
-        : null
-    }));
-  }, []);
-
-  // Charger les messages initiaux
-  useEffect(() => {
-    if (autoConnect && state.messages.length === 0) {
-      loadMessages(0, false);
-    }
+        () => {
+          fetchMessages();
+        }
+      )
+      .subscribe();
 
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-      }
+      subscription.unsubscribe();
     };
-  }, [autoConnect, loadMessages]);
-
-  // Cleanup à la destruction
-  useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-      }
-    };
-  }, []);
+  }, [fetchMessages]);
 
   return {
-    state: {
-      messages: state.messages,
-      users: state.users,
-      activeGiveaways: state.activeGiveaways,
-      activePolls: state.activePolls,
-      pinnedMessage: state.pinnedMessage,
-      isLoading: state.isLoading,
-      error: state.error,
-      lastMessageId: state.lastMessageId
-    },
-    actions: {
-      sendMessage,
-      loadMoreMessages,
-      pinMessage,
-      unpinMessage,
-      translateMessage,
-      reactToMessage,
-      replyToMessage,
-      deleteMessage,
-      // Actions pour WebSocket
-      addMessage,
-      addUser,
-      removeUser,
-      updateMessagePin
-    },
-    loading
+    messages,
+    loading,
+    error,
+    sendMessage,
+    refetch: fetchMessages,
+    clearError
   };
 };

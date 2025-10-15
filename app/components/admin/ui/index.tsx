@@ -48,7 +48,7 @@ export const Button = ({
   ...props 
 }: ButtonProps) => {
   const variants = {
-    primary: 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl',
+    primary: 'bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white shadow-lg hover:shadow-xl',
     secondary: 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200',
     danger: 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white shadow-lg hover:shadow-xl',
     warning: 'bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white shadow-lg hover:shadow-xl',
@@ -217,7 +217,7 @@ interface StatsCardProps {
 
 export const StatsCard = ({ title, value, change, icon: Icon, color = 'green' }: StatsCardProps) => {
   const colors = {
-    green: 'from-green-400 to-emerald-500',
+    green: 'from-green-400 to-teal-500',
     blue: 'from-blue-400 to-indigo-500',
     purple: 'from-purple-400 to-pink-500',
     orange: 'from-orange-400 to-red-500',

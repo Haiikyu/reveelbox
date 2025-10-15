@@ -13,16 +13,18 @@ interface WinningResultProps {
   onClose: () => void
   onSell?: (item: FreedropItem) => Promise<void> | void
   onUpgrade?: (item: FreedropItem) => void
+  isFree?: boolean
   className?: string
 }
 
-export function WinningResult({ 
-  item, 
-  isOpen, 
-  onClose, 
-  onSell, 
+export function WinningResult({
+  item,
+  isOpen,
+  onClose,
+  onSell,
   onUpgrade,
-  className = '' 
+  isFree = false,
+  className = ''
 }: WinningResultProps) {
   const [isSelling, setIsSelling] = useState(false)
 
@@ -223,9 +225,9 @@ export function WinningResult({
                 >
                   {/* Actions avec boutons si fonctions fournies */}
                   {(onSell || onUpgrade) && (
-                    <div className="grid grid-cols-2 gap-3">
-                      {/* Bouton Vendre - Corrigé */}
-                      {onSell && (
+                    <div className={`grid ${!isFree && onSell && onUpgrade ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
+                      {/* Bouton Vendre - Masqué si isFree est true */}
+                      {onSell && !isFree && (
                         <button
                           onClick={handleSell}
                           disabled={isSelling}

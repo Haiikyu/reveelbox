@@ -114,9 +114,13 @@ module.exports = {
         'float': 'float 4s ease-in-out infinite',
         'pulse-soft': 'pulse 2s ease-in-out infinite',
         'shimmer': 'shimmer 2s infinite',
-        
+
         // Nouvelles animations pour le thème
         'theme-transition': 'theme-transition 0.3s ease',
+
+        // Animations pour le profil
+        'spin-slow': 'spin 8s linear infinite',
+        'glow': 'glow 2s ease-in-out infinite',
       },
 
       keyframes: {
@@ -137,11 +141,17 @@ module.exports = {
           '0%': { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(100%)' }
         },
-        
+
         // Nouvelle keyframe pour les transitions de thème
         'theme-transition': {
           '0%': { opacity: '0.8' },
           '100%': { opacity: '1' }
+        },
+
+        // Keyframes pour le profil
+        'glow': {
+          '0%, 100%': { boxShadow: '0 0 20px rgba(16, 185, 129, 0.5)' },
+          '50%': { boxShadow: '0 0 40px rgba(16, 185, 129, 0.8)' }
         }
       },
 
@@ -149,10 +159,16 @@ module.exports = {
         // Gradients existants conservés
         'gradient-primary': 'linear-gradient(135deg, #86efac 0%, #22c55e 100%)',
         'gradient-surface': 'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)',
-        
+
         // Nouveaux gradients avec variables CSS
         'gradient-theme-primary': 'linear-gradient(135deg, rgb(var(--primary-light) / 0.1) 0%, rgb(var(--primary) / 0.05) 100%)',
         'gradient-theme-surface': 'linear-gradient(135deg, rgb(var(--surface)) 0%, rgb(var(--surface-elevated)) 100%)',
+      },
+
+      // 3D perspective for upgrade animations
+      perspective: {
+        '1000': '1000px',
+        '2000': '2000px',
       }
     },
   },
