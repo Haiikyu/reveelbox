@@ -74,7 +74,7 @@ export default function AffiliateSettings({
         className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-lg"
       >
         <div className="flex items-center gap-2 mb-4">
-          <Settings className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+          <Settings className="h-5 w-5 text-[#D4A088] dark:text-indigo-400" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Code d'affiliation</h3>
         </div>
 
@@ -82,7 +82,7 @@ export default function AffiliateSettings({
           <div className="space-y-4">
             <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
               <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">Votre code actuel</div>
-              <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+              <div className="text-2xl font-bold text-[#D4A088] dark:text-indigo-400">
                 {affiliateProfile.affiliate_code}
               </div>
             </div>
@@ -94,7 +94,7 @@ export default function AffiliateSettings({
                 setCodeInput(affiliateProfile.affiliate_code)
                 setCodeError('')
               }}
-              className="w-full bg-indigo-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2"
+              className="w-full bg-[#D4A088] hover:bg-[#C18F77] dark:bg-indigo-600 dark:hover:bg-violet-700 text-white px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2"
             >
               <Edit3 className="h-4 w-4" />
               Modifier
@@ -115,7 +115,7 @@ export default function AffiliateSettings({
                   validateCode(upper)
                 }}
                 maxLength={12}
-                className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white uppercase focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white uppercase focus:border-[#D4A088] focus:ring-2 focus:ring-[#D4A088] dark:focus:border-indigo-500 dark:focus:ring-indigo-500"
                 placeholder="MONCODE"
               />
               {codeError && (
@@ -166,7 +166,7 @@ export default function AffiliateSettings({
         className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-lg"
       >
         <div className="flex items-center gap-2 mb-4">
-          <MessageSquare className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+          <MessageSquare className="h-5 w-5 text-[#D4A088] dark:text-indigo-400" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Message de partage</h3>
         </div>
 
@@ -185,7 +185,7 @@ export default function AffiliateSettings({
                 setIsEditingMessage(true)
                 setMessageInput(affiliateProfile.custom_share_message || '')
               }}
-              className="w-full bg-indigo-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2"
+              className="w-full bg-[#D4A088] hover:bg-[#C18F77] dark:bg-indigo-600 dark:hover:bg-violet-700 text-white px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2"
             >
               <Edit3 className="h-4 w-4" />
               Modifier
@@ -202,7 +202,7 @@ export default function AffiliateSettings({
                 onChange={(e) => setMessageInput(e.target.value)}
                 rows={4}
                 maxLength={280}
-                className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 resize-none"
+                className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:border-[#D4A088] focus:ring-2 focus:ring-[#D4A088] dark:focus:border-indigo-500 dark:focus:ring-indigo-500 resize-none"
                 placeholder="Découvre ReveelBox avec mon code !"
               />
               <div className="flex justify-between items-center mt-2">

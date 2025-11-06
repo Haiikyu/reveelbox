@@ -2,7 +2,6 @@
 import { Inter } from 'next/font/google'
 import './globals.css'
 import './styles/design-tokens.css'
-import './styles/design-clean.css'
 import './styles/hybrid-design-system.css'
 import { AuthProvider } from './components/AuthProvider'
 import { ThemeProvider } from './components/ThemeProvider'

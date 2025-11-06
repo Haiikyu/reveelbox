@@ -170,8 +170,6 @@ export default function BoxOpeningPage() {
           items: processedItems
         })
 
-        showMessage('Boîte chargée avec succès', 'success')
-
       } catch (error: any) {
         if (isCancelled) return
         
@@ -214,7 +212,6 @@ export default function BoxOpeningPage() {
 
     const currentBalance = profile.virtual_currency || 0
     if (currentBalance < box.price_virtual) {
-      showMessage(`Il vous manque ${box.price_virtual - currentBalance} coins`, 'error')
       return
     }
 
@@ -249,8 +246,6 @@ export default function BoxOpeningPage() {
         return
       }
 
-      showMessage(`Vous avez gagné ${selectedItem.name}!`, 'success')
-      
       // Refresh différé pour ne pas bloquer l'animation
       setTimeout(async () => {
         try {
@@ -321,8 +316,6 @@ export default function BoxOpeningPage() {
       // 3. Rafraîchir le profil
       await refreshProfile()
 
-      showMessage(`${item.name} vendu pour ${item.market_value} coins`, 'success')
-
       // 4. NE PAS fermer le résultat - garder l'affichage de l'item gagné
       // L'utilisateur peut fermer manuellement ou ouvrir une autre boîte
     } catch (error) {
@@ -357,16 +350,28 @@ export default function BoxOpeningPage() {
   }
 
 return (
-  <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pt-20 transition-colors duration-300 relative">
+  <div className="min-h-screen pt-20 transition-colors duration-300 relative overflow-hidden bg-gradient-to-br from-gray-100 via-white to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+    {/* Background avec ParticlesBackground */}
     <ParticlesBackground />
 
-    <div className="max-w-7xl mx-auto px-6 py-8">
-      
+    {/* Gradient accent subtil pour thème clair */}
+    <div className="fixed inset-0 pointer-events-none opacity-100 dark:opacity-0 transition-opacity duration-300" style={{ zIndex: 1 }}>
+      <div className="absolute inset-0" style={{
+        background: `
+          radial-gradient(ellipse at top left, rgba(var(--hybrid-accent-primary-rgb), 0.12) 0%, transparent 50%),
+          radial-gradient(ellipse at bottom right, rgba(var(--hybrid-accent-secondary-rgb), 0.12) 0%, transparent 50%)
+        `
+      }} />
+    </div>
+
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+
+
       {/* Présentation */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-16" // Espace normal
+        className="mb-16"
       >
         <BoxPresentation
           boxName={box.name}
@@ -378,7 +383,7 @@ return (
       </motion.div>
 
       {/* Roue */}
-      <div className="mb-24 overflow-hidden">
+      <div className="mb-24">
         <Wheel
           items={box.items}
           winningItem={winningItem}
@@ -417,9 +422,24 @@ return (
 
       {/* Liste des objets */}
       <div className="mb-12">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 text-center">
-          Contenu de la boîte
-        </h2>
+        <motion.h2
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="text-3xl font-black text-gray-900 dark:text-white mb-8 text-center relative inline-block w-full"
+        >
+          <span className="relative z-10">Contenu de la boîte</span>
+          {/* Animated underline */}
+          <motion.div
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ delay: 0.4, duration: 0.6 }}
+            className="absolute bottom-0 left-1/2 -translate-x-1/2 h-1 w-32 rounded-full"
+            style={{
+              background: `linear-gradient(90deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
+            }}
+          />
+        </motion.h2>
         <LootList items={box.items} />
       </div>
     </div>

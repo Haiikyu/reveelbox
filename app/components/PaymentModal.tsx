@@ -16,14 +16,14 @@ export default function PaymentModal({ isOpen, onClose, buttonRef }: PaymentModa
   const [position, setPosition] = useState({ top: 0, right: 0 })
 
   useEffect(() => {
-    if (isOpen) {
-      // Centrer le modal verticalement et horizontalement
+    if (isOpen && buttonRef?.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
       setPosition({
-        top: window.innerHeight / 2,
-        right: window.innerWidth / 2
+        top: rect.bottom + 8, // 8px en dessous du bouton
+        right: window.innerWidth - rect.right // Aligner le bord droit
       })
     }
-  }, [isOpen])
+  }, [isOpen, buttonRef])
 
   const recommendedAmounts = [
     { value: '500', label: '500 coins', bonus: '+50' },
@@ -49,17 +49,22 @@ export default function PaymentModal({ isOpen, onClose, buttonRef }: PaymentModa
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90]"
           />
 
           {/* Modal */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: -10 }}
+            initial={{ opacity: 0, scale: 0.95, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: -10 }}
+            exit={{ opacity: 0, scale: 0.95, y: -10 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-gradient-to-b from-slate-950/98 to-slate-900/98 backdrop-blur-3xl border-2 rounded-2xl shadow-2xl z-50"
-            style={{ borderColor: 'var(--hybrid-border-default)' }}
+            className="fixed w-full max-w-lg backdrop-blur-3xl border-2 rounded-2xl shadow-2xl z-[95]"
+            style={{
+              borderColor: 'var(--hybrid-border-default)',
+              backgroundColor: 'var(--hybrid-bg-elevated)',
+              top: `${position.top}px`,
+              right: `${position.right}px`
+            }}
           >
             {/* Header */}
             <div className="p-6 border-b border-slate-800/50">

@@ -78,7 +78,7 @@ export default function AffiliateAnalytics({ affiliateProfile }: AffiliateAnalyt
             transition={{ delay: index * 0.05 }}
             className="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800 shadow-lg"
           >
-            {React.createElement(metric.icon, { className: "h-5 w-5 text-indigo-600 dark:text-indigo-400 mb-2" })}
+            {React.createElement(metric.icon, { className: "h-5 w-5 text-[#D4A088] dark:text-indigo-400 mb-2" })}
             <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
               {metric.value}
             </div>
@@ -96,7 +96,7 @@ export default function AffiliateAnalytics({ affiliateProfile }: AffiliateAnalyt
         className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-lg"
       >
         <div className="flex items-center gap-2 mb-6">
-          <Activity className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+          <Activity className="h-5 w-5 text-[#D4A088] dark:text-indigo-400" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Performance</h3>
         </div>
 
@@ -110,7 +110,7 @@ export default function AffiliateAnalytics({ affiliateProfile }: AffiliateAnalyt
                     {typeof item.value === 'number' ? item.value : item.value} sur {item.max}
                   </div>
                 </div>
-                <div className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
+                <div className="text-xl font-bold text-[#D4A088] dark:text-indigo-400">
                   {item.percentage.toFixed(0)}%
                 </div>
               </div>
@@ -119,7 +119,7 @@ export default function AffiliateAnalytics({ affiliateProfile }: AffiliateAnalyt
                   initial={{ width: 0 }}
                   animate={{ width: `${item.percentage}%` }}
                   transition={{ duration: 1, delay: 0.3 + index * 0.1, ease: "easeOut" }}
-                  className="bg-gradient-to-r from-indigo-500 to-violet-500 h-2 rounded-full"
+                  className="bg-gradient-to-r from-[#D4A088] to-[#C18F77] dark:from-indigo-500 dark:to-violet-500 h-2 rounded-full"
                 />
               </div>
             </div>
@@ -136,7 +136,7 @@ export default function AffiliateAnalytics({ affiliateProfile }: AffiliateAnalyt
           className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-lg"
         >
           <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+            <BarChart3 className="h-5 w-5 text-[#D4A088] dark:text-indigo-400" />
             <h4 className="text-base font-semibold text-gray-900 dark:text-white">Résumé financier</h4>
           </div>
           <div className="space-y-3">
@@ -168,25 +168,25 @@ export default function AffiliateAnalytics({ affiliateProfile }: AffiliateAnalyt
           className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-lg"
         >
           <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+            <TrendingUp className="h-5 w-5 text-[#D4A088] dark:text-indigo-400" />
             <h4 className="text-base font-semibold text-gray-900 dark:text-white">Performances clés</h4>
           </div>
           <div className="space-y-3">
             <div>
               <div className="flex justify-between items-center mb-1">
                 <span className="text-sm text-gray-600 dark:text-gray-400">Taux de conversion</span>
-                <span className="text-lg font-bold text-indigo-600 dark:text-indigo-400">{conversionRate}%</span>
+                <span className="text-lg font-bold text-[#D4A088] dark:text-indigo-400">{conversionRate}%</span>
               </div>
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
                 <div
-                  className="bg-gradient-to-r from-indigo-500 to-violet-500 h-1.5 rounded-full"
+                  className="bg-gradient-to-r from-[#D4A088] to-[#C18F77] dark:from-indigo-500 dark:to-violet-500 h-1.5 rounded-full"
                   style={{ width: `${Math.min(parseFloat(conversionRate), 100)}%` }}
                 />
               </div>
             </div>
             <div className="pt-2">
               <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Commission actuelle</div>
-              <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+              <div className="text-2xl font-bold text-[#D4A088] dark:text-indigo-400">
                 {(affiliateProfile.commission_rate * 100).toFixed(1)}%
               </div>
             </div>

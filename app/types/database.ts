@@ -21,7 +21,7 @@ export type Database = {
           conversion_date: string | null
           converted: boolean | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           referrer_url: string | null
           user_agent: string | null
           user_id: string | null
@@ -32,7 +32,7 @@ export type Database = {
           conversion_date?: string | null
           converted?: boolean | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           referrer_url?: string | null
           user_agent?: string | null
           user_id?: string | null
@@ -43,7 +43,7 @@ export type Database = {
           conversion_date?: string | null
           converted?: boolean | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           referrer_url?: string | null
           user_agent?: string | null
           user_id?: string | null
@@ -183,7 +183,7 @@ export type Database = {
         Row: {
           event_name: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           properties: Json | null
           timestamp: string | null
           url: string | null
@@ -193,7 +193,7 @@ export type Database = {
         Insert: {
           event_name: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           properties?: Json | null
           timestamp?: string | null
           url?: string | null
@@ -203,7 +203,7 @@ export type Database = {
         Update: {
           event_name?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           properties?: Json | null
           timestamp?: string | null
           url?: string | null
@@ -696,7 +696,7 @@ export type Database = {
           captcha_verified_at: string | null
           giveaway_id: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           joined_at: string | null
           user_agent: string | null
           user_id: string
@@ -707,7 +707,7 @@ export type Database = {
           captcha_verified_at?: string | null
           giveaway_id: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           joined_at?: string | null
           user_agent?: string | null
           user_id: string
@@ -718,7 +718,7 @@ export type Database = {
           captcha_verified_at?: string | null
           giveaway_id?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           joined_at?: string | null
           user_agent?: string | null
           user_id?: string
@@ -1192,7 +1192,7 @@ export type Database = {
           details: Json | null
           giveaway_id: string | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           user_agent: string | null
           user_id: string | null
         }
@@ -1203,7 +1203,7 @@ export type Database = {
           details?: Json | null
           giveaway_id?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_agent?: string | null
           user_id?: string | null
         }
@@ -1214,7 +1214,7 @@ export type Database = {
           details?: Json | null
           giveaway_id?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_agent?: string | null
           user_id?: string | null
         }
@@ -1555,6 +1555,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      mines_games: {
+        Row: {
+          bet_amount: number
+          bomb_count: number
+          bomb_positions: number[]
+          boxes_revealed: number
+          client_seed: string | null
+          created_at: string | null
+          duration_seconds: number | null
+          final_multiplier: number
+          finished_at: string | null
+          id: string
+          nonce: number | null
+          profit_loss: number
+          revealed_positions: number[]
+          server_seed: string | null
+          status: string
+          user_id: string
+          win_amount: number
+        }
+        Insert: {
+          bet_amount: number
+          bomb_count: number
+          bomb_positions: number[]
+          boxes_revealed?: number
+          client_seed?: string | null
+          created_at?: string | null
+          duration_seconds?: number | null
+          final_multiplier?: number
+          finished_at?: string | null
+          id?: string
+          nonce?: number | null
+          profit_loss?: number
+          revealed_positions?: number[]
+          server_seed?: string | null
+          status?: string
+          user_id: string
+          win_amount?: number
+        }
+        Update: {
+          bet_amount?: number
+          bomb_count?: number
+          bomb_positions?: number[]
+          boxes_revealed?: number
+          client_seed?: string | null
+          created_at?: string | null
+          duration_seconds?: number | null
+          final_multiplier?: number
+          finished_at?: string | null
+          id?: string
+          nonce?: number | null
+          profit_loss?: number
+          revealed_positions?: number[]
+          server_seed?: string | null
+          status?: string
+          user_id?: string
+          win_amount?: number
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -2189,6 +2249,23 @@ export type Database = {
         }
         Relationships: []
       }
+      mines_user_stats: {
+        Row: {
+          avg_game_duration: number | null
+          avg_multiplier_win: number | null
+          biggest_win: number | null
+          games_cashed_out: number | null
+          games_lost: number | null
+          games_won: number | null
+          highest_multiplier: number | null
+          total_games: number | null
+          total_profit: number | null
+          total_wagered: number | null
+          total_won: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       sellable_inventory: {
         Row: {
           id: string | null
@@ -2271,26 +2348,17 @@ export type Database = {
         }
         Returns: Json
       }
-      add_bot_to_battle_simple: {
-        Args: { p_battle_id: string }
-        Returns: Json
-      }
+      add_bot_to_battle_simple: { Args: { p_battle_id: string }; Returns: Json }
       add_experience: {
         Args: { p_exp_amount: number; p_user_id: string }
         Returns: Json
       }
-      add_friend: {
-        Args: { p_friend_username: string }
-        Returns: Json
-      }
+      add_friend: { Args: { p_friend_username: string }; Returns: Json }
       add_track_to_playlist: {
         Args: { p_added_by: string; p_title: string; p_url: string }
         Returns: string
       }
-      advance_crash_game: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
+      advance_crash_game: { Args: never; Returns: Json }
       attempt_upgrade_item: {
         Args: {
           p_inventory_id: string
@@ -2299,10 +2367,7 @@ export type Database = {
         }
         Returns: Json
       }
-      backup_chat_data: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      backup_chat_data: { Args: never; Returns: undefined }
       calculate_affiliate_tier: {
         Args: { referral_count: number }
         Returns: {
@@ -2315,10 +2380,11 @@ export type Database = {
         Args: { experience: number }
         Returns: number
       }
-      calculate_user_level: {
-        Args: { user_exp: number }
+      calculate_mines_multiplier: {
+        Args: { bomb_count: number; revealed_count: number }
         Returns: number
       }
+      calculate_user_level: { Args: { user_exp: number }; Returns: number }
       can_claim_daily_box: {
         Args: { p_box_id: string; p_required_level: number; p_user_id: string }
         Returns: boolean
@@ -2327,14 +2393,12 @@ export type Database = {
         Args: { p_giveaway_id: string; p_user_id: string }
         Returns: Json
       }
+      cash_out_mines_game: { Args: { p_game_id: string }; Returns: Json }
       check_daily_claim_status: {
         Args: { p_box_id: string; p_user_id: string }
         Returns: Json
       }
-      check_total_probability: {
-        Args: { box_id: string }
-        Returns: number
-      }
+      check_total_probability: { Args: { box_id: string }; Returns: number }
       check_username_availability: {
         Args: { username_to_check: string }
         Returns: boolean
@@ -2347,36 +2411,24 @@ export type Database = {
         Args: { p_box_id: string; p_item_id: string; p_user_id: string }
         Returns: Json
       }
-      claim_daily_freedrop: {
-        Args:
-          | { p_box_id: string; p_item_id: string; p_user_id: string }
-          | { p_box_id: string; p_item_id: string; p_user_id: string }
-        Returns: Json
-      }
+      claim_daily_freedrop:
+        | {
+            Args: { p_box_id: string; p_item_id: string; p_user_id: string }
+            Returns: Json
+          }
+        | {
+            Args: { p_box_id: string; p_item_id: string; p_user_id: string }
+            Returns: Json
+          }
       claim_loyalty_bonus: {
         Args: { p_bonus_type: string; p_user_id: string }
         Returns: Json
       }
-      cleanup_expired_battles: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      cleanup_old_battles: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      cleanup_old_chat_data: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_old_chat_messages: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      cleanup_stuck_battles: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
+      cleanup_expired_battles: { Args: never; Returns: Json }
+      cleanup_old_battles: { Args: never; Returns: number }
+      cleanup_old_chat_data: { Args: never; Returns: undefined }
+      cleanup_old_chat_messages: { Args: never; Returns: number }
+      cleanup_stuck_battles: { Args: never; Returns: Json }
       crash_cashout: {
         Args: { p_multiplier: number; p_round_id: string }
         Returns: Json
@@ -2413,10 +2465,7 @@ export type Database = {
         }
         Returns: string
       }
-      create_test_battles: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      create_test_battles: { Args: never; Returns: string }
       distribute_rewards_simple: {
         Args: { p_battle_id: string }
         Returns: Json
@@ -2434,22 +2483,13 @@ export type Database = {
         Args: { p_giveaway_id: string; p_user_id: string }
         Returns: boolean
       }
-      finalize_battle: {
-        Args: { p_battle_id: string }
-        Returns: Json
-      }
-      finalize_expired_giveaways: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
+      finalize_battle: { Args: { p_battle_id: string }; Returns: Json }
+      finalize_expired_giveaways: { Args: never; Returns: number }
       finish_battle: {
         Args: { p_battle_id: string; p_results: Json }
         Returns: Json
       }
-      force_start_battle: {
-        Args: { p_battle_id: string }
-        Returns: Json
-      }
+      force_start_battle: { Args: { p_battle_id: string }; Returns: Json }
       generate_unique_username: {
         Args: { base_username: string }
         Returns: string
@@ -2486,10 +2526,7 @@ export type Database = {
           username: string
         }[]
       }
-      get_chat_statistics: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
+      get_chat_statistics: { Args: never; Returns: Json }
       get_detailed_giveaway_history: {
         Args: { p_limit?: number }
         Returns: Json
@@ -2532,10 +2569,7 @@ export type Database = {
           total_probability: number
         }[]
       }
-      get_online_users_count: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
+      get_online_users_count: { Args: never; Returns: number }
       get_or_create_affiliate_data: {
         Args: { p_user_id: string }
         Returns: {
@@ -2569,9 +2603,15 @@ export type Database = {
           updated_at: string | null
           user_id: string
         }
+        SetofOptions: {
+          from: "*"
+          to: "affiliate_profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       get_signup_stats: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           top_referrer_code: string
           top_referrer_count: number
@@ -2591,22 +2631,10 @@ export type Database = {
           item_value: number
         }[]
       }
-      get_user_daily_stats: {
-        Args: { p_user_id: string }
-        Returns: Json
-      }
-      get_user_freedrop_stats: {
-        Args: { p_user_id: string }
-        Returns: Json
-      }
-      get_user_level: {
-        Args: { user_exp: number }
-        Returns: number
-      }
-      get_user_stats: {
-        Args: { p_user_id: string }
-        Returns: Json
-      }
+      get_user_daily_stats: { Args: { p_user_id: string }; Returns: Json }
+      get_user_freedrop_stats: { Args: { p_user_id: string }; Returns: Json }
+      get_user_level: { Args: { user_exp: number }; Returns: number }
+      get_user_stats: { Args: { p_user_id: string }; Returns: Json }
       get_user_upgrade_history: {
         Args: { p_limit?: number; p_user_id: string }
         Returns: {
@@ -2620,10 +2648,7 @@ export type Database = {
           target_value: number
         }[]
       }
-      get_user_upgrade_stats: {
-        Args: { p_user_id: string }
-        Returns: Json
-      }
+      get_user_upgrade_stats: { Args: { p_user_id: string }; Returns: Json }
       initialize_user_profile: {
         Args: { p_email?: string; p_user_id: string }
         Returns: Json
@@ -2652,10 +2677,7 @@ export type Database = {
         Args: { p_answer: string; p_game_id: string; p_user_id: string }
         Returns: Json
       }
-      place_crash_bet: {
-        Args: { p_bet_amount: number }
-        Returns: Json
-      }
+      place_crash_bet: { Args: { p_bet_amount: number }; Returns: Json }
       process_box_opening: {
         Args: {
           p_cost: number
@@ -2694,9 +2716,10 @@ export type Database = {
         Args: { p_affiliate_code: string; p_referred_user_id: string }
         Returns: boolean
       }
-      reset_chat_data: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
+      reset_chat_data: { Args: never; Returns: undefined }
+      reveal_mines_box: {
+        Args: { p_box_index: number; p_game_id: string }
+        Returns: Json
       }
       select_giveaway_winners: {
         Args: { p_admin_id: string; p_giveaway_id: string }
@@ -2738,8 +2761,9 @@ export type Database = {
         Args: { p_loot_box_id: string; p_quantity?: number }
         Returns: Json
       }
-      start_battle_simple: {
-        Args: { p_battle_id: string }
+      start_battle_simple: { Args: { p_battle_id: string }; Returns: Json }
+      start_mines_game: {
+        Args: { p_bet_amount: number; p_bomb_count: number; p_user_id: string }
         Returns: Json
       }
       start_mini_game: {
@@ -2752,14 +2776,8 @@ export type Database = {
         }
         Returns: string
       }
-      stop_active_giveaway: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      stop_giveaway: {
-        Args: { p_giveaway_id: string }
-        Returns: Json
-      }
+      stop_active_giveaway: { Args: never; Returns: Json }
+      stop_giveaway: { Args: { p_giveaway_id: string }; Returns: Json }
       test_daily_box_opening: {
         Args: { box_name: string }
         Returns: {
@@ -2770,7 +2788,7 @@ export type Database = {
         }[]
       }
       test_permissions: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           can_delete: boolean
           can_insert: boolean
@@ -2788,7 +2806,7 @@ export type Database = {
         Returns: boolean
       }
       validate_battle_system: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           component: string
           details: string

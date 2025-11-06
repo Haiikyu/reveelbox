@@ -44,7 +44,7 @@ const PaymentModal = dynamic(() => import('@/app/components/PaymentModal'), {
   loading: () => null
 })
 
-// Wrapper pour l'espacement avec gestion automatique de la navbar
+// Wrapper pour l'espacement avec animation fluide
 interface PageWrapperProps {
   children: React.ReactNode;
   className?: string;
@@ -69,12 +69,15 @@ export const PageWrapper: React.FC<PageWrapperProps> = ({ children, className = 
   }, [])
 
   return (
-    <div
-      className={`transition-all duration-300 ${className}`}
-      style={{ paddingTop: isNavbarHidden ? '0px' : '96px' }}
+    <motion.div
+      className={className}
+      animate={{
+        paddingTop: isNavbarHidden ? '0px' : '80px'
+      }}
+      transition={{ duration: 0.3, type: "spring", stiffness: 260, damping: 25 }}
     >
       {children}
-    </div>
+    </motion.div>
   )
 }
 
@@ -129,6 +132,7 @@ export default function ReveelBoxNavbar() {
 
   const gamesDropdownItems = [
     { href: '/games/crash', label: 'Crash', icon: TrendingUp, gradient: 'from-red-500 to-orange-500' },
+    { href: '/games/mines', label: 'Mines', icon: Flame, gradient: 'from-purple-500 to-pink-500' },
     { href: '/games/roulette', label: 'Roulette', icon: Crown, gradient: 'from-yellow-500 to-amber-500', comingSoon: true },
     { href: '/games/coinflip', label: 'Coinflip', icon: Zap, gradient: 'from-blue-500 to-cyan-500', comingSoon: true },
   ]
@@ -226,22 +230,21 @@ export default function ReveelBoxNavbar() {
     <>
       {/* NAVBAR MODERNE & ÉLÉGANTE */}
       <motion.nav
-        initial={{ y: -100, opacity: 0 }}
+        initial={{ y: 0, opacity: 1 }}
         animate={{
-          y: navbarHidden ? -100 : 0,
-          opacity: navbarHidden ? 0 : 1
+          y: navbarHidden ? -80 : 0
         }}
-        transition={{ duration: 0.15, type: "spring", stiffness: 500, damping: 30 }}
+        transition={{ duration: 0.3, type: "spring", stiffness: 260, damping: 25 }}
         style={{
           background: isScrolled
-            ? 'var(--hybrid-bg-elevated)'
-            : `rgba(${resolvedTheme === 'dark' ? '10, 10, 11' : '253, 252, 250'}, 0.6)`,
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          borderBottom: isScrolled ? '1px solid var(--hybrid-border-default)' : 'none',
-          boxShadow: isScrolled ? 'var(--hybrid-shadow-lg)' : 'none'
+            ? `rgba(${resolvedTheme === 'dark' ? '3, 7, 18' : '249, 250, 251'}, 0.8)`
+            : `rgba(${resolvedTheme === 'dark' ? '3, 7, 18' : '249, 250, 251'}, 1)`,
+          backdropFilter: isScrolled ? 'blur(20px)' : 'blur(0px)',
+          WebkitBackdropFilter: isScrolled ? 'blur(20px)' : 'blur(0px)',
+          borderBottom: isScrolled ? '1px solid rgba(156, 163, 175, 0.2)' : '1px solid rgba(156, 163, 175, 0.1)',
+          boxShadow: isScrolled ? '0 10px 30px rgba(0, 0, 0, 0.1)' : 'none'
         }}
-        className="fixed top-0 left-0 right-0 z-50 transition-all duration-500"
+        className="fixed top-0 left-0 right-0 z-50 h-20"
       >
         {/* Barre lumineuse supérieure animée hybrid */}
         <div className="absolute top-0 left-0 right-0 h-[1px] overflow-hidden">
@@ -722,6 +725,14 @@ export default function ReveelBoxNavbar() {
                               <span>Contact</span>
                             </button>
 
+                            <button
+                              onClick={() => { router.push('/upgrade'); setUserMenuOpen(false) }}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-700 dark:text-gray-300 rounded-lg transition-all text-sm font-medium hybrid-menu-item"
+                            >
+                              <TrendingUp className="h-4 w-4" />
+                              <span>Upgrade</span>
+                            </button>
+
                             {/* Theme toggle compact */}
                             <div className="flex items-center justify-between px-3 py-2.5 hover:bg-gray-500/5 dark:hover:bg-gray-500/10 rounded-lg transition-all mt-1">
                               <div className="flex items-center gap-3">
@@ -841,23 +852,22 @@ export default function ReveelBoxNavbar() {
 
       </motion.nav>
 
-      {/* Toggle Arrow - Toujours visible même quand la navbar est masquée */}
+      {/* Toggle Arrow - Toujours visible, indépendant de la navbar */}
       <motion.button
         onClick={toggleNavbar}
-        className="fixed left-1/2 p-1.5 backdrop-blur-xl border border-t-0 rounded-b-lg transition-all shadow-lg group z-50"
-        style={{
-          background: 'var(--hybrid-bg-elevated)',
-          borderColor: 'var(--hybrid-border-default)',
-          transform: 'translateX(-50%)'
-        }}
         animate={{
-          top: navbarHidden ? '0px' : '79px'
+          top: navbarHidden ? 0 : 80
         }}
-        transition={{ duration: 0.15, type: "spring", stiffness: 500, damping: 30 }}
+        transition={{ duration: 0.3, type: "spring", stiffness: 260, damping: 25 }}
+        className="fixed left-1/2 -translate-x-1/2 p-1.5 backdrop-blur-xl border border-t-0 rounded-b-lg shadow-lg group z-50"
+        style={{
+          background: resolvedTheme === 'dark' ? 'rgb(3, 7, 18)' : 'rgb(249, 250, 251)',
+          borderColor: 'rgba(156, 163, 175, 0.2)'
+        }}
       >
         <motion.div
           animate={{ rotate: navbarHidden ? 180 : 0 }}
-          transition={{ duration: 0.15, type: "spring", stiffness: 500, damping: 30 }}
+          transition={{ duration: 0.3, type: "spring", stiffness: 260, damping: 25 }}
         >
           <ChevronUp
             className="h-3 w-3 transition-colors"
@@ -1002,6 +1012,7 @@ export default function ReveelBoxNavbar() {
         onClose={() => setCartOpen(false)}
         items={cartItems.map(item => ({
           id: item.id,
+          item_id: item.items?.id || '',
           name: item.items?.name || 'Unknown',
           image_url: item.items?.image_url || '',
           market_value: item.items?.market_value || 0,

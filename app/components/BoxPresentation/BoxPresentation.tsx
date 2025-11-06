@@ -149,18 +149,21 @@ export function BoxPresentation({
           
           {/* Titre avec animation de typing */}
           <motion.div className="space-y-4">
-            <motion.h1 
-              className="text-6xl lg:text-7xl font-black text-white leading-none"
+            <motion.h1
+              className="text-6xl lg:text-7xl font-black text-gray-900 dark:text-white leading-none"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5, duration: 0.6 }}
             >
               {boxName}
             </motion.h1>
-            
-            {/* Ligne décorative animée */}
-            <motion.div 
-              className={`h-1 bg-gradient-to-r ${rarity.color} rounded-full mx-auto lg:mx-0`}
+
+            {/* Ligne décorative animée avec couleurs hybrid */}
+            <motion.div
+              className="h-1 rounded-full mx-auto lg:mx-0"
+              style={{
+                background: `linear-gradient(90deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
+              }}
               initial={{ width: 0 }}
               animate={{ width: "120px" }}
               transition={{ delay: 0.8, duration: 1, ease: "easeOut" }}
@@ -173,7 +176,7 @@ export function BoxPresentation({
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.7 }}
-              className="text-xl text-gray-300 leading-relaxed max-w-2xl"
+              className="text-xl text-gray-600 dark:text-gray-300 leading-relaxed max-w-2xl"
             >
               {boxDescription}
             </motion.p>
@@ -187,31 +190,33 @@ export function BoxPresentation({
             className="space-y-2"
           >
             {isFreedrp ? (
-              <div className="flex items-center gap-4 text-green-400">
+              <div className="flex items-center gap-4 text-green-500 dark:text-green-400">
                 <Gift size={32} />
                 <span className="text-4xl font-light">GRATUIT</span>
               </div>
             ) : boxPrice && (
-              <div className="flex items-center gap-4 text-white">
+              <div className="flex items-center gap-4 text-gray-900 dark:text-white">
                 <motion.div
-                  animate={{ 
+                  animate={{
                     scale: [1, 1.1, 1],
-                    rotate: [0, 360] 
+                    rotate: [0, 360]
                   }}
-                  transition={{ 
+                  transition={{
                     scale: { duration: 2, repeat: Infinity, ease: "easeInOut" },
                     rotate: { duration: 20, repeat: Infinity, ease: "linear" }
                   }}
                 >
-                  <img 
-                    src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/loot-boxes/ChatGPT_Image_6_sept._2025_19_31_10.png"
-                    alt="REEV Coin"
+                  <img
+                    src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
+                    alt="Coins"
                     className="w-12 h-12 object-contain"
                   />
                 </motion.div>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-5xl font-light">{boxPrice.toLocaleString()}</span>
-                  <span className="text-xl font-medium text-gray-400">coins</span>
+                  <span className="text-5xl font-bold" style={{ color: 'var(--hybrid-accent-primary)' }}>
+                    {boxPrice.toLocaleString()}
+                  </span>
+                  <span className="text-xl font-medium text-gray-500 dark:text-gray-400">coins</span>
                 </div>
               </div>
             )}
@@ -285,18 +290,18 @@ export function BoxPresentation({
             className="flex gap-8 text-center lg:text-left"
           >
             <div>
-              <div className="text-2xl font-bold text-white">10+</div>
-              <div className="text-sm text-gray-400">Items</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">10+</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">Items</div>
             </div>
             <div>
-              <div className="text-2xl font-bold" style={{ color: rarity.glow }}>
+              <div className="text-2xl font-bold" style={{ color: 'var(--hybrid-accent-primary)' }}>
                 {rarity.name}
               </div>
-              <div className="text-sm text-gray-400">Rareté</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">Rareté</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-white">Populaire</div>
-              <div className="text-sm text-gray-400">Type</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">Populaire</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">Type</div>
             </div>
           </motion.div>
         </motion.div>

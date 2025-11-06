@@ -50,10 +50,7 @@ export function Wheel({
   const [isReady, setIsReady] = useState(false)
   const [showOnlyWinner, setShowOnlyWinner] = useState(false)
   const [centerItemIndex, setCenterItemIndex] = useState(-1)
-  
-  // ✅ NOUVEL ÉTAT POUR GÉRER L'OVERFLOW DYNAMIQUE
-  const [shouldShowOverflow, setShouldShowOverflow] = useState(false)
-  
+
   const containerRef = useRef<HTMLDivElement>(null)
   const wheelRef = useRef<HTMLDivElement>(null)
   const animationFrameRef = useRef<number | null>(null)
@@ -157,7 +154,7 @@ export function Wheel({
     return Math.max(0, Math.min(itemIndex, wheelSequence.length - 1))
   }, [wheelSequence.length])
 
-  // ✅ ANIMATION OPTIMISÉE AVEC GESTION OVERFLOW DYNAMIQUE
+  // ✅ ANIMATION OPTIMISÉE
   const animateWheel = useCallback((targetPosition: number, duration: number) => {
     if (!wheelRef.current || isAnimatingRef.current) return
 
@@ -166,13 +163,10 @@ export function Wheel({
     const startPosition = 0
     const distance = targetPosition
 
-    // ✅ MASQUER L'OVERFLOW PENDANT L'ANIMATION
-    setShouldShowOverflow(false)
-
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime
       const progress = Math.min(elapsed / duration, 1)
-      
+
       let easeProgress
       if (progress < 0.15) {
         easeProgress = Math.pow(progress / 0.15, 3) * 0.02
@@ -183,32 +177,30 @@ export function Wheel({
         const adjustedProgress = (progress - 0.8) / 0.2
         easeProgress = 0.95 + (1 - Math.pow(1 - adjustedProgress, 4)) * 0.05
       }
-      
+
       const currentPosition = startPosition + (distance * easeProgress)
-      
+
       if (wheelRef.current) {
         wheelRef.current.style.transform = `translateX(-${currentPosition}px)`
-        
+
         if (isSpinning) {
           const centerIndex = calculateCenterItem(currentPosition)
           setCenterItemIndex(centerIndex)
         }
       }
-      
+
       if (progress < 1) {
         animationFrameRef.current = requestAnimationFrame(animate)
       } else {
         isAnimatingRef.current = false
         setCenterItemIndex(-1)
-        
-        // ✅ DÉLAI POUR AFFICHER LE WINNER AVEC OVERFLOW
+
+        // Afficher le winner après l'animation
         setTimeout(() => {
           setShowOnlyWinner(true)
-          // Délai supplémentaire pour laisser la roue disparaître avant overflow visible
           setTimeout(() => {
-            setShouldShowOverflow(true)
             onFinish()
-          }, 100) // Délai pour transition fluide roue → winner
+          }, 100)
         }, 1500)
       }
     }
@@ -234,9 +226,7 @@ export function Wheel({
 
     setShowOnlyWinner(false)
     setCenterItemIndex(-1)
-    // ✅ RÉINITIALISER L'OVERFLOW À HIDDEN
-    setShouldShowOverflow(false)
-    
+
     // Arrêt complet de toute animation
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current)
@@ -252,15 +242,15 @@ export function Wheel({
     // CORRECTION 6: GÉNÉRER UNE NOUVELLE SÉQUENCE COMPLÈTE
     const newSequence = generateNewSequence(items, winningItem)
     console.log('🔄 Nouvelle séquence générée avec', newSequence.length, 'items différents')
-    
+
     // Appliquer la nouvelle séquence
     setWheelSequence(newSequence)
-    
+
     setTimeout(() => {
       if (wheelRef.current) {
         wheelRef.current.style.transform = 'translateX(0px)'
       }
-      
+
       setTimeout(() => {
         const finalPosition = calculateFinalPosition()
         const duration = fastMode ? 3000 : 5000
@@ -277,11 +267,10 @@ export function Wheel({
     }
   }, [isSpinning, winningItem, isReady, items, generateNewSequence, calculateFinalPosition, animateWheel, fastMode])
 
-  // ✅ RESET STANDARD AVEC GESTION OVERFLOW
+  // ✅ RESET STANDARD
   useEffect(() => {
     if (!isSpinning && wheelRef.current && !showOnlyWinner) {
       wheelRef.current.style.transform = 'translateX(0px)'
-      setShouldShowOverflow(false) // Remettre à hidden par défaut
     }
   }, [isSpinning, showOnlyWinner])
 
@@ -308,9 +297,9 @@ export function Wheel({
   return (
     <div
       ref={containerRef}
-      // ✅ OVERFLOW DYNAMIQUE BASÉ SUR L'ÉTAT
-      className={`relative w-full ${shouldShowOverflow ? 'overflow-visible' : 'overflow-hidden'}`}
-      style={{ height: 450 }}
+      // ✅ Overflow-x hidden, overflow-y visible pour le halo
+      className="relative w-full overflow-x-hidden overflow-y-visible"
+      style={{ height: 650, paddingTop: 80, paddingBottom: 80 }} // Hauteur augmentée avec padding pour le halo
     >
 
       
@@ -364,10 +353,10 @@ const WinnerDisplay = ({ item, rarityColors }: WinnerDisplayProps) => {
   const glowColor = rarityColors[item.rarity.toLowerCase()] || rarityColors.common
   
   return (
-    <motion.div 
-      className="flex flex-col items-center gap-4 p-12" 
-      animate={{ 
-        y: [0, -12, 0], 
+    <motion.div
+      className="flex flex-col items-center gap-4 py-8 px-8"
+      animate={{
+        y: [0, -12, 0],
         scale: [1, 1.03, 1]
       }}
       transition={{
@@ -377,20 +366,30 @@ const WinnerDisplay = ({ item, rarityColors }: WinnerDisplayProps) => {
       }}
     >
       <div className="relative">
-        {/* ✅ HALO ÉNORME POUR DÉBORDER DU CONTAINER */}
-        <div 
-          className="absolute inset-0 rounded-full blur-3xl opacity-50 " 
-          style={{ 
+        {/* Halo complet visible */}
+        <motion.div
+          className="absolute inset-0 rounded-full blur-3xl opacity-30"
+          style={{
             backgroundColor: glowColor,
-            transform: 'scale(0.9)' // Halo encore plus grand pour déborder
+            transform: 'scale(1.8)',
+            transformOrigin: 'center'
+          }}
+          animate={{
+            scale: [1.8, 2, 1.8],
+            opacity: [0.2, 0.4, 0.2]
+          }}
+          transition={{
+            duration: 4,
+            repeat: Infinity,
+            ease: "easeInOut"
           }}
         />
-        
-        {/* Image principale BEAUCOUP plus grande */}
+
+        {/* Image principale */}
         <motion.img
           src={item.image_url || 'https://via.placeholder.com/200x200/F3F4F6/9CA3AF?text=?'}
           alt={item.name}
-          className="relative w-72 h-72 object-contain"
+          className="relative w-64 h-64 object-contain"
           style={{
             filter: `drop-shadow(0 20px 60px ${glowColor}80) brightness(1.2)`
           }}
@@ -516,33 +515,6 @@ const WheelItem = ({ item, index, isWinning, rarityColors, isSpinning, isCenterI
           }}
           transition={{ duration: 0.3 }}
         />
-
-        {/* Particules pour objets rares */}
-        {(item.rarity === 'legendary' || item.rarity === 'epic') && (shouldShowHover || isCenterItem) && (
-          <div className="absolute inset-0 pointer-events-none overflow-visible">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <motion.div
-                key={i}
-                className="absolute w-2 h-2 rounded-full"
-                style={{
-                  backgroundColor: glowColor,
-                  left: `${20 + (i * 15)}%`,
-                  top: `${20 + (i % 3) * 20}%`
-                }}
-                animate={{
-                  scale: [0, 1.2, 0],
-                  opacity: [0, 0.3, 0],
-                  y: [0, -20, -40]
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  delay: i * 0.2
-                }}
-              />
-            ))}
-          </div>
-        )}
 
         {/* Effet pulsation pour l'item gagnant */}
         {isWinning && !isSpinning && (

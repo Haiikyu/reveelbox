@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import Navbar from './Navbar'
+import Navbar, { PageWrapper } from './Navbar'
 import Footer from './Footer'
 import ChatBubble from './chat/ChatBubble'
 
@@ -15,7 +15,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
     <div className="flex flex-col min-h-screen">
       {!hideNavAndChat && <Navbar />}
 
-      <main className="flex-1">
+      <main className="flex-1" style={{ paddingTop: hideNavAndChat ? '0' : '80px' }}>
         {children}
       </main>
 

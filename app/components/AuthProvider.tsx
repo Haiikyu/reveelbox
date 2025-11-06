@@ -156,14 +156,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initializeAuth()
 
     let timeoutId: NodeJS.Timeout | null = null
-    
+
     const { data: { subscription } } = supabaseRef.current.auth.onAuthStateChange(
       async (event, newSession) => {
         if (timeoutId) clearTimeout(timeoutId)
-        
+
         timeoutId = setTimeout(async () => {
           console.log('🔍 Auth state change:', event, newSession?.user?.id)
-          
+
           if (event === 'SIGNED_OUT' || !newSession?.user) {
             setUser(null)
             setSession(null)
@@ -173,7 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             setUser(newSession.user)
             setSession(newSession)
-            
+
             if (!profileCacheRef.current || profileCacheRef.current.userId !== newSession.user.id) {
               await loadProfile(newSession.user.id)
             }
@@ -189,6 +189,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       initializingRef.current = false
     }
   }, [initializeAuth, loadProfile])
+
+  // Real-time subscription pour les changements de profil
+  useEffect(() => {
+    if (!user?.id) return
+
+    const channel = supabaseRef.current
+      .channel(`profile-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('💰 Balance update detected:', payload.new)
+          const enrichedProfile = enrichProfileWithXP(payload.new)
+          setProfile(enrichedProfile)
+          profileCacheRef.current = { userId: user.id, profile: enrichedProfile }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      channel.unsubscribe()
+    }
+  }, [user?.id])
 
   const refreshProfile = useCallback(async () => {
     if (!user) return

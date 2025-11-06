@@ -54,11 +54,11 @@ export function OpeningButtons({
           whileHover={!isDisabled && canAfford ? { scale: 1.02 } : {}}
           whileTap={!isDisabled && canAfford ? { scale: 0.98 } : {}}
           className={`
-            relative px-12 py-4 rounded-2xl font-semibold text-lg
+            relative px-12 py-4 rounded-2xl font-bold text-lg
             transition-all duration-300 min-w-[280px] overflow-hidden
             ${canAfford && !isDisabled
-              ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg hover:shadow-xl cursor-pointer'
-              : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed border border-gray-200 dark:border-gray-600'
+              ? 'text-white shadow-lg hover:shadow-2xl cursor-pointer hybrid-btn-primary-gradient'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed border-2 border-gray-200 dark:border-gray-700'
             }
           `}
         >
@@ -90,17 +90,17 @@ export function OpeningButtons({
             ) : (
               <>
                 <span>Open Box</span>
-                <div className={`flex items-center gap-1 px-1 py-1 rounded-lg ${
-                  canAfford && !isDisabled 
-                    ? '' 
-                    : 'bg-gray-200 dark:bg-gray-600'
+                <div className={`flex items-center gap-1 px-2 py-1 rounded-lg ${
+                  canAfford && !isDisabled
+                    ? 'bg-white/20'
+                    : 'bg-gray-200 dark:bg-gray-700'
                 }`}>
-                  <motion.img 
-                    src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/loot-boxes/ChatGPT_Image_6_sept._2025_19_31_10.png"
-                    alt="REEV Coin"
-                    className={`w-9 h-9 object-contain ${canAfford && !isDisabled ? 'opacity-90' : 'opacity-50'}`}
+                  <motion.img
+                    src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
+                    alt="Coins"
+                    className={`w-6 h-6 object-contain ${canAfford && !isDisabled ? 'opacity-100' : 'opacity-50'}`}
                   />
-                  <span className="font-bold">
+                  <span className="font-black text-base">
                     {boxPrice.toLocaleString()}
                   </span>
                 </div>
@@ -134,13 +134,13 @@ export function OpeningButtons({
           whileHover={!isDisabled ? { scale: 1.1 } : {}}
           whileTap={!isDisabled ? { scale: 0.9 } : {}}
           className={`
-            w-12 h-12 rounded-xl transition-all duration-300
-            flex items-center justify-center
+            w-14 h-14 rounded-xl transition-all duration-300
+            flex items-center justify-center border-2
             ${fastMode && !isDisabled
-              ? 'bg-yellow-500 text-white shadow-md'
+              ? 'text-white shadow-lg hybrid-btn-secondary-gradient border-transparent'
               : !isDisabled
-              ? 'text-gray-400 dark:text-gray-500 hover:text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
-              : 'text-gray-200 dark:text-gray-700 cursor-not-allowed'
+              ? 'text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800'
+              : 'text-gray-300 dark:text-gray-700 border-gray-200 dark:border-gray-800 cursor-not-allowed'
             }
           `}
         >
@@ -167,31 +167,39 @@ export function OpeningButtons({
         className="text-center"
       >
         {canAfford && !isDisabled ? (
-          <div className="text-sm text-green-600 dark:text-green-400 font-medium">
+          <div className="text-sm font-bold" style={{ color: 'var(--hybrid-accent-primary)' }}>
             Ready to open this box
           </div>
         ) : isDisabled ? (
-          <div className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+          <div className="text-sm text-gray-500 dark:text-gray-400 font-semibold">
             Please wait...
           </div>
         ) : (
-          <div className="text-sm text-red-600 dark:text-red-400 font-medium">
+          <div className="text-sm text-red-600 dark:text-red-400 font-semibold">
             Need {missingCoins.toLocaleString()} more coins
           </div>
         )}
-        
-        {/* Barre de progression simple */}
-        <div className="mt-2 w-48 mx-auto">
-          <div className="h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+
+        {/* Barre de progression hybrid */}
+        <div className="mt-3 w-64 mx-auto">
+          <div className="h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden border border-gray-300 dark:border-gray-700">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${Math.min((userCoins / boxPrice) * 100, 100)}%` }}
-              className={`h-1 rounded-full transition-all duration-1000 ${
-                canAfford 
-                  ? 'bg-green-400' 
-                  : 'bg-red-400'
-              }`}
-            />
+              className="h-full rounded-full transition-all duration-1000 relative overflow-hidden"
+              style={{
+                background: canAfford
+                  ? `linear-gradient(90deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
+                  : 'linear-gradient(90deg, #ef4444, #dc2626)'
+              }}
+            >
+              {/* Shine effect */}
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                animate={{ x: ['-200%', '200%'] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+              />
+            </motion.div>
           </div>
         </div>
 

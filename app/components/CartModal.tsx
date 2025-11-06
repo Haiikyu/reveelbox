@@ -8,6 +8,7 @@ import UpgradeModal from './UpgradeModal'
 
 interface CartItem {
   id: string
+  item_id: string
   name: string
   image_url: string
   market_value: number
@@ -50,14 +51,14 @@ export default function CartModal({
   const allSelected = items.length > 0 && selectedItems.length === items.length
 
   useEffect(() => {
-    if (isOpen) {
-      // Centrer le modal verticalement et horizontalement
+    if (isOpen && buttonRef?.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
       setPosition({
-        top: window.innerHeight / 2,
-        right: window.innerWidth / 2
+        top: rect.bottom + 8, // 8px en dessous du bouton
+        right: window.innerWidth - rect.right // Aligner le bord droit
       })
     }
-  }, [isOpen])
+  }, [isOpen, buttonRef])
 
   return (
     <AnimatePresence>
@@ -69,19 +70,21 @@ export default function CartModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90]"
           />
 
           {/* Modal */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: -10 }}
+            initial={{ opacity: 0, scale: 0.95, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: -10 }}
+            exit={{ opacity: 0, scale: 0.95, y: -10 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl backdrop-blur-3xl border rounded-2xl shadow-2xl z-50 max-h-[80vh] overflow-hidden"
+            className="fixed w-full max-w-md backdrop-blur-3xl border rounded-2xl shadow-2xl z-[95] max-h-[80vh] overflow-hidden"
             style={{
               backgroundColor: 'var(--hybrid-bg-elevated)',
-              borderColor: 'var(--hybrid-border-default)'
+              borderColor: 'var(--hybrid-border-default)',
+              top: `${position.top}px`,
+              right: `${position.right}px`
             }}
           >
             {/* Header */}
@@ -97,10 +100,10 @@ export default function CartModal({
               </div>
 
               {/* Actions */}
-              <div className="flex flex-wrap gap-2 mt-4">
+              <div className="flex items-center gap-2 mt-4">
                 <button
                   onClick={onSelectAll}
-                  className="px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg transition-colors"
+                  className="flex-shrink-0 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-lg transition-colors"
                 >
                   {allSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
                 </button>
@@ -110,9 +113,9 @@ export default function CartModal({
                     // Le modal sera fermé par le parent après la vente
                   }}
                   disabled={selectedItems.length === 0}
-                  className="px-4 py-2 text-white text-sm font-bold rounded-lg transition-all disabled:cursor-not-allowed flex items-center gap-2 shadow-lg disabled:shadow-none hybrid-btn-primary-gradient disabled:opacity-50"
+                  className="flex-1 px-3 py-2 text-white text-xs font-bold rounded-lg transition-all disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-lg disabled:shadow-none hybrid-btn-primary-gradient disabled:opacity-50"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3.5 w-3.5" />
                   Vendre {selectedItems.length > 0 && `(${selectedItems.length})`}
                 </button>
                 <button
@@ -122,7 +125,7 @@ export default function CartModal({
                       if (item) {
                         setSelectedUpgradeItem({
                           id: item.id,
-                          item_id: item.id,
+                          item_id: item.item_id,
                           name: item.name,
                           image_url: item.image_url,
                           rarity: item.rarity,
@@ -135,9 +138,9 @@ export default function CartModal({
                     }
                   }}
                   disabled={selectedItems.length === 0}
-                  className="px-4 py-2 text-white text-sm font-bold rounded-lg transition-all disabled:cursor-not-allowed flex items-center gap-2 shadow-lg disabled:shadow-none hybrid-btn-secondary-gradient disabled:opacity-50"
+                  className="flex-1 px-3 py-2 text-white text-xs font-bold rounded-lg transition-all disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-lg disabled:shadow-none hybrid-btn-secondary-gradient disabled:opacity-50"
                 >
-                  <Sparkles className="h-4 w-4" />
+                  <Sparkles className="h-3.5 w-3.5" />
                   {selectedItems.length === 1 ? 'Upgrade' : 'Voir upgrades'}
                 </button>
               </div>
@@ -217,12 +220,21 @@ export default function CartModal({
             onClose={() => {
               setUpgradeModalOpen(false)
               setSelectedUpgradeItem(null)
+              onClose() // Ferme aussi le panier
             }}
             item={selectedUpgradeItem}
             onSuccess={() => {
-              // Item will be removed from cart automatically
+              // Rafraîchir le panier et fermer les modals
               setUpgradeModalOpen(false)
               setSelectedUpgradeItem(null)
+              // Désélectionner l'item
+              if (selectedUpgradeItem) {
+                onSelectItem(selectedUpgradeItem.id)
+              }
+              // Attendre un peu pour permettre à l'animation de se terminer
+              setTimeout(() => {
+                onClose() // Ferme le panier pour forcer un rechargement
+              }, 500)
             }}
           />
         </>

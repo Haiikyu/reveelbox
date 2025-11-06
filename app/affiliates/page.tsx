@@ -51,18 +51,18 @@ export default function AffiliatePage(): JSX.Element | null {
   const [activeTab, setActiveTab] = useState<'overview' | 'referrals' | 'analytics' | 'settings'>('overview')
   const [claimLoading, setClaimLoading] = useState(false)
 
-  // Configuration des niveaux d'affiliation
+  // Configuration des niveaux d'affiliation (couleurs hybrides : terracotta/terre en light, indigo/violet en dark)
   const affiliateTiers: AffiliateTier[] = [
-    { level: 1, name: "Rookie", commission: 0.01, color: "from-gray-400 to-gray-600", icon: Users, requirement: 0, bonus: 5 },
-    { level: 2, name: "Explorer", commission: 0.02, color: "from-green-400 to-green-600", icon: Target, requirement: 5, bonus: 10 },
-    { level: 3, name: "Adventurer", commission: 0.03, color: "from-blue-400 to-blue-600", icon: Zap, requirement: 15, bonus: 15 },
-    { level: 4, name: "Hunter", commission: 0.04, color: "from-purple-400 to-purple-600", icon: Award, requirement: 30, bonus: 20 },
-    { level: 5, name: "Elite", commission: 0.05, color: "from-indigo-400 to-indigo-600", icon: Medal, requirement: 50, bonus: 25 },
-    { level: 6, name: "Master", commission: 0.06, color: "from-pink-400 to-pink-600", icon: Crown, requirement: 75, bonus: 30 },
-    { level: 7, name: "Champion", commission: 0.07, color: "from-red-400 to-red-600", icon: Trophy, requirement: 100, bonus: 40 },
-    { level: 8, name: "Legend", commission: 0.08, color: "from-yellow-400 to-yellow-600", icon: Star, requirement: 150, bonus: 50 },
-    { level: 9, name: "Mythic", commission: 0.09, color: "from-orange-400 to-orange-600", icon: Flame, requirement: 200, bonus: 75 },
-    { level: 10, name: "Divine", commission: 0.10, color: "from-purple-500 via-pink-500 to-red-500", icon: Gem, requirement: 300, bonus: 100 }
+    { level: 1, name: "Rookie", commission: 0.01, color: "from-amber-600 to-orange-600 dark:from-indigo-400 dark:to-indigo-600", icon: Users, requirement: 0, bonus: 5 },
+    { level: 2, name: "Explorer", commission: 0.02, color: "from-orange-500 to-amber-600 dark:from-indigo-400 dark:to-indigo-600", icon: Target, requirement: 5, bonus: 10 },
+    { level: 3, name: "Adventurer", commission: 0.03, color: "from-amber-700 to-orange-700 dark:from-indigo-500 dark:to-purple-500", icon: Zap, requirement: 15, bonus: 15 },
+    { level: 4, name: "Hunter", commission: 0.04, color: "from-orange-600 to-red-600 dark:from-indigo-500 dark:to-purple-500", icon: Award, requirement: 30, bonus: 20 },
+    { level: 5, name: "Elite", commission: 0.05, color: "from-red-600 to-rose-600 dark:from-purple-500 dark:to-pink-500", icon: Medal, requirement: 50, bonus: 25 },
+    { level: 6, name: "Master", commission: 0.06, color: "from-rose-600 to-pink-600 dark:from-purple-500 dark:to-pink-500", icon: Crown, requirement: 75, bonus: 30 },
+    { level: 7, name: "Champion", commission: 0.07, color: "from-pink-600 to-rose-700 dark:from-pink-500 dark:to-rose-500", icon: Trophy, requirement: 100, bonus: 40 },
+    { level: 8, name: "Legend", commission: 0.08, color: "from-rose-700 to-red-700 dark:from-pink-500 dark:to-rose-500", icon: Star, requirement: 150, bonus: 50 },
+    { level: 9, name: "Mythic", commission: 0.09, color: "from-red-700 to-orange-700 dark:from-rose-500 dark:to-red-500", icon: Flame, requirement: 200, bonus: 75 },
+    { level: 10, name: "Divine", commission: 0.10, color: "from-orange-700 via-amber-700 to-yellow-700 dark:from-red-500 dark:via-orange-500 dark:to-yellow-500", icon: Gem, requirement: 300, bonus: 100 }
   ]
 
   const showNotification = (type: string, message: string): void => {

@@ -8,7 +8,9 @@
       "WebSearch",
       "Bash(find:*)",
       "mcp__supabase__execute_sql",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "Bash(git checkout:*)",
+      "mcp__supabase__list_tables"
     ]
   },
   "enableAllProjectMcpServers": true,

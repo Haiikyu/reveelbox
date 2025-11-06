@@ -4,6 +4,7 @@
 import { motion } from 'framer-motion'
 import { Share2 } from 'lucide-react'
 import { AffiliateClientUtils } from '@/utils/affiliate'
+import SocialIcon from './SocialIcon'
 
 interface ShareButtonsProps {
   affiliateLink: string
@@ -12,41 +13,35 @@ interface ShareButtonsProps {
 }
 
 const socialPlatforms = [
-  { 
-    platform: 'twitter', 
-    name: 'Twitter', 
-    color: 'bg-blue-500 hover:bg-blue-600', 
-    icon: '🐦' 
+  {
+    platform: 'twitter',
+    name: 'Twitter',
+    color: 'bg-slate-900 hover:bg-black dark:bg-slate-900 dark:hover:bg-black'
   },
-  { 
-    platform: 'facebook', 
-    name: 'Facebook', 
-    color: 'bg-blue-600 hover:bg-blue-700', 
-    icon: '📘' 
+  {
+    platform: 'facebook',
+    name: 'Facebook',
+    color: 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700'
   },
-  { 
-    platform: 'whatsapp', 
-    name: 'WhatsApp', 
-    color: 'bg-green-500 hover:bg-green-600', 
-    icon: '📱' 
+  {
+    platform: 'whatsapp',
+    name: 'WhatsApp',
+    color: 'bg-green-500 hover:bg-green-600 dark:bg-green-500 dark:hover:bg-green-600'
   },
-  { 
-    platform: 'telegram', 
-    name: 'Telegram', 
-    color: 'bg-blue-400 hover:bg-blue-500', 
-    icon: '✈️' 
+  {
+    platform: 'telegram',
+    name: 'Telegram',
+    color: 'bg-sky-500 hover:bg-sky-600 dark:bg-sky-500 dark:hover:bg-sky-600'
   },
-  { 
-    platform: 'linkedin', 
-    name: 'LinkedIn', 
-    color: 'bg-blue-700 hover:bg-blue-800', 
-    icon: '💼' 
+  {
+    platform: 'linkedin',
+    name: 'LinkedIn',
+    color: 'bg-blue-700 hover:bg-blue-800 dark:bg-blue-700 dark:hover:bg-blue-800'
   },
-  { 
-    platform: 'reddit', 
-    name: 'Reddit', 
-    color: 'bg-red-500 hover:bg-red-600', 
-    icon: '🔴' 
+  {
+    platform: 'reddit',
+    name: 'Reddit',
+    color: 'bg-orange-600 hover:bg-orange-700 dark:bg-orange-600 dark:hover:bg-orange-700'
   }
 ]
 
@@ -72,7 +67,7 @@ export default function ShareButtons({ affiliateLink, message, onShare }: ShareB
             onClick={() => handleShare(social.platform)}
             className={`${social.color} text-white p-3 rounded-xl transition-colors font-medium text-sm flex flex-col items-center gap-2`}
           >
-            <span className="text-lg">{social.icon}</span>
+            <SocialIcon platform={social.platform} className="w-5 h-5" />
             <span className="hidden sm:inline text-xs">{social.name}</span>
           </motion.button>
         ))}

@@ -103,16 +103,23 @@ export function WinningResult({
             }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
           >
-            <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-md w-full pointer-events-auto relative overflow-hidden">
-              
+            <div className="backdrop-blur-2xl border-2 rounded-3xl shadow-2xl max-w-md w-full pointer-events-auto relative overflow-hidden"
+              style={{
+                backgroundColor: 'var(--hybrid-bg-elevated)',
+                borderColor: 'var(--hybrid-border-default)'
+              }}
+            >
+
               {/* Bouton fermer */}
-              <button
+              <motion.button
                 onClick={onClose}
                 disabled={isSelling}
-                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center transition-colors z-10 disabled:opacity-50"
+                whileHover={{ scale: 1.1, rotate: 90 }}
+                whileTap={{ scale: 0.9 }}
+                className="absolute top-4 right-4 w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center transition-all z-10 disabled:opacity-50 border-2 border-gray-200 dark:border-gray-700"
               >
-                <X size={16} className="text-gray-600 dark:text-gray-300" />
-              </button>
+                <X size={18} className="text-gray-600 dark:text-gray-300" />
+              </motion.button>
 
               {/* Header avec animation */}
               <div className="relative pt-8 pb-4 text-center">
@@ -124,7 +131,11 @@ export function WinningResult({
                         key={i}
                         className="absolute w-2 h-2 rounded-full"
                         style={{
-                          backgroundColor: i % 2 === 0 ? glowColor : '#fbbf24',
+                          backgroundColor: i % 3 === 0
+                            ? 'var(--hybrid-accent-primary)'
+                            : i % 3 === 1
+                            ? 'var(--hybrid-accent-secondary)'
+                            : glowColor,
                           left: `${Math.random() * 100}%`,
                           top: `${Math.random() * 50}%`
                         }}
@@ -150,10 +161,19 @@ export function WinningResult({
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ delay: 0.2, type: "spring", stiffness: 400 }}
-                  className="inline-flex items-center gap-2 px-6 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full font-medium text-sm mb-4"
+                  className="inline-flex items-center gap-2 px-6 py-2 rounded-full font-medium text-sm mb-4 text-white relative overflow-hidden"
+                  style={{
+                    background: `linear-gradient(90deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
+                  }}
                 >
-                  <Sparkles size={16} />
-                  Item Won!
+                  {/* Shine effect */}
+                  <motion.div
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                    animate={{ x: ['-200%', '200%'] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'linear', repeatDelay: 1 }}
+                  />
+                  <Sparkles size={16} className="relative z-10" />
+                  <span className="relative z-10">Item Won!</span>
                 </motion.div>
               </div>
 
@@ -199,14 +219,14 @@ export function WinningResult({
 
                   {/* Valeur */}
 <div className="flex items-center justify-center gap-2 text-2xl font-bold">
-  <span className="text-gray-900 dark:text-white">
-    {item.market_value.toLocaleString()}
-  </span>
   <img
-    src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/loot-boxes/ChatGPT_Image_6_sept._2025_19_31_10.png"
+    src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
     alt="Coins"
     className="w-10 h-10 object-contain"
   />
+  <span style={{ color: 'var(--hybrid-accent-primary)' }}>
+    {item.market_value.toLocaleString()}
+  </span>
 </div>
 
                   
@@ -231,21 +251,35 @@ export function WinningResult({
                         <button
                           onClick={handleSell}
                           disabled={isSelling}
-                          className="flex items-center justify-center gap-2 px-6 py-4 bg-green-500 hover:bg-green-600 disabled:bg-green-400 text-white rounded-2xl font-medium transition-colors disabled:cursor-not-allowed"
+                          className="relative flex items-center justify-center gap-2 px-6 py-4 text-white rounded-2xl font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50 overflow-hidden hybrid-btn-primary-gradient hover:shadow-lg"
                         >
+                          {/* Shine effect */}
+                          {!isSelling && (
+                            <motion.div
+                              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                              animate={{ x: [-200, 200] }}
+                              transition={{
+                                duration: 2,
+                                repeat: Infinity,
+                                repeatDelay: 3,
+                                ease: "easeInOut"
+                              }}
+                            />
+                          )}
+
                           {isSelling ? (
                             <>
                               <motion.div
-                                className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                                className="w-4 h-4 border-2 border-white border-t-transparent rounded-full relative z-10"
                                 animate={{ rotate: 360 }}
                                 transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                               />
-                              Selling...
+                              <span className="relative z-10">Selling...</span>
                             </>
                           ) : (
                             <>
-                              <Coins size={18} />
-                              Sell
+                              <Coins size={18} className="relative z-10" />
+                              <span className="relative z-10">Sell</span>
                             </>
                           )}
                         </button>
@@ -274,10 +308,21 @@ export function WinningResult({
                   {!onSell && !onUpgrade && (
                     <button
                       onClick={onClose}
-                      className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl font-medium transition-colors"
+                      className="w-full relative flex items-center justify-center gap-2 px-6 py-4 text-white rounded-2xl font-medium transition-all overflow-hidden hybrid-btn-primary-gradient hover:shadow-lg"
                     >
-                      <Sparkles size={18} />
-                      Continue
+                      {/* Shine effect */}
+                      <motion.div
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                        animate={{ x: [-200, 200] }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          repeatDelay: 3,
+                          ease: "easeInOut"
+                        }}
+                      />
+                      <Sparkles size={18} className="relative z-10" />
+                      <span className="relative z-10">Continue</span>
                     </button>
                   )}
                 </motion.div>

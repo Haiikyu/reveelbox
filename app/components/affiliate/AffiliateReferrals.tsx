@@ -86,7 +86,7 @@ export default function AffiliateReferrals({ referrals }: AffiliateReferralsProp
           transition={{ delay: 0.1 }}
           className="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800 shadow-lg"
         >
-          <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mb-1">
+          <div className="text-2xl font-bold text-[#D4A088] dark:text-indigo-400 mb-1">
             {totalEarnings.toFixed(2)}€
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">Commissions</div>
@@ -102,7 +102,7 @@ export default function AffiliateReferrals({ referrals }: AffiliateReferralsProp
       >
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+            <Users className="h-5 w-5 text-[#D4A088] dark:text-indigo-400" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Historique des parrainages</h3>
           </div>
         </div>
@@ -129,7 +129,7 @@ export default function AffiliateReferrals({ referrals }: AffiliateReferralsProp
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="h-10 w-10 bg-gradient-to-br from-indigo-500 to-violet-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <div className="h-10 w-10 bg-gradient-to-br from-[#D4A088] to-[#C18F77] dark:from-indigo-500 dark:to-violet-500 rounded-lg flex items-center justify-center flex-shrink-0">
                         <span className="text-white font-bold text-sm">
                           {referral.profiles?.username?.[0]?.toUpperCase() || '?'}
                         </span>

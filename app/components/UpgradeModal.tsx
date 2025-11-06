@@ -5,8 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/utils/supabase/client'
 import { useAuth } from './AuthProvider'
 import {
-  X, TrendingUp, Sparkles, Trophy, AlertCircle, Loader2, Zap, Target, ArrowRight
+  X, TrendingUp, Sparkles, Trophy, AlertCircle, Loader2, Zap, Target, ArrowRight, Minus, Plus, Package
 } from 'lucide-react'
+import UpgradeAnimation from './UpgradeAnimation'
 
 interface UpgradeModalProps {
   isOpen: boolean
@@ -22,33 +23,66 @@ interface UpgradeModalProps {
   onSuccess?: () => void
 }
 
-const MULTIPLIERS = [
-  { value: 2, color: 'from-green-500 to-teal-600', shadow: 'shadow-green-500/50', label: 'Safe', chance: '~25%' },
-  { value: 5, color: 'from-blue-500 to-indigo-600', shadow: 'shadow-blue-500/50', label: 'Low', chance: '~10%' },
-  { value: 10, color: 'from-violet-500 to-purple-600', shadow: 'shadow-violet-500/50', label: 'Medium', chance: '~5%' },
-  { value: 20, color: 'from-orange-500 to-red-600', shadow: 'shadow-orange-500/50', label: 'High', chance: '~2.5%' },
-  { value: 50, color: 'from-rose-500 to-pink-600', shadow: 'shadow-rose-500/50', label: 'Extreme', chance: '~1%' },
-  { value: 100, color: 'from-fuchsia-500 to-pink-600', shadow: 'shadow-fuchsia-500/50', label: 'Insane', chance: '~0.5%' },
-]
+interface WonReward {
+  item?: {
+    id: string
+    name: string
+    image_url: string
+    market_value: number
+    rarity: string
+  }
+  coins: number
+  totalValue: number
+}
 
 export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: UpgradeModalProps) {
   const { user, profile, refreshProfile } = useAuth()
   const [selectedMultiplier, setSelectedMultiplier] = useState(2)
+  const [customMultiplier, setCustomMultiplier] = useState('')
   const [isUpgrading, setIsUpgrading] = useState(false)
+  const [showAnimation, setShowAnimation] = useState(false)
   const [showResult, setShowResult] = useState(false)
   const [upgradeSuccess, setUpgradeSuccess] = useState(false)
-  const [wonValue, setWonValue] = useState(0)
-  const [rotation, setRotation] = useState(0)
+  const [wonReward, setWonReward] = useState<WonReward | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [inputFocused, setInputFocused] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
     if (!isOpen) {
       setShowResult(false)
+      setShowAnimation(false)
       setIsUpgrading(false)
-      setRotation(0)
       setSelectedMultiplier(2)
+      setCustomMultiplier('')
+      setWonReward(null)
+      setError(null)
+      setInputFocused(false)
     }
   }, [isOpen])
+
+  // Fonction pour trouver un objet du site dont la valeur est ≤ targetValue
+  const findSuitableItem = async (targetValue: number) => {
+    try {
+      const { data: availableItems, error } = await supabase
+        .from('items')
+        .select('*')
+        .lte('market_value', targetValue)
+        .order('market_value', { ascending: false })
+        .limit(10)
+
+      if (error || !availableItems || availableItems.length === 0) {
+        return null
+      }
+
+      // Sélectionner aléatoirement parmi les meilleurs items
+      const randomIndex = Math.floor(Math.random() * Math.min(3, availableItems.length))
+      return availableItems[randomIndex]
+    } catch (error) {
+      console.error('Error finding suitable item:', error)
+      return null
+    }
+  }
 
   const getRarityConfig = (rarity: string) => {
     const configs: Record<string, { gradient: string; glow: string }> = {
@@ -61,137 +95,266 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
     return configs[rarity?.toLowerCase()] || configs.common
   }
 
-  const calculateSuccessRate = (multiplier: number, itemValue: number) => {
-    const baseRate = 50 / multiplier
-    const valueBonus = Math.min(itemValue / 100, 10)
-    return Math.max(5, Math.min(95, baseRate + valueBonus))
+  // Formule proportionnelle: Taux de réussite = 90 / multiplicateur
+  // x1.5 = 60%, x2 = 45%, x3 = 30%, x10 = 9%, x100 = 0.9%
+  const calculateSuccessRate = (multiplier: number) => {
+    return Math.max(0.5, Math.min(95, 90 / multiplier))
   }
+
+  const handleMultiplierChange = (value: string) => {
+    const num = parseFloat(value)
+    if (!isNaN(num) && num >= 1.5 && num <= 100) {
+      setCustomMultiplier(value)
+      setSelectedMultiplier(num)
+    } else if (value === '') {
+      setCustomMultiplier('')
+    }
+  }
+
+  const quickMultipliers = [1.5, 2, 3, 5, 10, 20, 50, 100]
 
   const handleUpgrade = async () => {
     if (!item || !user || isUpgrading) return
 
     setIsUpgrading(true)
     setShowResult(false)
+    setShowAnimation(true)
+    setError(null)
+
+    let success = false
 
     try {
-      const successRate = calculateSuccessRate(selectedMultiplier, item.market_value)
+      console.log('🎯 Starting upgrade for item:', item.name)
+      const successRate = calculateSuccessRate(selectedMultiplier)
+      const targetValue = item.market_value * selectedMultiplier
 
-      // Animation 3D
-      const rotationInterval = setInterval(() => {
-        setRotation(prev => prev + 25)
-      }, 40)
-
+      // L'animation dure 3 secondes
       await new Promise(resolve => setTimeout(resolve, 3000))
-      clearInterval(rotationInterval)
 
-      const success = Math.random() * 100 < successRate
-      const newValue = success ? item.market_value * selectedMultiplier : 0
+      success = Math.random() * 100 < successRate
+      console.log('🎲 Upgrade result:', success ? 'SUCCESS' : 'FAIL', `(${successRate.toFixed(1)}% chance)`)
 
-      await supabase.from('upgrade_attempts').insert({
-        user_id: user.id,
-        item_id: item.item_id,
-        item_value: item.market_value,
-        target_multiplier: selectedMultiplier,
-        success: success,
-        won_value: newValue
-      })
+      // Supprimer l'objet de l'inventaire AVANT d'ajouter les rewards
+      console.log('🗑️ Deleting item from inventory...')
+      const { error: deleteError } = await supabase
+        .from('user_inventory')
+        .delete()
+        .eq('id', item.id)
+
+      if (deleteError) {
+        console.error('❌ Delete error:', deleteError)
+        throw new Error(`Erreur lors de la suppression de l'item: ${deleteError.message}`)
+      }
+      console.log('✅ Item deleted successfully')
 
       if (success) {
-        await supabase
-          .from('profiles')
-          .update({
-            virtual_currency: (profile?.virtual_currency || 0) + newValue
+        // Trouver un objet du site dont la valeur ≤ targetValue
+        console.log('🔍 Finding suitable item with max value:', targetValue)
+        const wonItem = await findSuitableItem(targetValue)
+
+        let coinsToGive = 0
+
+        if (wonItem) {
+          console.log('🎁 Found item:', wonItem.name, 'value:', wonItem.market_value)
+          // Calculer la différence en coins
+          coinsToGive = Math.floor(targetValue - wonItem.market_value)
+
+          // Ajouter l'objet gagné à l'inventaire
+          console.log('📦 Adding won item to inventory...')
+          const { error: inventoryError } = await supabase.from('user_inventory').insert({
+            user_id: user.id,
+            item_id: wonItem.id,
+            quantity: 1
           })
-          .eq('id', user.id)
+
+          if (inventoryError) {
+            console.error('❌ Inventory insert error:', inventoryError)
+            throw new Error(`Erreur lors de l'ajout de l'item: ${inventoryError.message}`)
+          }
+          console.log('✅ Item added to inventory')
+
+          setWonReward({
+            item: wonItem,
+            coins: coinsToGive,
+            totalValue: targetValue
+          })
+        } else {
+          console.log('💰 No item found, giving all value as coins')
+          // Si aucun objet trouvé, donner toute la valeur en coins
+          coinsToGive = Math.floor(targetValue)
+          setWonReward({
+            coins: coinsToGive,
+            totalValue: targetValue
+          })
+        }
+
+        // Ajouter les coins
+        if (coinsToGive > 0) {
+          console.log('💵 Adding', coinsToGive, 'coins to profile...')
+          const newBalance = (profile?.virtual_currency || 0) + coinsToGive
+          const { error: coinsError } = await supabase
+            .from('profiles')
+            .update({
+              virtual_currency: newBalance
+            })
+            .eq('id', user.id)
+
+          if (coinsError) {
+            console.error('❌ Coins update error:', coinsError)
+            throw new Error(`Erreur lors de l'ajout des coins: ${coinsError.message}`)
+          }
+          console.log('✅ Coins added successfully. New balance:', newBalance)
+        }
+
+        // Refresh profile pour mettre à jour le solde
+        console.log('🔄 Refreshing profile...')
         await refreshProfile()
+        console.log('✅ Profile refreshed')
       }
 
-      await supabase.from('user_inventory').delete().eq('id', item.id)
+      // Enregistrer la tentative d'upgrade (optionnel - peut être désactivé si la table n'existe pas)
+      try {
+        console.log('📝 Recording upgrade attempt...')
+        const { error: attemptError } = await supabase.from('upgrade_attempts').insert({
+          user_id: user.id,
+          item_id: item.item_id,
+          item_value: item.market_value,
+          target_multiplier: selectedMultiplier,
+          success: success,
+          won_value: success ? targetValue : 0
+        })
+
+        if (attemptError) {
+          console.warn('⚠️ Could not record upgrade attempt:', attemptError.message)
+          // Ne pas bloquer l'upgrade si l'enregistrement échoue
+        } else {
+          console.log('✅ Upgrade attempt recorded')
+        }
+      } catch (attemptRecordError) {
+        console.warn('⚠️ Upgrade attempt recording failed:', attemptRecordError)
+        // Continue sans bloquer
+      }
 
       setUpgradeSuccess(success)
-      setWonValue(newValue)
+      setShowAnimation(false)
       setShowResult(true)
 
-      if (onSuccess) onSuccess()
+      console.log('✅ Upgrade completed successfully!')
 
-    } catch (error) {
-      console.error('Upgrade error:', error)
+      // Ne pas appeler onSuccess ici - on le fera quand l'utilisateur clique sur "Fermer"
+      // pour qu'il puisse voir le résultat d'abord
+
+    } catch (error: any) {
+      console.error('❌ Upgrade error:', error)
+      const errorMessage = error?.message || 'Une erreur est survenue lors de l\'upgrade.'
+      setError(errorMessage)
+      setShowAnimation(false)
+      setShowResult(false)
+
+      // En cas d'erreur, on doit quand même rafraîchir l'inventaire
+      // car l'item a déjà été supprimé
+      if (onSuccess) onSuccess()
     } finally {
       setIsUpgrading(false)
-      setRotation(0)
     }
   }
 
   if (!isOpen || !item) return null
 
   const config = getRarityConfig(item.rarity)
-  const successRate = calculateSuccessRate(selectedMultiplier, item.market_value)
+  const successRate = calculateSuccessRate(selectedMultiplier)
   const potentialWin = item.market_value * selectedMultiplier
-  const selectedMult = MULTIPLIERS.find(m => m.value === selectedMultiplier) || MULTIPLIERS[0]
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/80 backdrop-blur-lg z-[100] flex items-center justify-center p-4"
-        onClick={() => !isUpgrading && !showResult && onClose()}
-      >
-        <motion.div
+    <>
+      {/* Animation overlay */}
+      <UpgradeAnimation
+        item={{
+          name: item.name,
+          image_url: item.image_url || '',
+          market_value: item.market_value,
+          rarity: item.rarity
+        }}
+        multiplier={selectedMultiplier}
+        successRate={successRate}
+        onComplete={(result) => {
+          // L'animation est terminée, mais handleUpgrade continue
+        }}
+        isAnimating={showAnimation}
+      />
+
+      <AnimatePresence>
+        {isOpen && !showAnimation && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-lg z-[100] flex items-center justify-center p-4"
+            onClick={() => !isUpgrading && !showResult && onClose()}
+          >
+            <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
           transition={{ type: 'spring', damping: 30, stiffness: 400 }}
           onClick={(e) => e.stopPropagation()}
-          className="relative w-full max-w-3xl"
+          className="relative w-full max-w-3xl mx-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="upgrade-modal-title"
         >
           {/* Glow effect */}
-          <div className={`absolute -inset-1 bg-gradient-to-r ${selectedMult.color} rounded-3xl blur-2xl opacity-20`} />
+          <div className="absolute -inset-1 rounded-3xl blur-2xl opacity-20"
+            style={{
+              background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
+            }}
+          />
 
-          <div className="relative bg-slate-900/95 backdrop-blur-2xl rounded-3xl border border-white/10 overflow-hidden">
+          <div className="relative backdrop-blur-2xl rounded-3xl border overflow-hidden bg-white dark:bg-gray-900/95"
+            style={{ borderColor: 'var(--hybrid-border-default)' }}
+          >
             {/* Animated gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-600/5 via-transparent to-pink-600/5" />
+            <div className="absolute inset-0 opacity-5" style={{
+              background: `linear-gradient(to bottom right, var(--hybrid-accent-primary), transparent, var(--hybrid-accent-secondary))`
+            }} />
 
             {/* Close button */}
-            <button
+            <motion.button
               onClick={onClose}
-              disabled={isUpgrading}
-              className="absolute top-4 right-4 z-10 p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all disabled:opacity-50 group"
+              disabled={isUpgrading && !showResult}
+              aria-label="Fermer le modal"
+              whileHover={{ scale: 1.1, rotate: 90 }}
+              whileTap={{ scale: 0.9 }}
+              className="absolute top-4 right-4 z-20 p-2 bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
             >
-              <X className="w-5 h-5 text-white/60 group-hover:text-white/90 transition-colors" />
-            </button>
+              <X className="w-5 h-5 text-gray-600 dark:text-white/60 group-hover:text-gray-900 dark:group-hover:text-white/90 transition-colors" />
+            </motion.button>
 
-            <div className="relative z-10 p-8">
+            <div className="relative z-10 p-4 md:p-6 lg:p-8">
               {!showResult ? (
                 <>
                   {/* Header */}
-                  <div className="text-center mb-8">
-                    <div className="inline-flex items-center gap-3 mb-3">
-                      <div className={`p-3 bg-gradient-to-br ${selectedMult.color} rounded-2xl ${selectedMult.shadow} shadow-xl`}>
-                        <TrendingUp className="w-8 h-8 text-white" />
+                  <div className="text-center mb-6 md:mb-8">
+                    <div className="inline-flex items-center gap-3 mb-3 flex-wrap justify-center">
+                      <div className="p-3 rounded-2xl shadow-xl"
+                        style={{
+                          background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
+                        }}
+                      >
+                        <TrendingUp className="w-6 h-6 md:w-8 md:h-8 text-white" />
                       </div>
-                      <h2 className="text-3xl font-black text-white">Upgrade Item</h2>
+                      <h2 id="upgrade-modal-title" className="text-2xl md:text-3xl font-black text-gray-900 dark:text-white">Upgrade Item</h2>
                     </div>
-                    <p className="text-white/50 text-sm">Risk it for the multiplier</p>
+                    <p className="text-gray-600 dark:text-white/50 text-xs md:text-sm px-4">Tentez votre chance pour multiplier la valeur</p>
                   </div>
 
                   {/* 3D Item Display */}
                   <div className="mb-8">
                     <div className="relative perspective-1000 mx-auto max-w-xs">
                       <motion.div
-                        animate={{
-                          rotateY: isUpgrading ? rotation : 0,
-                          scale: isUpgrading ? [1, 1.08, 1] : 1
-                        }}
-                        transition={{
-                          rotateY: { duration: 0.04, ease: 'linear' },
-                          scale: { duration: 0.6, repeat: isUpgrading ? Infinity : 0 }
-                        }}
                         className={`relative w-full aspect-square bg-gradient-to-br ${config.gradient} p-0.5 rounded-3xl ${config.glow} shadow-2xl`}
-                        style={{ transformStyle: 'preserve-3d' }}
                       >
-                        <div className="w-full h-full bg-slate-950 rounded-[23px] flex items-center justify-center p-8">
+                        <div className="w-full h-full bg-gray-100 dark:bg-gray-900 rounded-[23px] flex items-center justify-center p-8">
                           {item.image_url ? (
                             <img
                               src={item.image_url}
@@ -200,7 +363,7 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                               style={{ filter: isUpgrading ? 'blur(1px) brightness(1.3)' : 'none' }}
                             />
                           ) : (
-                            <div className="w-20 h-20 bg-white/5 rounded-2xl" />
+                            <div className="w-20 h-20 bg-gray-200 dark:bg-white/5 rounded-2xl" />
                           )}
                         </div>
 
@@ -210,7 +373,8 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                             {[...Array(8)].map((_, i) => (
                               <motion.div
                                 key={i}
-                                className="absolute w-1.5 h-1.5 bg-white rounded-full"
+                                className="absolute w-1.5 h-1.5 rounded-full"
+                                style={{ background: 'var(--hybrid-accent-primary)' }}
                                 initial={{ x: '50%', y: '50%', opacity: 0 }}
                                 animate={{
                                   x: `${50 + Math.cos((i * Math.PI * 2) / 8) * 180}%`,
@@ -231,8 +395,8 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
 
                       {/* Item info */}
                       <div className="text-center mt-5">
-                        <h3 className="text-xl font-bold text-white mb-2">{item.name}</h3>
-                        <div className="inline-flex items-center gap-2 bg-white/5 backdrop-blur-sm border border-white/10 rounded-full px-4 py-1.5">
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{item.name}</h3>
+                        <div className="inline-flex items-center gap-2 bg-gray-200 dark:bg-white/5 backdrop-blur-sm border border-gray-300 dark:border-white/10 rounded-full px-4 py-1.5">
                           <img
                             src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
                             alt="Coins"
@@ -247,53 +411,155 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                   {/* Multiplier selector */}
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-4">
-                      <span className="text-sm font-bold text-white/60 uppercase tracking-wider">Multiplier</span>
+                      <span className="text-sm font-bold text-gray-600 dark:text-white/60 uppercase tracking-wider">Multiplicateur</span>
                       <div className="flex items-center gap-2">
-                        <span className="text-2xl font-black bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
-                          x{selectedMultiplier}
+                        <span className="text-2xl font-black text-gray-900 dark:text-white">
+                          x{selectedMultiplier.toFixed(1)}
                         </span>
-                        <span className="text-xs text-white/40">{selectedMult.chance}</span>
+                        <span className="text-xs text-gray-500 dark:text-white/40">{successRate.toFixed(1)}%</span>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                      {MULTIPLIERS.map((mult) => (
+                    {/* Custom multiplier input */}
+                    <motion.div
+                      className="mb-4 p-4 rounded-xl border-2 transition-all"
+                      animate={{
+                        borderColor: inputFocused ? 'var(--hybrid-accent-primary)' : 'rgba(var(--hybrid-accent-primary-rgb), 0.3)',
+                        backgroundColor: inputFocused ? 'rgba(var(--hybrid-accent-primary-rgb), 0.08)' : 'rgba(var(--hybrid-accent-primary-rgb), 0.05)'
+                      }}
+                    >
+                      <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                        <Zap className="w-4 h-4" style={{ color: 'var(--hybrid-accent-primary)' }} />
+                        Multiplicateur personnalisé (1.5x - 100x)
+                      </label>
+                      <div className="flex items-center gap-2">
                         <motion.button
-                          key={mult.value}
-                          whileHover={{ scale: 1.05, y: -2 }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => setSelectedMultiplier(mult.value)}
-                          disabled={isUpgrading}
-                          className="relative group"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => {
+                            const newVal = Math.max(1.5, selectedMultiplier - 0.5)
+                            setSelectedMultiplier(newVal)
+                            setCustomMultiplier(newVal.toString())
+                          }}
+                          disabled={selectedMultiplier <= 1.5 || isUpgrading}
+                          className="p-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+                          style={{
+                            boxShadow: selectedMultiplier > 1.5 ? '0 2px 8px rgba(0,0,0,0.1)' : 'none'
+                          }}
                         >
-                          <div className={`absolute -inset-0.5 bg-gradient-to-r ${mult.color} rounded-xl opacity-0 group-hover:opacity-100 blur transition-opacity`} />
-                          <div
-                            className={`relative py-3 px-2 rounded-xl font-bold transition-all ${
-                              selectedMultiplier === mult.value
-                                ? `bg-gradient-to-br ${mult.color} text-white ${mult.shadow} shadow-lg`
-                                : 'bg-white/5 text-white/60 hover:bg-white/10 border border-white/10'
-                            }`}
-                          >
-                            <div className="text-lg font-black">x{mult.value}</div>
-                            <div className="text-[9px] opacity-70 uppercase">{mult.label}</div>
-                          </div>
+                          <Minus className="w-4 h-4 group-hover:text-gray-900 dark:group-hover:text-white transition-colors" />
                         </motion.button>
-                      ))}
+                        <input
+                          type="number"
+                          min="1.5"
+                          max="100"
+                          step="0.1"
+                          value={customMultiplier}
+                          onChange={(e) => handleMultiplierChange(e.target.value)}
+                          onFocus={() => setInputFocused(true)}
+                          onBlur={() => setInputFocused(false)}
+                          disabled={isUpgrading}
+                          placeholder="2.5"
+                          className="flex-1 px-4 py-3 bg-white dark:bg-gray-800 border-2 rounded-xl text-gray-900 dark:text-white font-bold text-center focus:outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          style={{
+                            borderColor: inputFocused ? 'var(--hybrid-accent-primary)' : 'var(--hybrid-border-default)',
+                            boxShadow: inputFocused ? '0 0 0 3px rgba(var(--hybrid-accent-primary-rgb), 0.1)' : 'none'
+                          }}
+                        />
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => {
+                            const newVal = Math.min(100, selectedMultiplier + 0.5)
+                            setSelectedMultiplier(newVal)
+                            setCustomMultiplier(newVal.toString())
+                          }}
+                          disabled={selectedMultiplier >= 100 || isUpgrading}
+                          className="p-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+                          style={{
+                            boxShadow: selectedMultiplier < 100 ? '0 2px 8px rgba(0,0,0,0.1)' : 'none'
+                          }}
+                        >
+                          <Plus className="w-4 h-4 group-hover:text-gray-900 dark:group-hover:text-white transition-colors" />
+                        </motion.button>
+                      </div>
+                    </motion.div>
+
+                    {/* Quick multipliers */}
+                    <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-8 gap-2">
+                      {quickMultipliers.map((mult) => {
+                        const rate = calculateSuccessRate(mult)
+                        return (
+                          <motion.button
+                            key={mult}
+                            whileHover={{ scale: 1.05, y: -2 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => {
+                              setSelectedMultiplier(mult)
+                              setCustomMultiplier(mult.toString())
+                            }}
+                            disabled={isUpgrading}
+                            className="relative group"
+                          >
+                            <div className="absolute -inset-0.5 rounded-xl opacity-0 group-hover:opacity-100 blur transition-opacity"
+                              style={{
+                                background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
+                              }}
+                            />
+                            <div
+                              className={`relative py-3 px-2 rounded-xl font-bold transition-all ${
+                                selectedMultiplier === mult
+                                  ? 'text-white shadow-lg'
+                                  : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-300 dark:border-white/10'
+                              }`}
+                              style={selectedMultiplier === mult ? {
+                                background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
+                              } : {}}
+                            >
+                              <div className="text-lg font-black">x{mult}</div>
+                              <div className="text-[9px] opacity-70">{rate.toFixed(1)}%</div>
+                            </div>
+                          </motion.button>
+                        )
+                      })}
                     </div>
                   </div>
 
+                  {/* Error message */}
+                  <AnimatePresence>
+                    {error && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        className="mb-4 p-4 rounded-xl border-2 border-red-500/30 bg-red-500/10 flex items-start gap-3"
+                      >
+                        <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-red-600 dark:text-red-400">{error}</p>
+                        </div>
+                        <button
+                          onClick={() => setError(null)}
+                          className="p-1 hover:bg-red-500/20 rounded-lg transition-colors"
+                        >
+                          <X className="w-4 h-4 text-red-500" />
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   {/* Stats */}
-                  <div className="grid grid-cols-2 gap-3 mb-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
                     <div className="bg-gradient-to-br backdrop-blur-sm rounded-2xl p-4 border" style={{
                       backgroundImage: `linear-gradient(to bottom right, rgba(var(--hybrid-accent-primary-rgb), 0.1), rgba(var(--hybrid-accent-secondary-rgb), 0.1))`,
                       borderColor: 'rgba(var(--hybrid-accent-primary-rgb), 0.2)'
                     }}>
                       <div className="flex items-center gap-2 mb-2">
                         <Target className="w-4 h-4" style={{ color: 'var(--hybrid-accent-primary)' }} />
-                        <span className="text-xs font-bold text-white/60 uppercase">Success Rate</span>
+                        <span className="text-xs font-bold text-gray-600 dark:text-white/60 uppercase">Taux de réussite</span>
                       </div>
                       <div className="text-2xl font-black mb-2" style={{ color: 'var(--hybrid-accent-primary)' }}>{successRate.toFixed(1)}%</div>
-                      <div className="w-full h-1.5 bg-black/30 rounded-full overflow-hidden">
+                      <div className="w-full h-1.5 bg-gray-300 dark:bg-black/30 rounded-full overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${successRate}%` }}
@@ -303,10 +569,13 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                       </div>
                     </div>
 
-                    <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-sm rounded-2xl p-4 border border-purple-500/20">
+                    <div className="bg-gradient-to-br backdrop-blur-sm rounded-2xl p-4 border" style={{
+                      backgroundImage: `linear-gradient(to bottom right, rgba(var(--hybrid-accent-primary-rgb), 0.1), rgba(var(--hybrid-accent-secondary-rgb), 0.1))`,
+                      borderColor: 'rgba(var(--hybrid-accent-primary-rgb), 0.2)'
+                    }}>
                       <div className="flex items-center gap-2 mb-2">
-                        <Sparkles className="w-4 h-4 text-purple-400" />
-                        <span className="text-xs font-bold text-white/60 uppercase">Potential Win</span>
+                        <Sparkles className="w-4 h-4" style={{ color: 'var(--hybrid-accent-primary)' }} />
+                        <span className="text-xs font-bold text-gray-600 dark:text-white/60 uppercase">Gain potentiel</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <img
@@ -314,7 +583,7 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                           alt="Coins"
                           className="w-5 h-5"
                         />
-                        <span className="text-2xl font-black bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+                        <span className="text-2xl font-black" style={{ color: 'var(--hybrid-accent-primary)' }}>
                           {potentialWin.toLocaleString()}
                         </span>
                       </div>
@@ -329,7 +598,11 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                     disabled={isUpgrading}
                     className="relative w-full py-4 rounded-2xl font-black text-lg overflow-hidden group disabled:opacity-50"
                   >
-                    <div className={`absolute inset-0 bg-gradient-to-r ${selectedMult.color}`} />
+                    <div className="absolute inset-0"
+                      style={{
+                        background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
+                      }}
+                    />
                     <motion.div
                       animate={{ x: ['-200%', '200%'] }}
                       transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
@@ -345,7 +618,7 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                       ) : (
                         <>
                           <Zap className="w-5 h-5" />
-                          <span>UPGRADE NOW</span>
+                          <span>UPGRADE MAINTENANT</span>
                           <ArrowRight className="w-5 h-5" />
                         </>
                       )}
@@ -379,39 +652,103 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.2 }}
-                        className="text-5xl font-black text-white mb-3"
+                        className="text-5xl font-black text-gray-900 dark:text-white mb-3"
                       >
-                        SUCCESS!
+                        RÉUSSI !
                       </motion.h3>
 
                       <motion.p
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.3 }}
-                        className="text-white/60 mb-8"
+                        className="text-gray-600 dark:text-white/60 mb-8"
                       >
-                        You won the upgrade
+                        Vous avez remporté l'upgrade x{selectedMultiplier.toFixed(1)}
                       </motion.p>
 
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: 0.4, type: 'spring', damping: 12 }}
-                        className="inline-flex items-center gap-3 backdrop-blur-xl border rounded-2xl px-10 py-5"
-                        style={{
-                          backgroundColor: 'rgba(var(--hybrid-accent-primary-rgb), 0.1)',
-                          borderColor: 'rgba(var(--hybrid-accent-primary-rgb), 0.3)'
-                        }}
-                      >
-                        <img
-                          src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
-                          alt="Coins"
-                          className="w-10 h-10"
-                        />
-                        <span className="text-5xl font-black" style={{ color: 'var(--hybrid-accent-primary)' }}>
-                          +{wonValue.toLocaleString()}
-                        </span>
-                      </motion.div>
+                      {/* Rewards display */}
+                      <div className="space-y-4 mb-8">
+                        {wonReward?.item && (
+                          <motion.div
+                            initial={{ scale: 0, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            transition={{ delay: 0.4, type: 'spring', damping: 12 }}
+                            className="backdrop-blur-xl border-2 rounded-2xl p-6 mx-auto max-w-md"
+                            style={{
+                              backgroundColor: 'rgba(var(--hybrid-accent-primary-rgb), 0.1)',
+                              borderColor: 'rgba(var(--hybrid-accent-primary-rgb), 0.3)'
+                            }}
+                          >
+                            <div className="flex items-center gap-4 mb-3">
+                              <Package className="w-6 h-6" style={{ color: 'var(--hybrid-accent-primary)' }} />
+                              <span className="text-sm font-bold text-gray-600 dark:text-white/60 uppercase">Objet gagné</span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <img
+                                src={wonReward.item.image_url}
+                                alt={wonReward.item.name}
+                                className="w-20 h-20 object-contain rounded-xl bg-white/10 p-2"
+                              />
+                              <div className="flex-1 text-left">
+                                <p className="text-lg font-black text-gray-900 dark:text-white">{wonReward.item.name}</p>
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <img
+                                    src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
+                                    alt="Coins"
+                                    className="w-4 h-4"
+                                  />
+                                  <span className="text-sm font-bold" style={{ color: 'var(--hybrid-accent-primary)' }}>
+                                    {wonReward.item.market_value.toLocaleString()} coins
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+
+                        {wonReward && wonReward.coins > 0 && (
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ delay: wonReward.item ? 0.5 : 0.4, type: 'spring', damping: 12 }}
+                            className="backdrop-blur-xl border-2 rounded-2xl p-6 mx-auto max-w-md"
+                            style={{
+                              backgroundColor: 'rgba(var(--hybrid-accent-primary-rgb), 0.1)',
+                              borderColor: 'rgba(var(--hybrid-accent-primary-rgb), 0.3)'
+                            }}
+                          >
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-2">
+                                <Sparkles className="w-5 h-5" style={{ color: 'var(--hybrid-accent-primary)' }} />
+                                <span className="text-sm font-bold text-gray-600 dark:text-white/60 uppercase">
+                                  {wonReward.item ? 'Bonus coins' : 'Coins gagnés'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <img
+                                  src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
+                                  alt="Coins"
+                                  className="w-6 h-6"
+                                />
+                                <span className="text-3xl font-black" style={{ color: 'var(--hybrid-accent-primary)' }}>
+                                  +{wonReward.coins.toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.6 }}
+                          className="pt-4"
+                        >
+                          <p className="text-xs text-gray-500 dark:text-white/40">
+                            Valeur totale : {wonReward?.totalValue.toLocaleString()} coins
+                          </p>
+                        </motion.div>
+                      </div>
                     </>
                   ) : (
                     <>
@@ -430,27 +767,27 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.2 }}
-                        className="text-5xl font-black text-white mb-3"
+                        className="text-5xl font-black text-gray-900 dark:text-white mb-3"
                       >
-                        FAILED
+                        ÉCHEC
                       </motion.h3>
 
                       <motion.p
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.3 }}
-                        className="text-white/60 mb-2"
+                        className="text-gray-600 dark:text-white/60 mb-2"
                       >
-                        Your item has been lost
+                        Votre item a été perdu
                       </motion.p>
 
                       <motion.p
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.4 }}
-                        className="text-white/40 text-sm"
+                        className="text-gray-500 dark:text-white/40 text-sm"
                       >
-                        Better luck next time
+                        Bonne chance la prochaine fois
                       </motion.p>
                     </>
                   )}
@@ -461,17 +798,24 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                     transition={{ delay: 0.6 }}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={onClose}
-                    className="mt-8 px-12 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold transition-all"
+                    onClick={() => {
+                      // Appeler onSuccess pour rafraîchir l'inventaire/panier
+                      if (onSuccess) onSuccess()
+                      // Fermer le modal
+                      onClose()
+                    }}
+                    className="mt-8 px-12 py-3 bg-gray-200 hover:bg-gray-300 dark:bg-white/10 dark:hover:bg-white/20 text-gray-900 dark:text-white rounded-xl font-bold transition-all"
                   >
-                    Close
+                    Fermer
                   </motion.button>
                 </motion.div>
               )}
             </div>
           </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   )
 }

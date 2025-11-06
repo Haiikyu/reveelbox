@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import React from 'react'
 import type { AffiliateProfile, AffiliateTier } from './types'
+import SocialIcon from './SocialIcon'
 
 interface AffiliateOverviewProps {
   affiliateProfile: AffiliateProfile
@@ -43,16 +44,16 @@ export default function AffiliateOverview({
   copyLoading
 }: AffiliateOverviewProps) {
   const affiliateTiers: AffiliateTier[] = [
-    { level: 1, name: "Rookie", commission: 0.01, color: "from-indigo-400 to-indigo-600", icon: Users, requirement: 0, bonus: 5 },
-    { level: 2, name: "Explorer", commission: 0.02, color: "from-indigo-400 to-indigo-600", icon: Target, requirement: 5, bonus: 10 },
-    { level: 3, name: "Adventurer", commission: 0.03, color: "from-indigo-500 to-purple-500", icon: Zap, requirement: 15, bonus: 15 },
-    { level: 4, name: "Hunter", commission: 0.04, color: "from-indigo-500 to-purple-500", icon: Award, requirement: 30, bonus: 20 },
-    { level: 5, name: "Elite", commission: 0.05, color: "from-purple-500 to-pink-500", icon: Medal, requirement: 50, bonus: 25 },
-    { level: 6, name: "Master", commission: 0.06, color: "from-purple-500 to-pink-500", icon: Crown, requirement: 75, bonus: 30 },
-    { level: 7, name: "Champion", commission: 0.07, color: "from-pink-500 to-rose-500", icon: Trophy, requirement: 100, bonus: 40 },
-    { level: 8, name: "Legend", commission: 0.08, color: "from-pink-500 to-rose-500", icon: Star, requirement: 150, bonus: 50 },
-    { level: 9, name: "Mythic", commission: 0.09, color: "from-rose-500 to-red-500", icon: Flame, requirement: 200, bonus: 75 },
-    { level: 10, name: "Divine", commission: 0.10, color: "from-red-500 to-orange-500", icon: Gem, requirement: 300, bonus: 100 }
+    { level: 1, name: "Rookie", commission: 0.01, color: "from-amber-600 to-orange-600 dark:from-indigo-400 dark:to-indigo-600", icon: Users, requirement: 0, bonus: 5 },
+    { level: 2, name: "Explorer", commission: 0.02, color: "from-orange-500 to-amber-600 dark:from-indigo-400 dark:to-indigo-600", icon: Target, requirement: 5, bonus: 10 },
+    { level: 3, name: "Adventurer", commission: 0.03, color: "from-amber-700 to-orange-700 dark:from-indigo-500 dark:to-purple-500", icon: Zap, requirement: 15, bonus: 15 },
+    { level: 4, name: "Hunter", commission: 0.04, color: "from-orange-600 to-red-600 dark:from-indigo-500 dark:to-purple-500", icon: Award, requirement: 30, bonus: 20 },
+    { level: 5, name: "Elite", commission: 0.05, color: "from-red-600 to-rose-600 dark:from-purple-500 dark:to-pink-500", icon: Medal, requirement: 50, bonus: 25 },
+    { level: 6, name: "Master", commission: 0.06, color: "from-rose-600 to-pink-600 dark:from-purple-500 dark:to-pink-500", icon: Crown, requirement: 75, bonus: 30 },
+    { level: 7, name: "Champion", commission: 0.07, color: "from-pink-600 to-rose-700 dark:from-pink-500 dark:to-rose-500", icon: Trophy, requirement: 100, bonus: 40 },
+    { level: 8, name: "Legend", commission: 0.08, color: "from-rose-700 to-red-700 dark:from-pink-500 dark:to-rose-500", icon: Star, requirement: 150, bonus: 50 },
+    { level: 9, name: "Mythic", commission: 0.09, color: "from-red-700 to-orange-700 dark:from-rose-500 dark:to-red-500", icon: Flame, requirement: 200, bonus: 75 },
+    { level: 10, name: "Divine", commission: 0.10, color: "from-orange-700 via-amber-700 to-yellow-700 dark:from-red-500 dark:via-orange-500 dark:to-yellow-500", icon: Gem, requirement: 300, bonus: 100 }
   ]
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://reveelbox.vercel.app'
@@ -65,7 +66,7 @@ export default function AffiliateOverview({
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative overflow-hidden bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 text-white"
+          className="relative overflow-hidden bg-gradient-to-r from-amber-600 to-orange-600 dark:from-indigo-500 dark:to-purple-600 rounded-2xl p-6 text-white"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -97,7 +98,7 @@ export default function AffiliateOverview({
         className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-lg"
       >
         <div className="flex items-center gap-2 mb-4">
-          <Share2 className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+          <Share2 className="h-5 w-5 text-orange-600 dark:text-indigo-400" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Lien d'affiliation</h3>
         </div>
 
@@ -113,7 +114,7 @@ export default function AffiliateOverview({
             whileTap={{ scale: 0.98 }}
             onClick={onCopyLink}
             disabled={copyLoading}
-            className="bg-indigo-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg transition-all disabled:opacity-50 flex items-center gap-2"
+            className="bg-orange-600 hover:bg-orange-700 dark:bg-indigo-600 dark:hover:bg-violet-700 text-white px-4 py-2 rounded-lg transition-all disabled:opacity-50 flex items-center gap-2"
           >
             {copyLoading ? (
               <Loader className="h-4 w-4 animate-spin" />
@@ -125,22 +126,22 @@ export default function AffiliateOverview({
 
         <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
           {[
-            { name: 'Twitter', platform: 'twitter', icon: '𝕏' },
-            { name: 'Facebook', platform: 'facebook', icon: '👥' },
-            { name: 'WhatsApp', platform: 'whatsapp', icon: '💬' },
-            { name: 'Telegram', platform: 'telegram', icon: '✈️' },
-            { name: 'LinkedIn', platform: 'linkedin', icon: '💼' },
-            { name: 'Reddit', platform: 'reddit', icon: '🤖' }
+            { name: 'Twitter', platform: 'twitter' },
+            { name: 'Facebook', platform: 'facebook' },
+            { name: 'WhatsApp', platform: 'whatsapp' },
+            { name: 'Telegram', platform: 'telegram' },
+            { name: 'LinkedIn', platform: 'linkedin' },
+            { name: 'Reddit', platform: 'reddit' }
           ].map((social) => (
             <motion.button
               key={social.platform}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => onShareSocial(social.platform)}
-              className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 p-3 rounded-lg transition-all text-center"
+              className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 p-3 rounded-lg transition-all text-center flex flex-col items-center gap-2"
             >
-              <span className="text-xl">{social.icon}</span>
-              <p className="text-xs mt-1 text-gray-700 dark:text-gray-300">{social.name}</p>
+              <SocialIcon platform={social.platform} className="w-5 h-5" />
+              <p className="text-xs text-gray-700 dark:text-gray-300">{social.name}</p>
             </motion.button>
           ))}
         </div>
@@ -156,7 +157,7 @@ export default function AffiliateOverview({
         >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-gradient-to-br from-indigo-500 to-violet-500 rounded-lg flex items-center justify-center">
+              <div className="h-10 w-10 bg-gradient-to-br from-orange-600 to-red-600 dark:from-indigo-500 dark:to-violet-500 rounded-lg flex items-center justify-center">
                 {React.createElement(currentTier.icon, { className: "h-5 w-5 text-white" })}
               </div>
               <div>
@@ -170,7 +171,7 @@ export default function AffiliateOverview({
                 <p className="font-semibold text-gray-900 dark:text-white text-right">{nextTier.name}</p>
                 <p className="text-sm text-gray-600 dark:text-gray-400 text-right">{(nextTier.commission * 100)}%</p>
               </div>
-              <div className="h-10 w-10 bg-gradient-to-br from-indigo-500 to-violet-500 rounded-lg flex items-center justify-center">
+              <div className="h-10 w-10 bg-gradient-to-br from-orange-600 to-red-600 dark:from-indigo-500 dark:to-violet-500 rounded-lg flex items-center justify-center">
                 {React.createElement(nextTier.icon, { className: "h-5 w-5 text-white" })}
               </div>
             </div>
@@ -181,7 +182,7 @@ export default function AffiliateOverview({
               initial={{ width: 0 }}
               animate={{ width: `${Math.min((affiliateProfile.referrals_count / nextTier.requirement) * 100, 100)}%` }}
               transition={{ duration: 1, ease: "easeOut" }}
-              className="bg-gradient-to-r from-indigo-500 to-violet-500 h-2 rounded-full"
+              className="bg-gradient-to-r from-orange-600 to-red-600 dark:from-indigo-500 dark:to-violet-500 h-2 rounded-full"
             />
           </div>
           <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
@@ -198,7 +199,7 @@ export default function AffiliateOverview({
         className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-lg"
       >
         <div className="flex items-center gap-2 mb-6">
-          <Trophy className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+          <Trophy className="h-5 w-5 text-orange-600 dark:text-indigo-400" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Niveaux</h3>
         </div>
 

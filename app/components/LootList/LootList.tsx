@@ -169,21 +169,22 @@ function LootItemCard({ item, index, getRarityGlow }: LootItemCardProps) {
             }}
           >
             {/* Nom de l'objet */}
-            <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3 truncate transition-colors leading-tight">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3 truncate transition-colors leading-tight px-2">
               {item.name}
             </h3>
 
             {/* Valeur et probabilité */}
             <div className="space-y-1 mb-2">
-              {/* Valeur en coins avec couleur de rareté */}
+              {/* Valeur en coins - affichage simple */}
               <div className="flex items-center justify-center gap-1">
-                <Coins 
-                  size={16} 
-                  style={{ color: glowColor }} 
+                <img
+                  src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
+                  alt="Coins"
+                  className="w-5 h-5 object-contain"
                 />
-                <span 
+                <span
                   className="text-lg font-black transition-colors"
-                  style={{ color: "white" }}
+                  style={{ color: 'var(--hybrid-accent-primary)' }}
                 >
                   {item.market_value.toLocaleString()}
                 </span>
@@ -191,11 +192,11 @@ function LootItemCard({ item, index, getRarityGlow }: LootItemCardProps) {
 
               {/* Pourcentage de chance avec couleur de rareté */}
               <div className="flex items-center justify-center gap-2">
-                <Percent 
-                  size={14} 
-                  style={{ color: glowColor, opacity: 0}} 
+                <Percent
+                  size={14}
+                  style={{ color: glowColor, opacity: 0 }}
                 />
-                <span 
+                <span
                   className="text-sm font-bold transition-colors"
                   style={{ color: glowColor }}
                 >
