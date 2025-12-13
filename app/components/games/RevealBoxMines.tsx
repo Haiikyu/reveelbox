@@ -316,9 +316,9 @@ export default function RevealBoxMines() {
 
     try {
       const result = await cashOut()
-      
-      if (result && result.profit_loss > 0) {
-        setModalResult({ type: 'win', amount: result.profit_loss })
+
+      if (result && result.profit > 0) {
+        setModalResult({ type: 'win', amount: result.profit })
         setShowModal(true)
       }
     } catch (error: any) {

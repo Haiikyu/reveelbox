@@ -8,14 +8,13 @@ import { motion, AnimatePresence } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import {
   Gift, Package, Sword, Users, User, LogOut, X,
-  ShoppingCart, Sparkles, Plus, ChevronDown,
+  ShoppingCart, Sparkles, Plus, ChevronDown, ChevronRight,
   Monitor, Sun, Moon, Shield, TrendingUp, Gamepad2,
   Menu, Zap, Crown, Star, Flame, ArrowRight, ChevronUp, Mail, CreditCard
 } from 'lucide-react'
 import { useAuth } from './AuthProvider'
 import { useTheme } from './ThemeProvider'
 
-// Types
 interface InventoryItem {
   id: string
   quantity: number
@@ -44,7 +43,6 @@ const PaymentModal = dynamic(() => import('@/app/components/PaymentModal'), {
   loading: () => null
 })
 
-// Wrapper pour l'espacement avec animation fluide
 interface PageWrapperProps {
   children: React.ReactNode;
   className?: string;
@@ -54,11 +52,9 @@ export const PageWrapper: React.FC<PageWrapperProps> = ({ children, className = 
   const [isNavbarHidden, setIsNavbarHidden] = React.useState(false)
 
   React.useEffect(() => {
-    // Lire l'état initial
     const savedState = localStorage.getItem('navbarHidden')
     setIsNavbarHidden(savedState === 'true')
 
-    // Écouter les changements
     const handleToggle = () => {
       const newState = localStorage.getItem('navbarHidden') === 'true'
       setIsNavbarHidden(newState)
@@ -72,7 +68,7 @@ export const PageWrapper: React.FC<PageWrapperProps> = ({ children, className = 
     <motion.div
       className={className}
       animate={{
-        paddingTop: isNavbarHidden ? '0px' : '80px'
+        paddingTop: isNavbarHidden ? '0px' : '64px'
       }}
       transition={{ duration: 0.3, type: "spring", stiffness: 260, damping: 25 }}
     >
@@ -81,9 +77,135 @@ export const PageWrapper: React.FC<PageWrapperProps> = ({ children, className = 
   )
 }
 
-// NAVBAR PREMIUM - FULL WIDTH
 export default function ReveelBoxNavbar() {
   const { user, profile, signOut, isAuthenticated, loading, refreshProfile } = useAuth()
+  const [userPins, setUserPins] = useState<Array<{id: string, svg_code: string}>>([])
+  const [avatarFrame, setAvatarFrame] = useState<string | null>(null)
+  const [bannerSvg, setBannerSvg] = useState<string | null>(null)
+  const [leaderboardRank, setLeaderboardRank] = useState<number | null>(null)
+  const supabase = createClient()
+
+  // Charger les pins équipés + cadre + bannière + rang
+  useEffect(() => {
+    if (user) {
+      loadEquippedPins()
+      loadAvatarFrame()
+      loadBanner()
+      loadLeaderboardRank()
+    }
+  }, [user, profile])
+
+  const loadEquippedPins = async () => {
+    if (!user) return
+    
+    try {
+      const { data, error } = await supabase
+        .from('user_pins')
+        .select(`
+          pin_id,
+          shop_pins (
+            id,
+            svg_code
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('is_equipped', true)
+        .limit(5)
+      
+      if (error) throw error
+      
+      const pins = (data || [])
+        .filter(item => item.shop_pins)
+        .map(item => ({
+          id: item.shop_pins.id,
+          svg_code: item.shop_pins.svg_code
+        }))
+      
+      setUserPins(pins)
+    } catch (error) {
+      console.error('Erreur chargement pins:', error)
+    }
+  }
+
+  const loadAvatarFrame = async () => {
+    if (!user) return
+    
+    try {
+      const { data, error } = await supabase
+        .from('user_frames')
+        .select(`
+          frame_id,
+          shop_frames (
+            svg_code
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('is_equipped', true)
+        .single()
+      
+      if (error) {
+        setAvatarFrame(null)
+        return
+      }
+      
+      if (data?.shop_frames?.svg_code) {
+        setAvatarFrame(data.shop_frames.svg_code)
+      }
+    } catch (error) {
+      setAvatarFrame(null)
+    }
+  }
+
+  const loadBanner = async () => {
+    if (!user) return
+    
+    try {
+      const { data, error } = await supabase
+        .from('user_banners')
+        .select(`
+          banner_id,
+          shop_banners (
+            svg_code
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('is_equipped', true)
+        .single()
+      
+      if (error) {
+        setBannerSvg(null)
+        return
+      }
+      
+      if (data?.shop_banners?.svg_code) {
+        setBannerSvg(data.shop_banners.svg_code)
+      }
+    } catch (error) {
+      setBannerSvg(null)
+    }
+  }
+
+  const loadLeaderboardRank = async () => {
+    if (!user || !profile) return
+    
+    try {
+      // Calculer le rang en temps réel en comptant combien de joueurs ont plus de coins dépensés
+      const userCoins = profile.total_coins_spent || 0
+      
+      const { count, error } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .gt('total_coins_spent', userCoins)
+      
+      if (error) throw error
+      
+      // Rang = nombre de joueurs avec plus de coins + 1
+      setLeaderboardRank(count !== null ? count + 1 : null)
+    } catch (error) {
+      console.error('Erreur chargement rang:', error)
+      setLeaderboardRank(null)
+    }
+  }
   const { theme, setTheme, resolvedTheme } = useTheme()
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -98,7 +220,6 @@ export default function ReveelBoxNavbar() {
   const cartButtonRef = useRef(null)
   const paymentButtonRef = useRef(null)
 
-  // Charger l'état de la navbar depuis localStorage au montage
   useEffect(() => {
     const savedState = localStorage.getItem('navbarHidden')
     if (savedState !== null) {
@@ -106,7 +227,6 @@ export default function ReveelBoxNavbar() {
     }
   }, [])
 
-  // Sauvegarder l'état dans localStorage quand il change
   const toggleNavbar = () => {
     const newState = !navbarHidden
     setNavbarHidden(newState)
@@ -116,7 +236,6 @@ export default function ReveelBoxNavbar() {
 
   const router = useRouter()
   const pathname = usePathname()
-  const supabase = createClient()
   const userMenuRef = useRef<HTMLDivElement>(null)
   const gamesMenuRef = useRef<HTMLDivElement>(null)
 
@@ -128,16 +247,18 @@ export default function ReveelBoxNavbar() {
     { href: '/games', label: 'Games', icon: Gamepad2, hasDropdown: true },
     { href: '/affiliates', label: 'Affiliés', icon: Users },
     { href: '/freedrop', label: 'Free Drop', icon: Gift },
+    { href: '/shop', label: 'Shop', icon: ShoppingCart, gradient: 'from-purple-500 to-pink-500' },
+    { href: '/leaderboard', label: 'Leaderboard', icon: Crown, gradient: 'from-yellow-500 to-orange-500' },
   ]
 
   const gamesDropdownItems = [
     { href: '/games/crash', label: 'Crash', icon: TrendingUp, gradient: 'from-red-500 to-orange-500' },
     { href: '/games/mines', label: 'Mines', icon: Flame, gradient: 'from-purple-500 to-pink-500' },
     { href: '/games/roulette', label: 'Roulette', icon: Crown, gradient: 'from-yellow-500 to-amber-500', comingSoon: true },
-    { href: '/games/coinflip', label: 'Coinflip', icon: Zap, gradient: 'from-blue-500 to-cyan-500', comingSoon: true },
+    { href: '/games/coinflip', label: 'Coinflip', icon: Zap, gradient: 'from-[#4578be] to-cyan-500' },
+    { href: '/upgrade', label: 'Upgrade', icon: Sparkles, gradient: 'from-[#4578be] to-[#5989d8]' },
   ]
 
-  // Gestion scroll
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20)
@@ -146,7 +267,6 @@ export default function ReveelBoxNavbar() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Click outside handlers
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
@@ -160,14 +280,15 @@ export default function ReveelBoxNavbar() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Chargement inventaire
   useEffect(() => {
-    const loadCartItems = async () => {
-      if (!isAuthenticated || !user) {
-        setCartItems([])
-        return
-      }
+    if (!isAuthenticated || !user) {
+      setCartItems([])
+      return
+    }
 
+    let isSubscribed = true
+
+    const loadCartItems = async () => {
       try {
         const { data: inventory, error } = await supabase
           .from('user_inventory')
@@ -188,7 +309,7 @@ export default function ReveelBoxNavbar() {
           .order('obtained_at', { ascending: false })
           .limit(15)
 
-        if (!error && inventory) {
+        if (!error && inventory && isSubscribed) {
           setCartItems(inventory.map((item: any) => ({
             id: item.id,
             quantity: item.quantity,
@@ -203,282 +324,186 @@ export default function ReveelBoxNavbar() {
 
     loadCartItems()
 
-    if (!isAuthenticated || !user) {
-      return
-    }
-
     const channel = supabase
-      .channel('inventory-changes')
+      .channel(`inventory-changes-${user.id}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'user_inventory',
         filter: `user_id=eq.${user.id}`
       }, () => {
-        loadCartItems()
+        if (isSubscribed) {
+          loadCartItems()
+        }
       })
       .subscribe()
 
     return () => {
+      isSubscribed = false
       supabase.removeChannel(channel)
     }
-  }, [isAuthenticated, user, supabase])
+  }, [isAuthenticated, user?.id])
+
+  const toggleTheme = () => {
+    setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
+  }
 
   if (loading) return null
 
   return (
     <>
-      {/* NAVBAR MODERNE & ÉLÉGANTE */}
       <motion.nav
         initial={{ y: 0, opacity: 1 }}
         animate={{
-          y: navbarHidden ? -80 : 0
+          y: navbarHidden ? -64 : 0
         }}
         transition={{ duration: 0.3, type: "spring", stiffness: 260, damping: 25 }}
-        style={{
-          background: isScrolled
-            ? `rgba(${resolvedTheme === 'dark' ? '3, 7, 18' : '249, 250, 251'}, 0.8)`
-            : `rgba(${resolvedTheme === 'dark' ? '3, 7, 18' : '249, 250, 251'}, 1)`,
-          backdropFilter: isScrolled ? 'blur(20px)' : 'blur(0px)',
-          WebkitBackdropFilter: isScrolled ? 'blur(20px)' : 'blur(0px)',
-          borderBottom: isScrolled ? '1px solid rgba(156, 163, 175, 0.2)' : '1px solid rgba(156, 163, 175, 0.1)',
-          boxShadow: isScrolled ? '0 10px 30px rgba(0, 0, 0, 0.1)' : 'none'
-        }}
-        className="fixed top-0 left-0 right-0 z-50 h-20"
+        className="fixed top-0 left-0 right-0 z-[60] h-16"
       >
-        {/* Barre lumineuse supérieure animée hybrid */}
-        <div className="absolute top-0 left-0 right-0 h-[1px] overflow-hidden">
-          <motion.div
-            className="absolute inset-0"
-            style={{
-              background: `linear-gradient(90deg, transparent, var(--hybrid-accent-primary), transparent)`,
-              opacity: 0.6
-            }}
-            animate={{
-              x: ['-200%', '200%'],
-              opacity: [0.2, 0.6, 0.2]
-            }}
-            transition={{
-              duration: 4,
-              repeat: Infinity,
-              ease: "linear",
-              repeatDelay: 2
-            }}
-          />
-          <div className="absolute inset-0" style={{
-            background: `linear-gradient(90deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary), var(--hybrid-accent-primary))`,
-            opacity: 0.1
-          }} />
-        </div>
+        <div className="w-full h-full flex justify-center items-center px-[10%]">
+          <div className="flex items-center justify-between h-full w-full px-4 rounded-3xl shadow-xl gap-3 relative" style={{
+            background: isScrolled
+              ? `linear-gradient(180deg, rgba(${resolvedTheme === 'dark' ? '17, 24, 39' : '255, 255, 255'}, 0.3) 0%, rgba(${resolvedTheme === 'dark' ? '17, 24, 39' : '255, 255, 255'}, 0.25) 100%)`
+              : `linear-gradient(180deg, rgba(${resolvedTheme === 'dark' ? '17, 24, 39' : '255, 255, 255'}, 0.4) 0%, rgba(${resolvedTheme === 'dark' ? '17, 24, 39' : '255, 255, 255'}, 0.35) 100%)`,
+            backdropFilter: 'blur(24px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1), 0 0 24px rgba(69, 120, 190, 0.1)'
+          }}>
+            <div className="absolute top-0 left-0 right-0 h-[2px] rounded-t-3xl overflow-hidden">
+              <motion.div
+                className="absolute inset-0"
+                style={{
+                  background: `linear-gradient(90deg, transparent 0%, rgba(69, 120, 190, 0.6) 20%, rgba(69, 120, 190, 0.9) 50%, rgba(69, 120, 190, 0.6) 80%, transparent 100%)`,
+                  filter: 'drop-shadow(0 0 8px rgba(69, 120, 190, 0.6))'
+                }}
+                animate={{
+                  x: ['-200%', '200%'],
+                }}
+                transition={{
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  repeatDelay: 2
+                }}
+              />
+            </div>
 
-        {/* Dégradé de fond élégant hybrid */}
-        <div className="absolute inset-0 pointer-events-none" style={{
-          background: `linear-gradient(90deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary), var(--hybrid-accent-primary))`,
-          opacity: 0.02
-        }} />
-
-        <div className="w-full px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-
-            {/* LOGO SECTION - Design Premium */}
-            <div className="flex items-center gap-8">
-              {/* Burger Menu Mobile élégant */}
+            <div className="flex items-center gap-3 lg:gap-4 relative z-10">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden relative p-2.5 rounded-xl transition-all group overflow-hidden"
+                className="lg:hidden p-2 rounded-xl hover:bg-gradient-to-br hover:from-gray-100 hover:to-gray-50 dark:hover:from-gray-800/80 dark:hover:to-gray-800/60 transition-all duration-300 hover:shadow-lg"
                 style={{
-                  '--hover-bg': 'var(--hybrid-accent-primary)',
-                  '--hover-color': 'var(--hybrid-accent-primary)'
-                } as React.CSSProperties}
+                  border: '1px solid rgba(229, 231, 235, 0.4)'
+                }}
               >
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{
-                  background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`,
-                  opacity: 0.1
-                }} />
-                <Menu className="relative h-5 w-5 text-gray-600 dark:text-gray-400 transition-colors duration-300" onMouseEnter={(e) => e.currentTarget.style.color = 'var(--hybrid-accent-primary)'} onMouseLeave={(e) => e.currentTarget.style.color = ''} />
+                <Menu className="h-5 w-5 text-gray-700 dark:text-gray-300" />
               </motion.button>
 
-              {/* Logo Premium avec animations */}
-              <Link href="/" className="group flex items-center gap-4">
+              <Link href="/" className="group flex items-center ml-[20%]">
                 <motion.div
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   className="relative"
                 >
-                  {/* Effet de halo rotatif (plus subtil) - utilise les couleurs hybrid */}
-                  <motion.div
-                    className="absolute -inset-2 rounded-2xl blur-xl opacity-0 group-hover:opacity-100"
-                    style={{
-                      background: `linear-gradient(90deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary), var(--hybrid-accent-primary))`,
-                      opacity: 0.2
-                    }}
-                    animate={{
-                      rotate: [0, 360],
-                    }}
-                    transition={{
-                      duration: 8,
-                      repeat: Infinity,
-                      ease: "linear"
-                    }}
-                  />
-
-                  <motion.img
-                    src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/04aa1ec8-45f4-4ddf-83d9-14b50138c5b9-removebg-preview%20(1).png"
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#4578be]/20 via-blue-500/10 to-transparent rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <img
+                    src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/Design%20sans%20titre%20(49).png"
                     alt="ReveelBox"
-                    className="relative h-12 w-12 object-contain transition-all duration-300 group-hover:brightness-110"
+                    className="relative h-10 w-auto object-contain drop-shadow-[0_0_8px_rgba(59,130,246,0.3)]"
                   />
                 </motion.div>
-
-                <div className="hidden sm:block">
-                  <motion.div
-                    className="relative"
-                    whileHover={{ x: 2 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                  >
-                    <span className="text-xl font-black tracking-tight" style={{
-                      background: `linear-gradient(90deg, var(--hybrid-text-primary), var(--hybrid-accent-primary), var(--hybrid-text-primary))`,
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      backgroundClip: 'text'
-                    }}>
-                      REVEELBOX
-                    </span>
-                    <motion.div
-                      className="absolute -bottom-1 left-0 right-0 h-[2px]"
-                      style={{
-                        background: `linear-gradient(90deg, transparent, var(--hybrid-accent-primary), transparent)`
-                      }}
-                      initial={{ scaleX: 0 }}
-                      whileHover={{ scaleX: 1 }}
-                      transition={{ duration: 0.3 }}
-                    />
-                  </motion.div>
-                </div>
               </Link>
             </div>
 
-            {/* NAVIGATION DESKTOP - Design Élégant avec Animations */}
-            <div className="hidden lg:flex items-center gap-2">
-              {navItems.map((item) => {
+            <div className="hidden lg:flex items-center gap-4 relative z-10">
+              {navItems.map((item, index) => {
                 const Icon = item.icon
                 const isActive = pathname === item.href || (item.href === '/games' && pathname.startsWith('/games'))
 
                 if (item.hasDropdown) {
                   return (
-                    <div key={item.href} className="relative" ref={gamesMenuRef}>
-                      <motion.button
-                        whileHover={{ y: -2 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => setGamesMenuOpen(!gamesMenuOpen)}
-                        className={`relative px-5 py-2.5 text-sm font-bold transition-all duration-300 rounded-xl flex items-center gap-2.5 group overflow-hidden ${
-                          isActive
-                            ? 'dark:text-white'
-                            : 'text-gray-900 dark:text-gray-100'
-                        }`}
-                        style={isActive ? { color: 'var(--hybrid-accent-primary)' } : {}}
-                      >
-                        {/* Background animé au hover */}
-                        <motion.div
-                          className="absolute inset-0 opacity-0 group-hover:opacity-100"
-                          style={{
-                            background: `linear-gradient(90deg, transparent, var(--hybrid-accent-primary), transparent)`,
-                            opacity: 0.1
-                          }}
-                          animate={{
-                            backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
-                          }}
-                          transition={{
-                            duration: 3,
-                            repeat: Infinity,
-                            ease: "linear"
-                          }}
-                        />
-
-                        {/* Indicateur actif */}
-                        {isActive && (
-                          <motion.div
-                            layoutId="navbar-active-indicator"
-                            className="absolute inset-0 rounded-xl shadow-lg"
-                            style={{
-                              background: `linear-gradient(90deg, transparent, var(--hybrid-accent-primary), transparent)`,
-                              opacity: 0.2,
-                              borderColor: 'var(--hybrid-accent-primary)',
-                              borderWidth: '1px',
-                              borderStyle: 'solid'
-                            }}
-                            transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                          />
-                        )}
-
-                        <Icon className="relative h-4.5 w-4.5 group-hover:scale-110 transition-transform duration-300" />
-                        <span className="relative">{item.label}</span>
-                        <ChevronDown className={`relative h-4 w-4 transition-all duration-300 ${gamesMenuOpen ? 'rotate-180' : ''}`} style={gamesMenuOpen ? { color: 'var(--hybrid-accent-primary)' } : {}} />
-
-                        {/* Effet de lueur au survol */}
-                        <motion.div
-                          className="absolute -bottom-1 left-0 right-0 h-[2px] opacity-0 group-hover:opacity-100"
-                          style={{
-                            background: `linear-gradient(90deg, transparent, var(--hybrid-accent-primary), transparent)`
-                          }}
-                          initial={{ scaleX: 0 }}
-                          whileHover={{ scaleX: 1 }}
-                          transition={{ duration: 0.3 }}
-                        />
-                      </motion.button>
+                    <div key={item.href} className="relative flex items-center gap-4">
+                      <div className="flex items-center" ref={gamesMenuRef}>
+                        <Link
+                          href={item.href}
+                          className={`relative px-3 py-1.5 text-base font-semibold rounded-xl flex items-center gap-2 transition-all duration-300 group ${
+                            isActive
+                              ? 'text-[#4578be] bg-gradient-to-br from-[#4578be]/10 to-blue-500/5 shadow-lg shadow-[#4578be]/20'
+                              : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gradient-to-br hover:from-gray-100/80 hover:to-gray-50 dark:hover:from-gray-800/60 dark:hover:to-gray-800/40 hover:shadow-md'
+                          }`}
+                          style={isActive ? {
+                            border: '1px solid rgba(69, 120, 190, 0.2)',
+                            boxShadow: '0 0 16px rgba(69, 120, 190, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                          } : {}}
+                        >
+                          <Icon className={`h-4 w-4 transition-transform duration-300 ${isActive ? 'drop-shadow-[0_0_4px_rgba(59,130,246,0.6)]' : 'group-hover:scale-110'}`} />
+                          <span className="relative">
+                            {item.label}
+                          </span>
+                        </Link>
+                        <button
+                          onClick={() => setGamesMenuOpen(!gamesMenuOpen)}
+                          className="p-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-all duration-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/30 rounded-lg"
+                        >
+                          <ChevronDown className={`h-3.5 w-3.5 transition-all duration-300 ${gamesMenuOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                      </div>
 
                       <AnimatePresence>
                         {gamesMenuOpen && (
                           <motion.div
-                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            initial={{ opacity: 0, y: 8, scale: 0.96 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1], type: "spring", stiffness: 300, damping: 25 }}
-                            className="absolute top-full mt-3 left-0 w-72 bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl border-2 border-gray-200/80 rounded-2xl shadow-2xl shadow-black/20 dark:shadow-black/50 overflow-hidden"
-                            style={{ borderColor: 'var(--hybrid-border-default)' }}
+                            exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                            transition={{ duration: 0.2, type: "spring", stiffness: 300, damping: 25 }}
+                            className="absolute top-full mt-2 left-0 w-64 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-gray-200/60 dark:border-gray-800/80 rounded-2xl overflow-hidden"
+                            style={{
+                              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2), 0 0 1px rgba(255, 255, 255, 0.1) inset, 0 0 32px rgba(69, 120, 190, 0.1)'
+                            }}
                           >
-                            {/* Barre décorative */}
-                            <div className="h-[2px]" style={{ background: `linear-gradient(90deg, transparent, var(--hybrid-accent-primary), transparent)`, opacity: 0.6 }} />
-
-                            <div className="p-3">
+                            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-60" 
+                              style={{
+                                filter: 'drop-shadow(0 0 4px rgba(69, 120, 190, 0.6))'
+                              }}
+                            />
+                            
+                            <div className="p-2">
                               {gamesDropdownItems.map((game, index) => {
                                 const GameIcon = game.icon
                                 return (
                                   <motion.button
                                     key={game.href}
-                                    initial={{ opacity: 0, x: -20 }}
+                                    initial={{ opacity: 0, x: -10 }}
                                     animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: index * 0.06, type: "spring", stiffness: 200 }}
+                                    transition={{ delay: index * 0.05 }}
                                     onClick={() => !game.comingSoon && (router.push(game.href), setGamesMenuOpen(false))}
                                     disabled={game.comingSoon}
-                                    whileHover={!game.comingSoon ? { x: 4, transition: { duration: 0.2 } } : {}}
-                                    className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all group ${
+                                    whileHover={!game.comingSoon ? { x: 4, scale: 1.02 } : {}}
+                                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-300 group ${
                                       game.comingSoon
-                                        ? 'opacity-40 cursor-not-allowed'
-                                        : 'hover:bg-gray-100 dark:hover:bg-white/5'
+                                        ? 'opacity-50 cursor-not-allowed'
+                                        : 'hover:bg-gradient-to-br hover:from-gray-50 hover:to-gray-100/50 dark:hover:from-gray-800/70 dark:hover:to-gray-800/50 hover:shadow-lg'
                                     }`}
-                                    style={!game.comingSoon ? {
-                                      '--hover-bg': 'rgba(var(--hybrid-accent-primary-rgb), 0.1)'
-                                    } as React.CSSProperties : {}}
                                   >
-                                    <motion.div
-                                      whileHover={!game.comingSoon ? { rotate: 5, scale: 1.1 } : {}}
-                                      transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                                      className={`w-12 h-12 bg-gradient-to-br ${game.gradient} rounded-xl flex items-center justify-center shadow-lg`}
+                                    <div className={`w-9 h-9 bg-gradient-to-br ${game.gradient} rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg`}
+                                      style={{
+                                        boxShadow: !game.comingSoon ? '0 4px 12px rgba(0, 0, 0, 0.2), 0 0 16px rgba(69, 120, 190, 0.1)' : undefined
+                                      }}
                                     >
-                                      <GameIcon className="h-6 w-6 text-white" />
-                                    </motion.div>
+                                      <GameIcon className="h-4.5 w-4.5 text-white drop-shadow-md" />
+                                    </div>
                                     <div className="flex-1 text-left">
                                       <div className="flex items-center gap-2">
-                                        <span className="font-bold text-gray-900 dark:text-white text-sm transition-colors" onMouseEnter={(e) => !game.comingSoon && (e.currentTarget.style.color = 'var(--hybrid-accent-primary)')} onMouseLeave={(e) => e.currentTarget.style.color = ''}>{game.label}</span>
+                                        <span className="font-semibold text-sm text-gray-900 dark:text-white">{game.label}</span>
                                         {game.comingSoon && (
-                                          <span className="px-2.5 py-1 bg-gradient-to-r from-orange-500/20 to-red-500/20 text-orange-500 dark:text-orange-400 text-[10px] rounded-full font-bold border border-orange-500/30">BIENTÔT</span>
+                                          <span className="px-2 py-0.5 bg-gradient-to-r from-orange-100 to-amber-100 dark:from-orange-500/20 dark:to-amber-500/20 text-orange-600 dark:text-orange-400 text-[10px] rounded-md font-bold shadow-sm">BIENTÔT</span>
                                         )}
                                       </div>
                                     </div>
                                     {!game.comingSoon && (
-                                      <ArrowRight className="h-4 w-4 text-gray-400 transition-colors" onMouseEnter={(e) => e.currentTarget.style.color = 'var(--hybrid-accent-primary)'} onMouseLeave={(e) => e.currentTarget.style.color = ''} />
+                                      <ArrowRight className="h-3.5 w-3.5 text-gray-400 group-hover:text-[#4578be] transition-colors duration-300" />
                                     )}
                                   </motion.button>
                                 )
@@ -487,303 +512,336 @@ export default function ReveelBoxNavbar() {
                           </motion.div>
                         )}
                       </AnimatePresence>
+                      {index < navItems.length - 1 && (
+                        <div className="h-6 w-px bg-gray-300 dark:bg-gray-700 ml-4"></div>
+                      )}
                     </div>
                   )
                 }
 
                 return (
-                  <motion.button
-                    key={item.href}
-                    whileHover={{ y: -2 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => router.push(item.href)}
-                    className={`relative px-5 py-2.5 text-sm font-bold transition-all duration-300 rounded-xl flex items-center gap-2.5 group overflow-hidden ${
+                  <React.Fragment key={item.href}>
+                    <Link
+                      href={item.href}
+                      className={`relative px-3 py-1.5 text-base font-semibold rounded-xl flex items-center gap-2 transition-all duration-300 group ${
                       isActive
-                        ? 'dark:text-white'
-                        : 'text-gray-900 dark:text-gray-100'
+                        ? 'text-[#4578be] bg-gradient-to-br from-[#4578be]/10 to-blue-500/5 shadow-lg shadow-[#4578be]/20'
+                        : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gradient-to-br hover:from-gray-100/80 hover:to-gray-50 dark:hover:from-gray-800/60 dark:hover:to-gray-800/40 hover:shadow-md'
                     }`}
-                    style={isActive ? { color: 'var(--hybrid-accent-primary)' } : {}}
+                    style={isActive ? {
+                      border: '1px solid rgba(69, 120, 190, 0.2)',
+                      boxShadow: '0 0 16px rgba(69, 120, 190, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                    } : {}}
                   >
-                    {/* Background animé au hover */}
-                    <motion.div
-                      className="absolute inset-0 opacity-0 group-hover:opacity-100"
-                      style={{
-                        background: `linear-gradient(90deg, transparent, var(--hybrid-accent-primary), transparent)`,
-                        opacity: 0.1
-                      }}
-                      animate={{
-                        backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
-                      }}
-                      transition={{
-                        duration: 3,
-                        repeat: Infinity,
-                        ease: "linear"
-                      }}
-                    />
-
-                    {/* Indicateur actif */}
-                    {isActive && (
-                      <motion.div
-                        layoutId="navbar-active-indicator"
-                        className="absolute inset-0 rounded-xl shadow-lg"
-                        style={{
-                          background: `linear-gradient(90deg, transparent, var(--hybrid-accent-primary), transparent)`,
-                          opacity: 0.2,
-                          borderColor: 'var(--hybrid-accent-primary)',
-                          borderWidth: '1px',
-                          borderStyle: 'solid'
-                        }}
-                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                      />
-                    )}
-
-                    <Icon className="relative h-4.5 w-4.5 group-hover:scale-110 transition-transform duration-300" />
-                    <span className="relative">{item.label}</span>
-
-                    {/* Effet de lueur au survol */}
-                    <motion.div
-                      className="absolute -bottom-1 left-0 right-0 h-[2px] opacity-0 group-hover:opacity-100"
-                      style={{
-                        background: `linear-gradient(90deg, transparent, var(--hybrid-accent-primary), transparent)`
-                      }}
-                      initial={{ scaleX: 0 }}
-                      whileHover={{ scaleX: 1 }}
-                      transition={{ duration: 0.3 }}
-                    />
-                  </motion.button>
+                    <Icon className={`h-4 w-4 transition-transform duration-300 ${isActive ? 'drop-shadow-[0_0_4px_rgba(59,130,246,0.6)]' : 'group-hover:scale-110'}`} />
+                    <span className="relative">
+                      {item.label}
+                    </span>
+                  </Link>
+                  {index < navItems.length - 1 && (
+                    <div className="h-6 w-px bg-gray-300 dark:bg-gray-700"></div>
+                  )}
+                </React.Fragment>
                 )
               })}
             </div>
 
-            {/* ACTIONS DROITE - Design Premium */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 relative z-10">
               {isAuthenticated ? (
                 <>
-                  {/* Balance Premium avec effets */}
                   <motion.div
-                    whileHover={{ scale: 1.02 }}
-                    className="hidden sm:flex items-center gap-3 px-4 py-2.5 bg-gradient-to-r from-gray-100/80 via-gray-50/80 to-gray-100/80 dark:from-slate-900/60 dark:via-slate-800/60 dark:to-slate-900/60 backdrop-blur-xl rounded-full border border-gray-300/50 dark:border-gray-700/50 shadow-lg shadow-gray-200/50 dark:shadow-black/20 group"
+                    whileHover={{ scale: 1.03 }}
+                    className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gradient-to-br from-gray-50/90 to-gray-100/70 dark:from-gray-800/70 dark:to-gray-800/50 backdrop-blur-xl rounded-full border border-gray-200/60 dark:border-gray-700/60 shadow-lg relative z-[70]"
+                    style={{
+                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                    }}
                   >
                     <motion.img
-                      animate={{
-                        rotate: [0, 10, -10, 0],
-                      }}
-                      transition={{
-                        duration: 2,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                      }}
+                      animate={{ rotate: [0, 12, -12, 0] }}
+                      transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
                       src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
                       alt="Coins"
-                      className="h-6 w-6"
+                      className="h-7 w-7"
+                      style={{
+                        filter: 'drop-shadow(0 0 8px rgba(69, 120, 190, 0.4))'
+                      }}
                     />
-                    <span className="font-black text-gray-900 dark:text-white text-base">{profile?.virtual_currency?.toLocaleString() || '0'}</span>
+                    <span className="font-bold text-sm text-gray-900 dark:text-white">
+                      {profile?.virtual_currency?.toLocaleString() || '0'}
+                    </span>
                     <motion.button
                       ref={paymentButtonRef}
-                      whileHover={{ scale: 1.1, rotate: 90 }}
+                      whileHover={{ scale: 1.15, rotate: 90 }}
                       whileTap={{ scale: 0.9 }}
                       onClick={() => {
                         setCartOpen(false)
                         setPaymentModalOpen(true)
                       }}
-                      className="p-2 rounded-full transition-all shadow-lg"
+                      className="p-1.5 rounded-full bg-gradient-to-br from-[#4578be] to-[#5989d8] shadow-lg hover:shadow-xl transition-all duration-300"
                       style={{
-                        background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`,
-                        boxShadow: `0 4px 12px rgba(var(--hybrid-accent-primary), 0.3)`
+                        boxShadow: '0 4px 12px rgba(69, 120, 190, 0.4), 0 0 16px rgba(69, 120, 190, 0.2)'
                       }}
                     >
-                      <Plus className="h-4 w-4 text-white" />
+                      <Plus className="h-3 w-3 text-white drop-shadow-md" />
                     </motion.button>
                   </motion.div>
 
-                  {/* Panier avec animations */}
                   <motion.button
                     ref={cartButtonRef}
-                    whileHover={{ scale: 1.05 }}
+                    whileHover={{ scale: 1.08 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => {
                       setPaymentModalOpen(false)
                       setCartOpen(true)
                     }}
-                    className="relative p-3 bg-gradient-to-br from-gray-100/80 to-gray-50/80 dark:from-slate-900/60 dark:to-slate-800/60 backdrop-blur-xl rounded-xl border border-gray-300/50 dark:border-gray-700/50 hover:border-gray-600/50 transition-all shadow-lg shadow-gray-200/50 dark:shadow-black/20 group"
+                    className="relative p-2 bg-gradient-to-br from-gray-50/90 to-gray-100/70 dark:from-gray-800/70 dark:to-gray-800/50 backdrop-blur-xl rounded-xl border border-gray-200/60 dark:border-gray-700/60 hover:border-[#4578be]/40 transition-all duration-300 shadow-lg hover:shadow-xl"
+                    style={{
+                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                    }}
                   >
-                    <ShoppingCart className="h-5 w-5 text-gray-700 dark:text-gray-300 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
+                    <ShoppingCart className="h-5 w-5 text-gray-700 dark:text-gray-300" />
                     {cartItems.length > 0 && (
                       <motion.div
                         initial={{ scale: 0 }}
-                        animate={{
-                          scale: [1, 1.1, 1],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          ease: "easeInOut"
-                        }}
-                        className="absolute -top-1 -right-1 h-6 w-6 rounded-full flex items-center justify-center shadow-lg"
+                        animate={{ scale: 1 }}
+                        className="absolute -top-1 -right-1 h-6 w-6 bg-gradient-to-br from-[#4578be] to-[#5989d8] rounded-full flex items-center justify-center shadow-lg"
                         style={{
-                          background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`,
-                          boxShadow: `0 4px 12px rgba(var(--hybrid-accent-primary), 0.5)`
+                          boxShadow: '0 2px 8px rgba(69, 120, 190, 0.5), 0 0 12px rgba(69, 120, 190, 0.3)'
                         }}
                       >
-                        <span className="text-xs font-black text-white">{cartItems.length}</span>
+                        <span className="text-xs font-bold text-white drop-shadow-md">{cartItems.length}</span>
                       </motion.div>
                     )}
                   </motion.button>
 
-                  {/* Avatar Menu Premium */}
                   <div className="relative" ref={userMenuRef}>
                     <motion.button
-                      whileHover={{ scale: 1.05 }}
+                      whileHover={{ scale: 1.08 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => setUserMenuOpen(!userMenuOpen)}
-                      className="relative h-11 w-11 rounded-full p-[2px] shadow-xl hover:shadow-2xl transition-all duration-500 group"
+                      className="relative h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
                       style={{
-                        background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
+                        border: '3px solid #4578be',
+                        boxShadow: '0 0 16px rgba(69, 120, 190, 0.4), 0 4px 12px rgba(0, 0, 0, 0.15)'
                       }}
                     >
-                      {/* Halo rotatif au hover */}
-                      <motion.div
-                        className="absolute -inset-1 rounded-full opacity-0 group-hover:opacity-60 blur-lg"
-                        style={{
-                          background: `linear-gradient(90deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
-                        }}
-                        animate={{
-                          rotate: [0, 360],
-                        }}
-                        transition={{
-                          duration: 4,
-                          repeat: Infinity,
-                          ease: "linear"
-                        }}
-                      />
-
                       {profile?.avatar_url ? (
                         <img
                           src={profile.avatar_url}
                           alt="Avatar"
-                          className="relative h-full w-full rounded-full object-cover"
+                          className="h-full w-full rounded-full object-cover"
                         />
                       ) : (
-                        <div className="relative h-full w-full rounded-full bg-slate-900 flex items-center justify-center">
-                          <User className="h-5 w-5 text-gray-300" />
+                        <div className="h-full w-full rounded-full bg-gradient-to-br from-[#4578be] to-[#5989d8] flex items-center justify-center">
+                          <User className="h-6 w-6 text-white drop-shadow-md" />
                         </div>
                       )}
                     </motion.button>
 
-                    {/* Dropdown Menu minimaliste et élégant */}
                     <AnimatePresence>
                       {userMenuOpen && (
                         <motion.div
-                          initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                          initial={{ opacity: 0, y: 8, scale: 0.96 }}
                           animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                          className="absolute top-full right-0 mt-2 w-60 bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl border border-gray-200/50 dark:border-gray-700/50 rounded-xl shadow-2xl shadow-black/10 dark:shadow-black/50 overflow-hidden"
+                          exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                          transition={{ duration: 0.2 }}
+                          className="absolute top-full right-0 mt-2 w-[350px] rounded-2xl overflow-hidden shadow-2xl border border-gray-700"
+                          style={{
+                            height: '420px',
+                            background: '#1a1f2e'
+                          }}
                         >
-                          {/* Header minimaliste */}
-                          <div className="px-4 py-3 border-b border-gray-200/50 dark:border-gray-800/50">
-                            <div className="flex items-center gap-3">
-                              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 p-0.5">
-                                {profile?.avatar_url ? (
-                                  <img src={profile.avatar_url} alt="Avatar" className="h-full w-full rounded-full object-cover" />
-                                ) : (
-                                  <div className="h-full w-full rounded-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-violet-500">
-                                    <User className="h-5 w-5 text-white" />
+                          {/* ZONE HAUTE (80%) - Bannière + Avatar + Stats */}
+                          <div 
+                            className="relative h-[80%] overflow-hidden"
+                            style={{
+                              background: 'linear-gradient(135deg, #2a3f5f 0%, #1a2332 50%, #0f1419 100%)'
+                            }}
+                          >
+                            {/* Bannière SVG en arrière-plan avec opacity */}
+                            {bannerSvg && (
+                              <div 
+                                className="absolute inset-0"
+                                style={{ opacity: 0.6 }}
+                                dangerouslySetInnerHTML={{ __html: bannerSvg }}
+                              />
+                            )}
+                            
+                            {/* Overlay gradient */}
+                            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80" />
+                            
+                            {/* Contenu */}
+                            <div className="relative h-full p-6 flex flex-col">
+                              
+                              {/* Ligne 1 : Avatar + Badges + Stats */}
+                              <div className="flex gap-4 mb-4">
+                                {/* Avatar avec cadre */}
+                                <div className="relative h-20 w-20 flex-shrink-0">
+                                  {/* Avatar */}
+                                  <div 
+                                    className={`h-20 w-20 rounded-xl overflow-hidden shadow-2xl ${
+                                      avatarFrame ? '' : 'border-4 border-[#4578be]'
+                                    }`}
+                                    style={{ boxShadow: '0 0 30px rgba(69, 120, 190, 0.6)' }}
+                                  >
+                                    {profile?.avatar_url ? (
+                                      <img src={profile.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
+                                    ) : (
+                                      <div className="h-full w-full bg-gradient-to-br from-[#4578be] to-[#5989d8] flex items-center justify-center">
+                                        <User className="h-10 w-10 text-white" />
+                                      </div>
+                                    )}
                                   </div>
-                                )}
+                                  
+                                  {/* Cadre SVG équipé par-dessus */}
+                                  {avatarFrame && (
+                                    <div 
+                                      className="absolute pointer-events-none"
+                                      style={{ 
+                                        top: '-4px',
+                                        left: '-4px',
+                                        width: '88px',
+                                        height: '88px'
+                                      }}
+                                      dangerouslySetInnerHTML={{ __html: avatarFrame }}
+                                    />
+                                  )}
+                                </div>
+
+                                {/* Colonne droite : Badges + Flamme/Smiley */}
+                                <div className="flex-1 flex flex-col justify-between">
+                                  {/* Badges (ligne du haut) */}
+                                  <div className="flex items-center gap-2">
+                                    {/* Afficher les pins équipés (MAX 4) */}
+                                    {userPins.slice(0, 4).map((pin) => (
+                                      <div 
+                                        key={pin.id}
+                                        className="h-11 w-11 rounded-lg bg-black/40 backdrop-blur-sm border border-gray-600/30 flex items-center justify-center p-1"
+                                        dangerouslySetInnerHTML={{ __html: pin.svg_code }}
+                                      />
+                                    ))}
+                                    
+                                    {/* Remplir avec des slots vides */}
+                                    {Array.from({ length: Math.max(0, 4 - userPins.length) }).map((_, i) => (
+                                      <div 
+                                        key={`empty-${i}`}
+                                        className="h-11 w-11 rounded-lg bg-black/40 backdrop-blur-sm border border-gray-600/30 flex items-center justify-center"
+                                      >
+                                        <span className="text-xl opacity-30">?</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  
+                                  {/* Flamme + Smiley + Trophée */}
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-lg min-w-[60px] justify-center">
+                                      <Flame className="h-4 w-4 text-orange-400" />
+                                      <span className="font-bold text-white text-sm">{profile?.consecutive_days || 0}</span>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-lg min-w-[60px] justify-center">
+                                      <span className="text-sm">😊</span>
+                                      <span className="font-bold text-white text-sm">{profile?.recommendations_count || 0}</span>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-lg min-w-[60px] justify-center">
+                                      <span className="text-sm">🏆</span>
+                                      <span className="font-bold text-white text-sm">{leaderboardRank || '-'}</span>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-bold text-gray-900 dark:text-white text-sm truncate">{profile?.username || 'Utilisateur'}</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">Niveau {profile?.level || 1}</p>
+
+                              {/* Ligne 2 : Pseudo */}
+                              <h3 className="text-2xl font-black text-white mb-2 drop-shadow-lg">
+                                {profile?.username || 'Utilisateur'}
+                              </h3>
+
+                              {/* Ligne 3 : Barre XP avec niveau (juste sous le pseudo) */}
+                              <div className="flex items-center gap-3 mb-2">
+                                <span className="text-sm text-gray-300 font-semibold whitespace-nowrap">
+                                  Niveau {profile?.level || 1}
+                                </span>
+                                <div className="flex-1">
+                                  <div className="h-2.5 bg-black/40 backdrop-blur-sm rounded-full overflow-hidden">
+                                    <div 
+                                      className="h-full bg-gradient-to-r from-[#4578be] to-[#5989d8]"
+                                      style={{ width: `${profile?.progress_percentage || 0}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Ligne 4 : Total coins dépensés */}
+                              <div className="flex items-center gap-2 bg-black/20 backdrop-blur-sm px-3 py-1.5 rounded-lg w-fit">
+                                <img
+                                  src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
+                                  alt="Coins"
+                                  className="w-4 h-4"
+                                />
+                                <span className="text-xs text-gray-300">
+                                  <span className="font-black text-[#4578be]">{(profile?.total_coins_spent || 0).toLocaleString()}</span> coins joués
+                                </span>
                               </div>
                             </div>
                           </div>
 
-                          {/* Menu items épuré */}
-                          <div className="p-2">
-                            <button
-                              onClick={() => { router.push('/profile'); setUserMenuOpen(false) }}
-                              className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-700 dark:text-gray-300 rounded-lg transition-all text-sm font-medium hybrid-menu-item"
-                            >
-                              <User className="h-4 w-4" />
-                              <span>Profil</span>
-                            </button>
+                          {/* ZONE BASSE (20%) - Menu compact */}
+                          <div 
+                            className="h-[20%] px-3 py-2"
+                            style={{
+                              background: '#0f1419',
+                              borderTop: '1px solid rgba(255, 255, 255, 0.05)'
+                            }}
+                          >
+                            <div className="flex items-center justify-around h-full">
+                              
+                              <button
+                                onClick={() => { router.push('/profile'); setUserMenuOpen(false) }}
+                                className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors group"
+                              >
+                                <User className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                                <span className="text-xs font-medium">Profil</span>
+                              </button>
 
-                            <button
-                              onClick={() => { router.push('/inventory'); setUserMenuOpen(false) }}
-                              className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-700 dark:text-gray-300 rounded-lg transition-all text-sm font-medium hybrid-menu-item"
-                            >
-                              <Package className="h-4 w-4" />
-                              <span>Inventaire</span>
-                            </button>
+                              <button
+                                onClick={() => { router.push('/inventory'); setUserMenuOpen(false) }}
+                                className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors group"
+                              >
+                                <Package className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                                <span className="text-xs font-medium">Inventaire</span>
+                              </button>
 
-                            <button
-                              onClick={() => { router.push('/contact'); setUserMenuOpen(false) }}
-                              className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-700 dark:text-gray-300 rounded-lg transition-all text-sm font-medium hybrid-menu-item"
-                            >
-                              <Mail className="h-4 w-4" />
-                              <span>Contact</span>
-                            </button>
+                              <button
+                                onClick={() => { router.push('/contact'); setUserMenuOpen(false) }}
+                                className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors group"
+                              >
+                                <Mail className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                                <span className="text-xs font-medium">Contact</span>
+                              </button>
 
-                            <button
-                              onClick={() => { router.push('/upgrade'); setUserMenuOpen(false) }}
-                              className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-700 dark:text-gray-300 rounded-lg transition-all text-sm font-medium hybrid-menu-item"
-                            >
-                              <TrendingUp className="h-4 w-4" />
-                              <span>Upgrade</span>
-                            </button>
-
-                            {/* Theme toggle compact */}
-                            <div className="flex items-center justify-between px-3 py-2.5 hover:bg-gray-500/5 dark:hover:bg-gray-500/10 rounded-lg transition-all mt-1">
-                              <div className="flex items-center gap-3">
-                                <Monitor className="h-4 w-4 text-gray-700 dark:text-gray-300" />
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Thème</span>
-                              </div>
                               <button
                                 onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-                                className="relative w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full p-0.5 transition-colors"
+                                className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors group"
                               >
-                                <motion.div
-                                  className="h-5 w-5 rounded-full flex items-center justify-center shadow-md"
-                                  style={{
-                                    background: resolvedTheme === 'dark'
-                                      ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)'
-                                      : 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)'
-                                  }}
-                                  animate={{ x: resolvedTheme === 'dark' ? 20 : 0 }}
-                                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                >
-                                  {resolvedTheme === 'dark' ? (
-                                    <Moon className="h-3 w-3 text-white" />
-                                  ) : (
-                                    <Sun className="h-3 w-3 text-white" />
-                                  )}
-                                </motion.div>
+                                {resolvedTheme === 'dark' ? (
+                                  <Moon className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                                ) : (
+                                  <Sun className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                                )}
+                                <span className="text-xs font-medium">Thème</span>
                               </button>
-                            </div>
 
-                            {isAdmin && (
-                              <>
-                                <div className="h-px bg-gray-200 dark:bg-gray-800 my-2" />
+                              {isAdmin && (
                                 <button
                                   onClick={() => { router.push('/admin'); setUserMenuOpen(false) }}
-                                  className="w-full flex items-center gap-3 px-3 py-2.5 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 rounded-lg transition-all text-sm font-medium"
+                                  className="flex flex-col items-center gap-1 text-purple-400 hover:text-purple-300 transition-colors group"
                                 >
-                                  <Shield className="h-4 w-4" />
-                                  <span>Admin</span>
+                                  <Shield className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                                  <span className="text-xs font-medium">Admin</span>
                                 </button>
-                              </>
-                            )}
-
-                            <div className="h-px bg-gray-200 dark:bg-gray-800 my-2" />
-
-                            <button
-                              onClick={() => { signOut(); setUserMenuOpen(false) }}
-                              className="w-full flex items-center gap-3 px-3 py-2.5 text-red-600 dark:text-red-400 hover:bg-red-500/10 rounded-lg transition-all text-sm font-medium"
-                            >
-                              <LogOut className="h-4 w-4" />
-                              <span>Déconnexion</span>
-                            </button>
+                              )}
+                            </div>
                           </div>
                         </motion.div>
                       )}
@@ -791,11 +849,11 @@ export default function ReveelBoxNavbar() {
                   </div>
                 </>
               ) : (
-                <div className="flex items-center gap-3">
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <div className="flex items-center gap-2">
+                  <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
                     <Link
                       href="/login"
-                      className="px-5 py-2.5 text-sm font-semibold text-gray-300 hover:text-white transition-all rounded-xl hover:bg-gradient-to-r hover:from-slate-800/30 hover:to-slate-700/30"
+                      className="px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white rounded-xl hover:bg-gradient-to-br hover:from-gray-100/80 hover:to-gray-50 dark:hover:from-gray-800/60 dark:hover:to-gray-800/40 transition-all duration-300 hover:shadow-md"
                     >
                       Connexion
                     </Link>
@@ -806,25 +864,17 @@ export default function ReveelBoxNavbar() {
                   >
                     <Link
                       href="/signup"
-                      className="relative px-6 py-2.5 text-white rounded-xl text-sm font-bold shadow-xl transition-all overflow-hidden group"
+                      className="relative px-4 py-1.5 text-white rounded-xl text-sm font-bold shadow-lg bg-gradient-to-br from-[#4578be] to-[#5989d8] hover:shadow-xl transition-all duration-300 overflow-hidden group"
                       style={{
-                        background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
+                        boxShadow: '0 4px 16px rgba(69, 120, 190, 0.4), 0 0 24px rgba(69, 120, 190, 0.15)'
                       }}
                     >
-                      {/* Effet de brillance animé */}
                       <motion.div
-                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                        animate={{
-                          x: ['-200%', '200%'],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          ease: "linear",
-                          repeatDelay: 1
-                        }}
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                        animate={{ x: ['-200%', '200%'] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "linear", repeatDelay: 1 }}
                       />
-                      <span className="relative">S'inscrire</span>
+                      <span className="relative drop-shadow-md">S'inscrire</span>
                     </Link>
                   </motion.div>
                 </div>
@@ -833,50 +883,29 @@ export default function ReveelBoxNavbar() {
           </div>
         </div>
 
-        {/* Barre inférieure élégante (plus subtile) */}
-        <div className="absolute bottom-0 left-0 right-0 h-[1px] overflow-hidden">
-          <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-500/30 to-transparent"
-            animate={{
-              x: ['100%', '-100%'],
-            }}
-            transition={{
-              duration: 5,
-              repeat: Infinity,
-              ease: "linear",
-              repeatDelay: 1
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-700/20 to-transparent" />
-        </div>
-
       </motion.nav>
 
-      {/* Toggle Arrow - Toujours visible, indépendant de la navbar */}
       <motion.button
         onClick={toggleNavbar}
-        animate={{
-          top: navbarHidden ? 0 : 80
+        animate={{ 
+          top: navbarHidden ? 0 : 64,
+          opacity: navbarHidden ? 0.75 : 0.75
         }}
+        whileHover={{ opacity: 0.95 }}
         transition={{ duration: 0.3, type: "spring", stiffness: 260, damping: 25 }}
-        className="fixed left-1/2 -translate-x-1/2 p-1.5 backdrop-blur-xl border border-t-0 rounded-b-lg shadow-lg group z-50"
+        className="fixed left-1/2 -translate-x-1/2 p-1.5 backdrop-blur-md border border-t-0 rounded-b-2xl shadow-md z-[70] bg-white/30 dark:bg-gray-900/30 border-gray-300/30 dark:border-gray-700/30"
         style={{
-          background: resolvedTheme === 'dark' ? 'rgb(3, 7, 18)' : 'rgb(249, 250, 251)',
-          borderColor: 'rgba(156, 163, 175, 0.2)'
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
         }}
       >
         <motion.div
           animate={{ rotate: navbarHidden ? 180 : 0 }}
           transition={{ duration: 0.3, type: "spring", stiffness: 260, damping: 25 }}
         >
-          <ChevronUp
-            className="h-3 w-3 transition-colors"
-            style={{ color: 'var(--hybrid-accent-primary)' }}
-          />
+          <ChevronUp className="h-3 w-3 text-[#4578be] opacity-70" />
         </motion.div>
       </motion.button>
 
-      {/* MENU MOBILE */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <>
@@ -884,8 +913,8 @@ export default function ReveelBoxNavbar() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 lg:hidden"
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-black/70 backdrop-blur-md z-40 lg:hidden"
               onClick={() => setMobileMenuOpen(false)}
             />
             <motion.div
@@ -893,75 +922,68 @@ export default function ReveelBoxNavbar() {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 250 }}
-              className="fixed left-0 top-0 bottom-0 w-80 bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl border-r-2 border-gray-200/80 dark:border-gray-700/50 z-50 lg:hidden overflow-y-auto"
+              className="fixed left-0 top-0 bottom-0 w-80 bg-white/98 dark:bg-gray-900/98 backdrop-blur-xl border-r border-gray-200/60 dark:border-gray-800/80 z-50 lg:hidden overflow-y-auto"
+              style={{
+                boxShadow: '0 0 80px rgba(0, 0, 0, 0.3), 0 0 40px rgba(69, 120, 190, 0.1)'
+              }}
             >
               <div className="p-6">
-                {/* Header */}
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
+                  transition={{ delay: 0.1 }}
                   className="flex items-center justify-between mb-8"
                 >
-                  <div className="flex items-center gap-3">
-                    <motion.div
-                      initial={{ scale: 0.8 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: 0.15, type: "spring", stiffness: 300 }}
-                      className="h-12 w-12 rounded-2xl border-2 flex items-center justify-center"
-                      style={{
-                        background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`,
-                        opacity: 0.2,
-                        borderColor: 'var(--hybrid-accent-primary)'
-                      }}
-                    >
-                      <img
-                        src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/04aa1ec8-45f4-4ddf-83d9-14b50138c5b9-removebg-preview%20(1).png"
-                        alt="ReveelBox"
-                        className="h-8 w-8 object-contain"
-                      />
-                    </motion.div>
-                    <span className="text-xl font-black text-gray-900 dark:text-white">REVEELBOX</span>
-                  </div>
+                  <img
+                    src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/Design%20sans%20titre%20(49).png"
+                    alt="ReveelBox"
+                    className="h-9 w-auto object-contain"
+                    style={{
+                      filter: 'drop-shadow(0 0 8px rgba(69, 120, 190, 0.3))'
+                    }}
+                  />
                   <motion.button
-                    whileHover={{ scale: 1.05 }}
+                    whileHover={{ scale: 1.05, rotate: 90 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-all"
+                    className="p-2 hover:bg-gradient-to-br hover:from-gray-100 hover:to-gray-50 dark:hover:from-gray-800/80 dark:hover:to-gray-800/60 rounded-xl transition-all duration-300 hover:shadow-lg"
                   >
-                    <X className="h-6 w-6 text-gray-900 dark:text-white" />
+                    <X className="h-5 w-5 text-gray-900 dark:text-white" />
                   </motion.button>
                 </motion.div>
 
-                {/* Balance mobile */}
                 {isAuthenticated && (
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                    className="mb-6 p-4 rounded-2xl border-2"
+                    transition={{ delay: 0.2 }}
+                    className="mb-6 p-4 rounded-2xl bg-gradient-to-br from-[#4578be]/10 via-blue-500/5 to-transparent border border-[#4578be]/30 shadow-lg backdrop-blur-sm"
                     style={{
-                      background: `linear-gradient(90deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`,
-                      opacity: 0.1,
-                      borderColor: 'var(--hybrid-accent-primary)'
+                      boxShadow: '0 8px 24px rgba(69, 120, 190, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
                     }}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <motion.img
-                          animate={{ rotate: [0, 10, -10, 0] }}
-                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                          animate={{ rotate: [0, 12, -12, 0] }}
+                          transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
                           src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
                           alt="Coins"
-                          className="h-6 w-6"
+                          className="h-9 w-9"
+                          style={{
+                            filter: 'drop-shadow(0 0 8px rgba(69, 120, 190, 0.5))'
+                          }}
                         />
-                        <span className="font-black text-gray-900 dark:text-white text-lg">{profile?.virtual_currency?.toLocaleString() || '0'}</span>
+                        <span className="font-bold text-gray-900 dark:text-white text-base drop-shadow-sm">{profile?.virtual_currency?.toLocaleString() || '0'}</span>
                       </div>
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => { setPaymentModalOpen(true); setMobileMenuOpen(false) }}
-                        className="px-4 py-2 text-white rounded-xl text-sm font-bold shadow-lg hybrid-btn-primary-gradient"
+                        className="px-4 py-1.5 text-white rounded-lg text-sm font-bold bg-gradient-to-br from-[#4578be] to-[#5989d8] shadow-lg hover:shadow-xl transition-all duration-300"
+                        style={{
+                          boxShadow: '0 4px 12px rgba(69, 120, 190, 0.4), 0 0 16px rgba(69, 120, 190, 0.2)'
+                        }}
                       >
                         Recharger
                       </motion.button>
@@ -969,34 +991,32 @@ export default function ReveelBoxNavbar() {
                   </motion.div>
                 )}
 
-                {/* Navigation */}
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {navItems.map((item, index) => {
                     const Icon = item.icon
-                    const isActive = pathname === item.href
+                    const isActive = pathname === item.href || (item.href === '/games' && pathname.startsWith('/games'))
 
                     return (
-                      <motion.button
+                      <motion.div
                         key={item.href}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.08, type: "spring", stiffness: 200 }}
-                        onClick={() => { router.push(item.href); setMobileMenuOpen(false) }}
+                        transition={{ delay: index * 0.08 }}
                         whileTap={{ scale: 0.98 }}
-                        className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-all ${
-                          isActive
-                            ? 'text-gray-900 dark:text-white border-2'
-                            : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5'
-                        }`}
-                        style={isActive ? {
-                          background: `linear-gradient(90deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`,
-                          opacity: 0.2,
-                          borderColor: 'var(--hybrid-accent-primary)'
-                        } : {}}
                       >
-                        <Icon className="h-6 w-6" />
-                        <span className="font-bold text-lg">{item.label}</span>
-                      </motion.button>
+                        <Link
+                          href={item.href}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group ${
+                            isActive
+                              ? 'text-[#4578be] bg-gradient-to-br from-[#4578be]/15 to-blue-500/5 border border-[#4578be]/30 shadow-lg shadow-[#4578be]/20'
+                              : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gradient-to-br hover:from-gray-100/80 hover:to-gray-50 dark:hover:from-gray-800/60 dark:hover:to-gray-800/40 hover:shadow-md'
+                          }`}
+                        >
+                          <Icon className={`h-5 w-5 transition-transform duration-300 ${isActive ? 'drop-shadow-[0_0_6px_rgba(59,130,246,0.6)]' : 'group-hover:scale-110'}`} />
+                          <span className="font-semibold text-sm">{item.label}</span>
+                        </Link>
+                      </motion.div>
                     )
                   })}
                 </div>
@@ -1006,7 +1026,6 @@ export default function ReveelBoxNavbar() {
         )}
       </AnimatePresence>
 
-      {/* MODALS */}
       <CartModal
         isOpen={cartOpen}
         onClose={() => setCartOpen(false)}
@@ -1036,13 +1055,11 @@ export default function ReveelBoxNavbar() {
         }}
         onSellSelected={async () => {
           try {
-            // Calculer la valeur totale des items sélectionnés
             const itemsToSell = cartItems.filter(item => selectedCartItems.includes(item.id))
             const totalValue = itemsToSell.reduce((sum, item) => {
               return sum + (item.items?.market_value || 0) * item.quantity
             }, 0)
 
-            // Marquer les items comme vendus
             const { error: sellError } = await supabase
               .from('user_inventory')
               .update({ is_sold: true })
@@ -1050,7 +1067,6 @@ export default function ReveelBoxNavbar() {
 
             if (sellError) throw sellError
 
-            // Créditer les coins au profil de l'utilisateur
             const { error: updateError } = await supabase
               .from('profiles')
               .update({
@@ -1060,13 +1076,10 @@ export default function ReveelBoxNavbar() {
 
             if (updateError) throw updateError
 
-            // Rafraîchir le profil sans recharger la page
             await refreshProfile()
 
-            // Retirer les items vendus du panier
             setCartItems(prevItems => prevItems.filter(item => !selectedCartItems.includes(item.id)))
 
-            // Nettoyer la sélection et fermer le modal
             setSelectedCartItems([])
             setCartOpen(false)
           } catch (err) {

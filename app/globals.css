@@ -1243,6 +1243,26 @@ html:not(.dark):not(.light) {
   box-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
 }
 
+/* Chat V2 - Own message bubble with hybrid colors */
+.hybrid-message-own {
+  background: linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary)) !important;
+  box-shadow: 0 4px 12px rgba(var(--hybrid-accent-primary-rgb, 99, 102, 241), 0.3) !important;
+}
+
+/* Shimmer animation for join button */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 3s infinite;
+}
+
 .pinned-counter {
   background: linear-gradient(135deg, #E0B000, #B8860B);
   color: white;

@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
-import { motion } from 'framer-motion'
+import React, { useState, useRef } from 'react'
+import { motion, useInView } from 'framer-motion'
 import { 
   Gift, Heart, ArrowRight, 
   Package, Gamepad2, Users, Shield,
@@ -30,6 +30,9 @@ interface SocialLink {
 const ReveelBoxFooter = () => {
   const [email, setEmail] = useState('')
   const [isSubscribing, setIsSubscribing] = useState(false)
+  const [isSubscribed, setIsSubscribed] = useState(false)
+  const footerRef = useRef(null)
+  const inView = useInView(footerRef, { once: true, margin: '-100px' })
 
   // Liens de navigation basés sur la structure ReveelBox
   const productLinks: FooterLink[] = [
@@ -90,13 +93,17 @@ const ReveelBoxFooter = () => {
   const handleNewsletterSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email) return
-    
+
     setIsSubscribing(true)
-    
+
     try {
       await new Promise(resolve => setTimeout(resolve, 1000))
       console.log('Newsletter subscription:', email)
-      setEmail('')
+      setIsSubscribed(true)
+      setTimeout(() => {
+        setEmail('')
+        setIsSubscribed(false)
+      }, 3000)
     } catch (error) {
       console.error('Erreur newsletter:', error)
     } finally {
@@ -105,18 +112,55 @@ const ReveelBoxFooter = () => {
   }
 
   return (
-    <footer className="relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 overflow-hidden">
-      {/* Motifs de fond décoratifs - plus subtils */}
-      <div className="absolute inset-0 opacity-3 dark:opacity-5 pointer-events-none">
-        <div className="absolute top-10 left-10 w-20 h-20 bg-indigo-500 rounded-full blur-xl animate-pulse"></div>
-        <div className="absolute top-32 right-20 w-16 h-16 bg-purple-500 rounded-full blur-xl animate-pulse delay-1000"></div>
-        <div className="absolute bottom-20 left-1/3 w-24 h-24 bg-indigo-500 rounded-full blur-xl animate-pulse delay-2000"></div>
-        <div className="absolute bottom-10 right-10 w-18 h-18 bg-purple-500 rounded-full blur-xl animate-pulse delay-3000"></div>
+    <footer ref={footerRef} className="relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 overflow-hidden">
+      {/* Motifs de fond décoratifs améliorés */}
+      <div className="absolute inset-0 opacity-5 dark:opacity-10 pointer-events-none">
+        <motion.div
+          className="absolute top-10 left-10 w-32 h-32 bg-indigo-500 rounded-full blur-3xl"
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.3, 0.6, 0.3]
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: 'easeInOut'
+          }}
+        />
+        <motion.div
+          className="absolute top-32 right-20 w-24 h-24 bg-purple-500 rounded-full blur-3xl"
+          animate={{
+            scale: [1.2, 1, 1.2],
+            opacity: [0.6, 0.3, 0.6]
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: 'easeInOut'
+          }}
+        />
+        <motion.div
+          className="absolute bottom-20 left-1/3 w-36 h-36 bg-blue-500 rounded-full blur-3xl"
+          animate={{
+            x: [0, 50, 0],
+            opacity: [0.3, 0.5, 0.3]
+          }}
+          transition={{
+            duration: 12,
+            repeat: Infinity,
+            ease: 'easeInOut'
+          }}
+        />
       </div>
 
       <div className="relative">
         {/* Section principale du footer */}
-        <div className="max-w-7xl mx-auto px-6 py-16">
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          animate={inView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6 }}
+          className="max-w-7xl mx-auto px-6 py-16"
+        >
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
             
             {/* Colonne principale avec logo et description */}
@@ -147,38 +191,80 @@ const ReveelBoxFooter = () => {
                 du gaming avec notre communauté passionnée.
               </p>
 
-              {/* Newsletter */}
+              {/* Newsletter améliorée */}
               <div className="space-y-3">
                 <h4 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                  <Zap className="w-4 h-4" style={{ color: 'var(--hybrid-accent-primary)' }} />
+                  <motion.div
+                    animate={{
+                      rotate: [0, 15, -15, 0],
+                      scale: [1, 1.1, 1]
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: 'easeInOut'
+                    }}
+                  >
+                    <Zap className="w-4 h-4" style={{ color: 'var(--hybrid-accent-primary)' }} />
+                  </motion.div>
                   Restez dans la boucle
                 </h4>
-                <form onSubmit={handleNewsletterSubmit} className="flex">
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Votre adresse email"
-                    className="flex-1 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-l-2xl focus:outline-none focus:ring-2 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-colors"
-                    style={{
-                      '--tw-ring-color': 'var(--hybrid-accent-primary)'
-                    } as React.CSSProperties}
-                    onFocus={(e) => e.currentTarget.style.borderColor = 'var(--hybrid-accent-primary)'}
-                    onBlur={(e) => e.currentTarget.style.borderColor = ''}
-                    disabled={isSubscribing}
-                  />
-                  <button
-                    type="submit"
-                    disabled={isSubscribing || !email}
-                    className="text-white px-6 py-3 rounded-r-2xl transition-all duration-200 font-medium flex items-center gap-2 shadow-lg disabled:cursor-not-allowed hybrid-btn-primary-gradient disabled:from-gray-400 disabled:to-gray-500"
+
+                {isSubscribed ? (
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="p-4 bg-green-100 dark:bg-green-900/30 border-2 border-green-500 rounded-2xl text-center"
                   >
-                    {isSubscribing ? (
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <ArrowRight className="w-4 h-4" />
-                    )}
-                  </button>
-                </form>
+                    <motion.div
+                      animate={{
+                        scale: [1, 1.2, 1],
+                        rotate: [0, 360]
+                      }}
+                      transition={{ duration: 0.6 }}
+                      className="w-12 h-12 mx-auto mb-2 bg-green-500 rounded-full flex items-center justify-center"
+                    >
+                      <Sparkles className="w-6 h-6 text-white" />
+                    </motion.div>
+                    <p className="font-bold text-green-700 dark:text-green-400">
+                      Merci ! Vous êtes inscrit(e)
+                    </p>
+                  </motion.div>
+                ) : (
+                  <form onSubmit={handleNewsletterSubmit} className="flex">
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Votre adresse email"
+                      className="flex-1 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-l-2xl focus:outline-none focus:ring-2 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-colors"
+                      style={{
+                        '--tw-ring-color': 'var(--hybrid-accent-primary)'
+                      } as React.CSSProperties}
+                      onFocus={(e) => e.currentTarget.style.borderColor = 'var(--hybrid-accent-primary)'}
+                      onBlur={(e) => e.currentTarget.style.borderColor = ''}
+                      disabled={isSubscribing}
+                    />
+                    <motion.button
+                      type="submit"
+                      disabled={isSubscribing || !email}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="text-white px-6 py-3 rounded-r-2xl transition-all duration-200 font-medium flex items-center gap-2 shadow-lg disabled:cursor-not-allowed hybrid-btn-primary-gradient disabled:from-gray-400 disabled:to-gray-500"
+                    >
+                      {isSubscribing ? (
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                          className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                        />
+                      ) : (
+                        <ArrowRight className="w-4 h-4" />
+                      )}
+                    </motion.button>
+                  </form>
+                )}
+
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   Recevez les dernières nouveautés et offres exclusives
                 </p>
@@ -308,7 +394,7 @@ const ReveelBoxFooter = () => {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Section du bas */}
         <div className="border-t border-gray-200/50 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-800/30">

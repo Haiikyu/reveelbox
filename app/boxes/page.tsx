@@ -279,7 +279,7 @@ export default function BoxesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300 relative overflow-hidden">
+    <div className="min-h-screen pt-16 bg-gray-50 dark:bg-gray-950 transition-colors duration-300 relative overflow-hidden">
       {/* Particles Background */}
       <ParticlesBackground />
 

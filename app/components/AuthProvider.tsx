@@ -66,17 +66,102 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     const totalExp = profileData.total_exp || 0
     const level = calculateLevel(totalExp)
-    const currentLevelExp = totalExp % 100
-    const expToNext = 100 - currentLevelExp
-    const progressPercentage = Math.round((currentLevelExp / 100) * 100)
+    
+    // Calculer l'XP actuel dans le niveau courant avec le nouveau système
+    const currentLevelXP = getCurrentLevelExp(totalExp)
+    const expToNext = getExpToNextLevel(totalExp)
+    const progressPercentage = expToNext > 0 ? Math.round((currentLevelXP / expToNext) * 100) : 100
     
     return {
       ...profileData,
       level,
-      current_level_exp: currentLevelExp,
+      current_level_exp: currentLevelXP,
       exp_to_next: expToNext,
       progress_percentage: progressPercentage
     }
+  }
+
+  // Fonctions helpers pour le nouveau système XP avec paliers
+  const getCurrentLevelExp = (totalExp: number): number => {
+    const LEVEL_THRESHOLDS = [
+      { level: 1, xp: 0 },
+      { level: 2, xp: 100 },
+      { level: 10, xp: 1500 },
+      { level: 20, xp: 7500 },
+      { level: 30, xp: 20000 },
+      { level: 40, xp: 50000 },
+      { level: 50, xp: 150000 },
+      { level: 60, xp: 350000 },
+      { level: 70, xp: 1000000 },
+      { level: 80, xp: 2500000 },
+      { level: 90, xp: 7500000 },
+      { level: 100, xp: 20000000 },
+    ]
+    
+    const currentLevel = calculateLevel(totalExp)
+    
+    // Trouver l'XP minimum pour ce niveau
+    for (let i = 0; i < LEVEL_THRESHOLDS.length - 1; i++) {
+      if (currentLevel >= LEVEL_THRESHOLDS[i].level && currentLevel < LEVEL_THRESHOLDS[i + 1].level) {
+        const lowerThreshold = LEVEL_THRESHOLDS[i]
+        const upperThreshold = LEVEL_THRESHOLDS[i + 1]
+        
+        const levelInRange = currentLevel - lowerThreshold.level
+        const levelRangeSize = upperThreshold.level - lowerThreshold.level
+        const xpRange = upperThreshold.xp - lowerThreshold.xp
+        
+        const xpProgress = (levelInRange / levelRangeSize) * xpRange
+        const currentLevelMinXP = Math.floor(lowerThreshold.xp + xpProgress)
+        
+        return totalExp - currentLevelMinXP
+      }
+    }
+    
+    return 0
+  }
+  
+  const getExpToNextLevel = (totalExp: number): number => {
+    const LEVEL_THRESHOLDS = [
+      { level: 1, xp: 0 },
+      { level: 2, xp: 100 },
+      { level: 10, xp: 1500 },
+      { level: 20, xp: 7500 },
+      { level: 30, xp: 20000 },
+      { level: 40, xp: 50000 },
+      { level: 50, xp: 150000 },
+      { level: 60, xp: 350000 },
+      { level: 70, xp: 1000000 },
+      { level: 80, xp: 2500000 },
+      { level: 90, xp: 7500000 },
+      { level: 100, xp: 20000000 },
+    ]
+    
+    const currentLevel = calculateLevel(totalExp)
+    if (currentLevel >= 100) return 0
+    
+    // Trouver l'XP pour le niveau suivant
+    for (let i = 0; i < LEVEL_THRESHOLDS.length - 1; i++) {
+      if (currentLevel >= LEVEL_THRESHOLDS[i].level && currentLevel < LEVEL_THRESHOLDS[i + 1].level) {
+        const lowerThreshold = LEVEL_THRESHOLDS[i]
+        const upperThreshold = LEVEL_THRESHOLDS[i + 1]
+        
+        // XP min pour niveau actuel
+        const levelInRange = currentLevel - lowerThreshold.level
+        const levelRangeSize = upperThreshold.level - lowerThreshold.level
+        const xpRange = upperThreshold.xp - lowerThreshold.xp
+        const xpProgress = (levelInRange / levelRangeSize) * xpRange
+        const currentLevelMinXP = Math.floor(lowerThreshold.xp + xpProgress)
+        
+        // XP min pour niveau suivant
+        const nextLevelInRange = currentLevel + 1 - lowerThreshold.level
+        const nextXpProgress = (nextLevelInRange / levelRangeSize) * xpRange
+        const nextLevelMinXP = Math.floor(lowerThreshold.xp + nextXpProgress)
+        
+        return nextLevelMinXP - currentLevelMinXP
+      }
+    }
+    
+    return 0
   }
 
   const loadProfile = useCallback(async (userId: string, forceRefresh = false) => {
@@ -204,8 +289,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           table: 'profiles',
           filter: `id=eq.${user.id}`
         },
-        (payload) => {
+        async (payload) => {
           console.log('💰 Balance update detected:', payload.new)
+          
+          const oldBalance = payload.old?.virtual_currency || 0
+          const newBalance = payload.new?.virtual_currency || 0
+          
+          // Si la balance a BAISSÉ = dépense de coins
+          if (newBalance < oldBalance) {
+            const coinsSpent = oldBalance - newBalance
+            console.log('🎯 Coins dépensés:', coinsSpent)
+            
+            // Calculer l'XP gagné (1 coin = 2.857 XP, car 10€ = 17.5 coins = 50 XP)
+            const COINS_TO_XP = 50 / 17.5 // 2.857
+            const xpGained = Math.floor(coinsSpent * COINS_TO_XP)
+            
+            if (xpGained > 0) {
+              console.log('⭐ XP gagné:', xpGained)
+              
+              // Calculer le nouveau total XP et niveau
+              const oldTotalXP = payload.old?.total_exp || 0
+              const newTotalXP = oldTotalXP + xpGained
+              const newLevel = calculateLevel(newTotalXP)
+              
+              console.log('📈 Niveau:', payload.old?.level, '→', newLevel)
+              
+              // Mettre à jour en base de données
+              try {
+                const { error } = await supabaseRef.current
+                  .from('profiles')
+                  .update({
+                    total_exp: newTotalXP,
+                    level: newLevel
+                  })
+                  .eq('id', user.id)
+                
+                if (error) {
+                  console.error('❌ Erreur mise à jour XP:', error)
+                } else {
+                  console.log('✅ XP et niveau mis à jour en base!')
+                }
+              } catch (error) {
+                console.error('❌ Erreur update XP:', error)
+              }
+            }
+          }
+          
+          // Enrichir le profil avec les calculs XP et mettre à jour l'état
           const enrichedProfile = enrichProfileWithXP(payload.new)
           setProfile(enrichedProfile)
           profileCacheRef.current = { userId: user.id, profile: enrichedProfile }

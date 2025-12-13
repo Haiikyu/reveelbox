@@ -472,7 +472,7 @@ export default function AffiliatePage(): JSX.Element | null {
   const nextTier = affiliateTiers.find(tier => tier.level === (currentTier.level + 1))
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300 relative">
+    <div className="min-h-screen pt-16 bg-gray-50 dark:bg-gray-950 transition-colors duration-300 relative">
       {/* Particles Background */}
       <ParticlesBackground />
 

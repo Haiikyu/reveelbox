@@ -2,7 +2,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Gift, Zap, Clock, Shield, Timer } from 'lucide-react'
+import { Gift, Zap, Clock, Shield } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 interface FreedropButtonsProps {
@@ -102,23 +102,10 @@ export function FreedropButtons({
   const ButtonIcon = buttonState.icon
 
   return (
-    <div className={`flex flex-col items-center gap-6 ${className}`}>
+    <div className={`flex items-center gap-4 ${className}`}>
       
-      {/* Timer discret en haut */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-2 text-sm text-gray-500"
-      >
-        <Timer className="w-4 h-4" />
-        <span>Reset in {timeToReset}</span>
-      </motion.div>
-
-      {/* Boutons principaux - Layout horizontal minimaliste */}
-      <div className="flex items-center gap-4">
-        
-        {/* Bouton principal de réclamation */}
-        <motion.button
+      {/* Bouton principal de réclamation */}
+      <motion.button
           onClick={onClaimBox}
           disabled={buttonState.disabled || isLoading}
           whileHover={!buttonState.disabled && !isLoading ? { scale: 1.02 } : {}}
@@ -213,49 +200,6 @@ export function FreedropButtons({
             <Zap size={18} />
           </motion.div>
         </motion.button>
-      </div>
-
-      {/* Status description - Discret */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
-        className="text-center text-sm text-gray-500 max-w-md"
-      >
-        <div className="mb-2">{buttonState.description}</div>
-        
-        {/* Progress bar pour niveau insuffisant */}
-        {userLevel < requiredLevel && (
-          <div className="mt-3">
-            <div className="w-48 mx-auto mb-2">
-              <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min((userLevel / requiredLevel) * 100, 100)}%` }}
-                  className="h-1 bg-red-400 rounded-full transition-all duration-1000"
-                />
-              </div>
-            </div>
-            <div className="text-xs text-red-600">
-              {requiredLevel - userLevel} level{requiredLevel - userLevel > 1 ? 's' : ''} needed
-            </div>
-          </div>
-        )}
-
-        {/* Message d'encouragement pour les réclamations réussies */}
-        {canClaim && !alreadyClaimed && !isLoading && (
-          <div className="text-green-600 font-medium mt-2">
-            🎁 Ready to claim your daily reward!
-          </div>
-        )}
-
-        {/* Message pour les réclamations déjà effectuées */}
-        {alreadyClaimed && (
-          <div className="text-blue-600 font-medium mt-2">
-            ✅ Come back tomorrow for your next reward
-          </div>
-        )}
-      </motion.div>
     </div>
   )
 }

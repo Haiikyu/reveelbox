@@ -1,8 +1,7 @@
 'use client'
 
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
-import { Sparkles, TrendingUp, X } from 'lucide-react'
 
 interface UpgradeAnimationProps {
   item: {
@@ -13,7 +12,7 @@ interface UpgradeAnimationProps {
   }
   multiplier: number
   successRate: number
-  onComplete: (result: 'success' | 'fail') => void
+  onComplete: (result: boolean) => void
   isAnimating: boolean
 }
 
@@ -24,575 +23,167 @@ export default function UpgradeAnimation({
   onComplete,
   isAnimating
 }: UpgradeAnimationProps) {
-  const [phase, setPhase] = useState<'idle' | 'spinning' | 'result'>('idle')
-  const [result, setResult] = useState<'success' | 'fail' | null>(null)
-  const [particles, setParticles] = useState<Array<{ id: number; x: number; y: number; delay: number }>>([])
+  const [finalPosition, setFinalPosition] = useState(0)
+  const [segments, setSegments] = useState<boolean[]>([])
+  const [finalResult, setFinalResult] = useState<boolean>(false)
 
   useEffect(() => {
     if (isAnimating) {
-      setPhase('spinning')
-      setResult(null)
+      // 1. TIRER AU SORT LE RÉSULTAT FINAL
+      const willWin = Math.random() * 100 < successRate
+      setFinalResult(willWin)
+      console.log('🎲 Résultat tiré au sort:', willWin ? 'WIN' : 'LOSS', `(${successRate}% chances)`)
 
-      // Generate particles (optimisé)
-      const newParticles = Array.from({ length: 30 }, (_, i) => ({
-        id: i,
-        x: (Math.random() - 0.5) * 100,
-        y: (Math.random() - 0.5) * 100,
-        delay: Math.random() * 0.5
-      }))
-      setParticles(newParticles)
+      // 2. CRÉER LES SEGMENTS
+      const baseSegments: boolean[] = []
+      for (let i = 0; i < 100; i++) {
+        baseSegments.push(i < successRate)
+      }
+      
+      // Mélanger
+      for (let i = baseSegments.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [baseSegments[i], baseSegments[j]] = [baseSegments[j], baseSegments[i]]
+      }
 
-      // Simulate upgrade calculation
-      const timer = setTimeout(() => {
-        const success = Math.random() * 100 < successRate
-        setResult(success ? 'success' : 'fail')
-        setPhase('result')
+      // Répéter 5 fois pour avoir assez de longueur
+      const repeated = [...baseSegments, ...baseSegments, ...baseSegments, ...baseSegments, ...baseSegments]
+      setSegments(repeated)
 
-        const closeTimer = setTimeout(() => {
-          onComplete(success ? 'success' : 'fail')
-          setPhase('idle')
-        }, 3000)
+      // 3. TROUVER UN SEGMENT QUI CORRESPOND AU RÉSULTAT
+      const segmentWidth = 420
+      const minIndex = 200  // Zone sûre
+      const maxIndex = 300  // Zone sûre
+      
+      // Chercher tous les segments qui correspondent au résultat voulu
+      const matchingSegments: number[] = []
+      for (let i = minIndex; i <= maxIndex; i++) {
+        if (repeated[i] === willWin) {
+          matchingSegments.push(i)
+        }
+      }
+      
+      let targetIndex: number
+      if (matchingSegments.length === 0) {
+        console.error('❌ ERREUR: Aucun segment trouvé! Fallback...')
+        // Fallback : créer un segment du bon type
+        targetIndex = Math.floor((minIndex + maxIndex) / 2)
+        repeated[targetIndex] = willWin
+      } else {
+        // Choisir aléatoirement parmi les segments correspondants
+        targetIndex = matchingSegments[Math.floor(Math.random() * matchingSegments.length)]
+      }
+      
+      console.log('🎯 Segment ciblé:', targetIndex, 'Type:', repeated[targetIndex] ? 'WIN' : 'LOSS')
 
-        return () => clearTimeout(closeTimer)
-      }, 3000)
-
-      return () => clearTimeout(timer)
-    } else {
-      setPhase('idle')
-      setResult(null)
+      // 4. CALCULER LA POSITION POUR CENTRER CE SEGMENT SOUS LA FLÈCHE
+      // La flèche est au centre de l'écran
+      const screenCenter = window.innerWidth / 2
+      // Position du début de la bande
+      const startPosition = screenCenter
+      // Pour centrer le segment targetIndex sous la flèche
+      const finalPos = startPosition - (targetIndex * segmentWidth) - (segmentWidth / 2)
+      
+      setFinalPosition(finalPos)
+      console.log('📍 Position finale:', finalPos)
     }
-  }, [isAnimating, successRate, onComplete])
+  }, [isAnimating, successRate])
 
-  if (!isAnimating && phase === 'idle') return null
+  const handleAnimationComplete = () => {
+    setTimeout(() => {
+      console.log('🏁 RÉSULTAT FINAL:', finalResult ? '✅ WIN' : '❌ LOSS')
+      onComplete(finalResult)
+    }, 2000)
+  }
+
+  if (!isAnimating) return null
 
   return (
-    <AnimatePresence>
-      {(isAnimating || phase !== 'idle') && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/95 backdrop-blur-2xl"
-          style={{ isolation: 'isolate', willChange: 'opacity' }}
-        >
-        {/* Background animated gradient */}
-        <motion.div
-          className="absolute inset-0 opacity-40"
-          animate={{
-            background: [
-              'radial-gradient(circle at 20% 50%, rgba(212, 160, 136, 0.4) 0%, transparent 50%)',
-              'radial-gradient(circle at 80% 50%, rgba(139, 92, 246, 0.4) 0%, transparent 50%)',
-              'radial-gradient(circle at 50% 80%, rgba(212, 160, 136, 0.4) 0%, transparent 50%)',
-              'radial-gradient(circle at 50% 20%, rgba(139, 92, 246, 0.4) 0%, transparent 50%)',
-              'radial-gradient(circle at 20% 50%, rgba(212, 160, 136, 0.4) 0%, transparent 50%)',
-            ]
-          }}
-          transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-        />
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      className="w-full"
+    >
+      <div className="relative mx-auto max-w-6xl">
+        <div className="relative h-40 bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-2xl overflow-hidden border-2 border-[#4578be]/30 shadow-2xl backdrop-blur-sm">
+          
+          {/* Flèches VERTES en haut et bas */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 z-20">
+            <div 
+              className="w-0 h-0 mx-auto"
+              style={{
+                borderLeft: '20px solid transparent',
+                borderRight: '20px solid transparent',
+                borderTop: '28px solid #10b981',
+                filter: 'drop-shadow(0 0 12px rgba(16, 185, 129, 0.8))'
+              }}
+            ></div>
+          </div>
+          
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 z-20">
+            <div 
+              className="w-0 h-0 mx-auto"
+              style={{
+                borderLeft: '20px solid transparent',
+                borderRight: '20px solid transparent',
+                borderBottom: '28px solid #10b981',
+                filter: 'drop-shadow(0 0 12px rgba(16, 185, 129, 0.8))'
+              }}
+            ></div>
+          </div>
 
-        {/* Animated particles background */}
-        {Array.from({ length: 20 }).map((_, i) => (
+          {/* Bande qui défile */}
           <motion.div
-            key={`bg-particle-${i}`}
-            className="absolute w-1 h-1 rounded-full"
-            style={{
-              backgroundColor: i % 2 === 0 ? 'var(--hybrid-accent-primary)' : 'var(--hybrid-accent-secondary)',
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            }}
-            animate={{
-              y: [0, -30, 0],
-              opacity: [0, 0.6, 0],
-              scale: [0, 1.5, 0],
-            }}
+            className="absolute top-0 left-0 h-full flex"
+            initial={{ x: 0 }}
+            animate={{ x: finalPosition }}
             transition={{
-              duration: 3 + Math.random() * 2,
-              repeat: Infinity,
-              delay: Math.random() * 2,
-              ease: 'easeInOut'
+              duration: 18,
+              ease: [0.25, 0.001, 0.05, 1],
             }}
-          />
-        ))}
-
-        {/* Main container */}
-        <div className="relative w-full max-w-3xl mx-auto px-4 sm:px-8">
-          {/* Center item animation */}
-          <div className="relative h-[600px] flex items-center justify-center">
-            {/* Circular progress ring - couche 1 (fond) */}
-            <motion.div
-              className="absolute inset-0 flex items-center justify-center"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{
-                scale: phase === 'spinning' ? [0.8, 1.02, 1] : 1,
-                opacity: phase === 'spinning' ? 1 : 0,
-                rotate: phase === 'spinning' ? 360 : 0
-              }}
-              transition={{
-                scale: { duration: 0.5 },
-                rotate: { duration: 3, ease: 'linear', repeat: phase === 'spinning' ? Infinity : 0 }
-              }}
-              style={{ zIndex: 1 }}
-            >
-              <svg width="400" height="400" viewBox="0 0 400 400" className="transform -rotate-90">
-              {/* Background circle with pulse */}
-              <motion.circle
-                cx="200"
-                cy="200"
-                r="180"
-                fill="none"
-                stroke="rgba(255,255,255,0.08)"
-                strokeWidth="4"
-                animate={{
-                  r: [180, 185, 180],
-                  opacity: [0.08, 0.15, 0.08]
+            onAnimationComplete={handleAnimationComplete}
+          >
+            {segments.map((isWin, index) => (
+              <div
+                key={index}
+                className="flex-shrink-0 h-full flex items-center justify-center border-r border-gray-700/50"
+                style={{
+                  width: '420px',
+                  backgroundColor: isWin ? '#4578be' : 'transparent',
+                  boxShadow: isWin ? '0 0 30px rgba(69, 120, 190, 0.5)' : 'none'
                 }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-              {/* Progress circle */}
-              <motion.circle
-                cx="200"
-                cy="200"
-                r="180"
-                fill="none"
-                stroke="url(#gradient)"
-                strokeWidth="6"
-                strokeLinecap="round"
-                initial={{ pathLength: 0 }}
-                animate={{ pathLength: phase === 'spinning' ? [0, 1] : 0 }}
-                transition={{ duration: 3, ease: 'easeInOut' }}
-                style={{ filter: 'drop-shadow(0 0 20px var(--hybrid-accent-primary))' }}
-              />
-              {/* Inner glow circle */}
-              <motion.circle
-                cx="200"
-                cy="200"
-                r="170"
-                fill="none"
-                stroke="url(#gradient)"
-                strokeWidth="2"
-                opacity="0.4"
-                animate={{
-                  r: [170, 175, 170],
-                  opacity: [0.2, 0.5, 0.2]
-                }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-              />
-              <defs>
-                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="var(--hybrid-accent-primary)" />
-                  <stop offset="50%" stopColor="var(--hybrid-accent-secondary)" />
-                  <stop offset="100%" stopColor="var(--hybrid-accent-primary)" />
-                </linearGradient>
-              </defs>
-            </svg>
-            </motion.div>
-
-            {/* Item card au centre - couche 2 (milieu) */}
-            <AnimatePresence mode="wait">
-              {phase === 'spinning' && (
-                <motion.div
-                  key="spinning"
-                  initial={{ scale: 0, rotateY: 0 }}
-                  animate={{
-                    scale: [0.8, 1.15, 1.05, 1],
-                    rotateY: [0, 360, 720],
-                    y: [0, -20, 0, -15, 0, -8, 0]
-                  }}
-                  exit={{ scale: 0, opacity: 0 }}
-                  transition={{ duration: 3, ease: 'easeInOut' }}
-                  className="absolute inset-0 flex items-center justify-center"
-                  style={{ zIndex: 10 }}
-                >
-                  {/* Glow effect */}
-                  <motion.div
-                    className="absolute inset-0 flex items-center justify-center"
-                  >
-                    <motion.div
-                      className="w-72 h-72 sm:w-80 sm:h-80 rounded-full blur-[100px]"
-                      animate={{
-                        scale: [1, 1.3, 1],
-                        opacity: [0.4, 0.7, 0.4]
-                      }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                      style={{ backgroundColor: 'var(--hybrid-accent-primary)' }}
-                    />
-                  </motion.div>
-
-                  {/* Item card */}
-                  <motion.div
-                    className="relative w-64 h-64 sm:w-72 sm:h-72 rounded-3xl border-4 flex items-center justify-center overflow-hidden backdrop-blur-sm"
-                    style={{
-                      backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                      borderColor: 'var(--hybrid-accent-primary)',
-                      boxShadow: '0 0 80px rgba(var(--hybrid-accent-primary-rgb), 0.6)',
-                      willChange: 'transform'
-                    }}
-                  >
-                    <img
-                      src={item.image_url}
-                      alt={item.name}
-                      className="w-44 h-44 sm:w-52 sm:h-52 object-contain drop-shadow-2xl"
-                    />
-                  </motion.div>
-
-                  {/* Orbiting particles with trails */}
-                  {particles.slice(0, 12).map((particle, i) => (
-                    <motion.div
-                      key={particle.id}
-                      className="absolute w-2 h-2 sm:w-3 sm:h-3 rounded-full"
-                      style={{
-                        backgroundColor: i % 2 === 0 ? 'var(--hybrid-accent-primary)' : 'var(--hybrid-accent-secondary)',
-                        left: '50%',
-                        top: '50%',
-                        filter: 'blur(1px)',
-                        boxShadow: `0 0 10px ${i % 2 === 0 ? 'var(--hybrid-accent-primary)' : 'var(--hybrid-accent-secondary)'}`
-                      }}
-                      animate={{
-                        x: [0, Math.cos(i * Math.PI / 6) * 160, 0],
-                        y: [0, Math.sin(i * Math.PI / 6) * 160, 0],
-                        scale: [0, 1.5, 1, 0],
-                        opacity: [0, 1, 0.8, 0]
-                      }}
-                      transition={{
-                        duration: 2.5,
-                        repeat: Infinity,
-                        delay: particle.delay,
-                        ease: 'easeInOut'
-                      }}
-                    />
-                  ))}
-                </motion.div>
-              )}
-
-              {phase === 'result' && result === 'success' && (
-                <motion.div
-                  key="success"
-                  initial={{ scale: 0, rotateZ: -180 }}
-                  animate={{
-                    scale: [0, 1.2, 1],
-                    rotateZ: [-180, 10, -10, 0]
-                  }}
-                  transition={{
-                    scale: { duration: 0.6, ease: 'easeOut' },
-                    rotateZ: { duration: 0.6, ease: 'easeInOut' }
-                  }}
-                  className="absolute inset-0 flex items-center justify-center"
-                  style={{ zIndex: 10 }}
-                >
-                  {/* Success explosion particles */}
-                  {particles.map((particle) => (
-                    <motion.div
-                      key={particle.id}
-                      className="absolute w-2 h-2 rounded-full"
-                      style={{
-                        backgroundColor: particle.id % 3 === 0 ? 'var(--hybrid-accent-primary)' : particle.id % 3 === 1 ? 'var(--hybrid-accent-secondary)' : '#FFD700',
-                        left: '50%',
-                        top: '50%'
-                      }}
-                      initial={{ scale: 0, x: 0, y: 0 }}
-                      animate={{
-                        x: particle.x * 4,
-                        y: particle.y * 4,
-                        scale: [0, 1.5, 0],
-                        opacity: [0, 1, 0]
-                      }}
-                      transition={{ duration: 1.5, delay: particle.delay }}
-                    />
-                  ))}
-
-                  {/* Success card with enhanced design */}
-                  <motion.div
-                    className="relative w-72 h-72 sm:w-80 sm:h-80 rounded-3xl border-4 flex flex-col items-center justify-center overflow-hidden backdrop-blur-sm"
-                    style={{
-                      backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                      borderColor: 'var(--hybrid-accent-primary)',
-                      boxShadow: '0 0 100px rgba(var(--hybrid-accent-primary-rgb), 0.7)'
-                    }}
-                    animate={{
-                      boxShadow: [
-                        '0 0 100px rgba(var(--hybrid-accent-primary-rgb), 0.7)',
-                        '0 0 120px rgba(var(--hybrid-accent-primary-rgb), 0.9)',
-                        '0 0 100px rgba(var(--hybrid-accent-primary-rgb), 0.7)'
-                      ]
-                    }}
-                    transition={{ duration: 1, repeat: Infinity }}
-                  >
-                    {/* Shine overlay effect */}
-                    <motion.div
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20"
-                      initial={{ x: '-100%' }}
-                      animate={{ x: '200%' }}
-                      transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }}
-                    />
-
-                    {/* Success icon with glow */}
-                    <motion.div
-                      initial={{ scale: 0, rotateZ: -180 }}
-                      animate={{ scale: 1, rotateZ: 0 }}
-                      transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-                      className="mb-6 relative"
-                    >
-                      {/* Glow effect behind icon */}
-                      <motion.div
-                        className="absolute inset-0 rounded-full blur-2xl"
-                        style={{
-                          background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
-                        }}
-                        animate={{
-                          scale: [1, 1.5, 1],
-                          opacity: [0.6, 0.9, 0.6]
-                        }}
-                        transition={{ duration: 1.5, repeat: Infinity }}
-                      />
-                      <div className="relative w-20 h-20 rounded-full flex items-center justify-center shadow-2xl"
-                        style={{
-                          background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
-                        }}
-                      >
-                        <TrendingUp className="w-10 h-10 text-white" strokeWidth={3} />
-                      </div>
-                    </motion.div>
-
-                    <motion.img
-                      src={item.image_url}
-                      alt={item.name}
-                      className="w-40 h-40 sm:w-48 sm:h-48 object-contain mb-6 drop-shadow-2xl"
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ delay: 0.3, type: 'spring', stiffness: 150 }}
-                    />
-
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.4 }}
-                      className="text-center px-4"
-                    >
-                      <p className="text-3xl sm:text-4xl font-black text-transparent bg-clip-text mb-2"
-                        style={{
-                          backgroundImage: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
-                        }}
-                      >
-                        UPGRADE RÉUSSI !
-                      </p>
-                      <motion.p
-                        className="text-2xl font-bold"
-                        style={{ color: 'var(--hybrid-accent-primary)' }}
-                        animate={{ scale: [1, 1.1, 1] }}
-                        transition={{ duration: 1, repeat: Infinity }}
-                      >
-                        x{multiplier.toFixed(1)}
-                      </motion.p>
-                    </motion.div>
-                  </motion.div>
-
-                  {/* Confetti effect */}
-                  {Array.from({ length: 40 }).map((_, i) => (
-                    <motion.div
-                      key={`confetti-${i}`}
-                      className="absolute w-2 h-2 md:w-3 md:h-3"
-                      style={{
-                        backgroundColor: i % 3 === 0 ? 'var(--hybrid-accent-primary)' : i % 3 === 1 ? 'var(--hybrid-accent-secondary)' : '#FFD700',
-                        left: '50%',
-                        top: '20%',
-                        borderRadius: i % 2 === 0 ? '50%' : '0%'
-                      }}
-                      initial={{ scale: 0, x: 0, y: 0, rotateZ: 0 }}
-                      animate={{
-                        y: [0, 600],
-                        x: (Math.random() - 0.5) * 600,
-                        rotateZ: Math.random() * 720,
-                        opacity: [1, 1, 0],
-                        scale: [0, 1, 1]
-                      }}
-                      transition={{
-                        duration: 2 + Math.random(),
-                        delay: Math.random() * 0.5,
-                        ease: 'easeOut'
-                      }}
-                    />
-                  ))}
-                </motion.div>
-              )}
-
-              {phase === 'result' && result === 'fail' && (
-                <motion.div
-                  key="fail"
-                  initial={{ scale: 1, x: 0 }}
-                  animate={{
-                    scale: 1,
-                    x: [0, -10, 10, -10, 10, -5, 5, 0],
-                  }}
-                  transition={{
-                    x: { duration: 0.5, ease: 'easeInOut' }
-                  }}
-                  className="absolute inset-0 flex items-center justify-center"
-                  style={{ zIndex: 10 }}
-                >
-                  {/* Fail explosion */}
-                  {particles.map((particle) => (
-                    <motion.div
-                      key={particle.id}
-                      className="absolute w-2 h-2"
-                      style={{
-                        backgroundColor: particle.id % 2 === 0 ? '#EF4444' : '#991B1B',
-                        left: '50%',
-                        top: '50%',
-                        borderRadius: particle.id % 3 === 0 ? '50%' : '0%'
-                      }}
-                      initial={{ scale: 1, x: 0, y: 0, opacity: 1 }}
-                      animate={{
-                        x: particle.x * 3,
-                        y: particle.y * 3,
-                        scale: [1, 0],
-                        opacity: [1, 0],
-                        rotateZ: Math.random() * 360
-                      }}
-                      transition={{ duration: 1, delay: particle.delay * 0.3 }}
-                    />
-                  ))}
-
-                  {/* Item shattering effect */}
-                  <motion.div
-                    className="relative w-72 h-72 sm:w-80 sm:h-80"
-                    initial={{ scale: 1, rotateZ: 0 }}
-                    animate={{
-                      scale: [1, 1.1, 0],
-                      rotateZ: [0, 5, -5, 0],
-                      opacity: [1, 1, 0]
-                    }}
-                    transition={{ duration: 1 }}
-                  >
-                    <motion.div
-                      className="w-full h-full rounded-3xl border-4 flex flex-col items-center justify-center backdrop-blur-sm"
-                      style={{
-                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                        borderColor: '#EF4444',
-                        boxShadow: '0 0 80px rgba(239, 68, 68, 0.6)'
-                      }}
-                    >
+              >
+                {isWin && (
+                  <div className="w-full h-full flex items-center justify-center p-4">
+                    {item.image_url ? (
                       <img
                         src={item.image_url}
                         alt={item.name}
-                        className="w-48 h-48 sm:w-56 sm:h-56 object-contain opacity-40 drop-shadow-2xl"
+                        className="max-w-full max-h-full object-contain"
+                        style={{ filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.5))' }}
                       />
-                    </motion.div>
-                  </motion.div>
-
-                  {/* Fail message appears */}
-                  <motion.div
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ delay: 1 }}
-                    className="absolute inset-0 flex items-center justify-center"
-                  >
-                    <div className="text-center px-4">
-                      {/* Icon with glow */}
-                      <motion.div
-                        className="relative inline-block mb-6"
-                      >
-                        {/* Glow effect */}
-                        <motion.div
-                          className="absolute inset-0 rounded-full blur-2xl bg-gradient-to-br from-red-600 to-red-900"
-                          animate={{
-                            scale: [1, 1.5, 1],
-                            opacity: [0.6, 0.9, 0.6]
-                          }}
-                          transition={{ duration: 1.5, repeat: Infinity }}
-                        />
-                        <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center shadow-2xl">
-                          <X className="w-10 h-10 text-white" strokeWidth={4} />
-                        </div>
-                      </motion.div>
-
-                      <motion.p
-                        className="text-4xl sm:text-5xl font-black text-red-500 mb-3"
-                        animate={{ scale: [1, 1.05, 1] }}
-                        transition={{ duration: 0.5, repeat: Infinity }}
-                      >
-                        ÉCHEC !
-                      </motion.p>
-                      <p className="text-lg text-gray-400">
-                        Votre item a été perdu
-                      </p>
-                    </div>
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Stats display - directement sous l'item */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{
-                opacity: phase === 'spinning' ? 1 : 0,
-                y: phase === 'spinning' ? 0 : 20,
-                scale: phase === 'spinning' ? [1, 1.02, 1] : 1
-              }}
-              transition={{
-                opacity: { duration: 0.3 },
-                y: { duration: 0.3 },
-                scale: { duration: 2, repeat: Infinity }
-              }}
-              className="absolute top-[360px] left-1/2 -translate-x-1/2 w-full max-w-md px-4"
-              style={{ zIndex: 20 }}
-            >
-              <motion.div
-                className="relative rounded-2xl border-2 overflow-hidden backdrop-blur-2xl"
-                style={{
-                  backgroundColor: 'rgba(0, 0, 0, 0.85)',
-                  borderColor: 'rgba(var(--hybrid-accent-primary-rgb), 0.5)'
-                }}
-                animate={{
-                  boxShadow: [
-                    '0 0 30px rgba(var(--hybrid-accent-primary-rgb), 0.3)',
-                    '0 0 40px rgba(var(--hybrid-accent-primary-rgb), 0.5)',
-                    '0 0 30px rgba(var(--hybrid-accent-primary-rgb), 0.3)'
-                  ]
-                }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                {/* Animated shine effect */}
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                  animate={{ x: ['-200%', '200%'] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-                />
-
-                <div className="relative z-10 grid grid-cols-2 divide-x divide-white/10">
-                  {/* Multiplicateur */}
-                  <div className="px-6 py-3">
-                    <p className="text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Multiplicateur</p>
-                    <motion.div
-                      className="flex items-baseline gap-1"
-                      animate={{ scale: [1, 1.08, 1] }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                    >
-                      <span className="text-3xl font-black text-white">x{multiplier.toFixed(1)}</span>
-                    </motion.div>
+                    ) : (
+                      <div className="w-24 h-24 bg-white/20 rounded-lg" />
+                    )}
                   </div>
+                )}
+              </div>
+            ))}
+          </motion.div>
 
-                  {/* Chances de succès */}
-                  <div className="px-6 py-3">
-                    <p className="text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Chances</p>
-                    <motion.div
-                      className="flex items-baseline gap-1"
-                      animate={{ scale: [1, 1.08, 1] }}
-                      transition={{ duration: 1, repeat: Infinity, delay: 0.5 }}
-                    >
-                      <span className="text-3xl font-black" style={{ color: 'var(--hybrid-accent-primary)' }}>
-                        {successRate.toFixed(1)}%
-                      </span>
-                    </motion.div>
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
-          </div>
+          {/* Gradients */}
+          <div className="absolute top-0 left-0 w-48 h-full bg-gradient-to-r from-gray-900 to-transparent pointer-events-none z-10"></div>
+          <div className="absolute top-0 right-0 w-48 h-full bg-gradient-to-l from-gray-900 to-transparent pointer-events-none z-10"></div>
         </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+
+        {/* Info */}
+        <div className="text-center mt-5">
+          <p className="text-white text-sm font-medium">
+            Multiplicateur x{multiplier.toFixed(1)} • {successRate.toFixed(1)}% de chances
+          </p>
+        </div>
+      </div>
+    </motion.div>
   )
 }

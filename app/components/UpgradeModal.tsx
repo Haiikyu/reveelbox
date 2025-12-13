@@ -43,6 +43,7 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
   const [showAnimation, setShowAnimation] = useState(false)
   const [showResult, setShowResult] = useState(false)
   const [upgradeSuccess, setUpgradeSuccess] = useState(false)
+  const [animationResult, setAnimationResult] = useState<boolean | null>(null)
   const [wonReward, setWonReward] = useState<WonReward | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [inputFocused, setInputFocused] = useState(false)
@@ -268,20 +269,6 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
   return (
     <>
       {/* Animation overlay */}
-      <UpgradeAnimation
-        item={{
-          name: item.name,
-          image_url: item.image_url || '',
-          market_value: item.market_value,
-          rarity: item.rarity
-        }}
-        multiplier={selectedMultiplier}
-        successRate={successRate}
-        onComplete={(result) => {
-          // L'animation est terminée, mais handleUpgrade continue
-        }}
-        isAnimating={showAnimation}
-      />
 
       <AnimatePresence>
         {isOpen && !showAnimation && (
@@ -289,7 +276,7 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-lg z-[100] flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/70 backdrop-blur-md z-[55] flex items-center justify-center p-2"
             onClick={() => !isUpgrading && !showResult && onClose()}
           >
             <motion.div
@@ -298,24 +285,38 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
           exit={{ scale: 0.95, opacity: 0 }}
           transition={{ type: 'spring', damping: 30, stiffness: 400 }}
           onClick={(e) => e.stopPropagation()}
-          className="relative w-full max-w-3xl mx-4"
+          className="relative w-full max-w-md mx-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="upgrade-modal-title"
         >
           {/* Glow effect */}
-          <div className="absolute -inset-1 rounded-3xl blur-2xl opacity-20"
-            style={{
-              background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
-            }}
-          />
 
-          <div className="relative backdrop-blur-2xl rounded-3xl border overflow-hidden bg-white dark:bg-gray-900/95"
-            style={{ borderColor: 'var(--hybrid-border-default)' }}
+          <div className="relative backdrop-blur-xl rounded-3xl overflow-hidden scrollbar-hide  bg-white/98 dark:bg-gray-700/98"
+            style={{ border: '1px solid rgba(69, 120, 190, 0.2)', boxShadow: '0 20px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(69, 120, 190, 0.1)' }}
           >
+            {/* Ligne de glow animée en haut */}
+            <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden rounded-t-3xl z-20">
+              <motion.div
+                className="absolute inset-0"
+                style={{
+                  background: 'linear-gradient(90deg, transparent 0%, rgba(69, 120, 190, 0.6) 20%, rgba(69, 120, 190, 0.9) 50%, rgba(69, 120, 190, 0.6) 80%, transparent 100%)',
+                  filter: 'drop-shadow(0 0 8px rgba(69, 120, 190, 0.6))'
+                }}
+                animate={{
+                  x: ['-200%', '200%'],
+                }}
+                transition={{
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  repeatDelay: 2
+                }}
+              />
+            </div>
             {/* Animated gradient overlay */}
             <div className="absolute inset-0 opacity-5" style={{
-              background: `linear-gradient(to bottom right, var(--hybrid-accent-primary), transparent, var(--hybrid-accent-secondary))`
+              background: 'linear-gradient(to bottom right, #4578be, transparent, #5989d8)'
             }} />
 
             {/* Close button */}
@@ -325,95 +326,96 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
               aria-label="Fermer le modal"
               whileHover={{ scale: 1.1, rotate: 90 }}
               whileTap={{ scale: 0.9 }}
-              className="absolute top-4 right-4 z-20 p-2 bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+              className="absolute top-4 right-4 z-20 p-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700/30 dark:hover:bg-white/10 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
             >
               <X className="w-5 h-5 text-gray-600 dark:text-white/60 group-hover:text-gray-900 dark:group-hover:text-white/90 transition-colors" />
             </motion.button>
 
-            <div className="relative z-10 p-4 md:p-6 lg:p-8">
+            <div className="relative z-10 p-2 md:p-3">
               {!showResult ? (
                 <>
                   {/* Header */}
-                  <div className="text-center mb-6 md:mb-8">
-                    <div className="inline-flex items-center gap-3 mb-3 flex-wrap justify-center">
+                  <div className="text-center mb-2">
+                    <div className="inline-flex items-center gap-2 mb-2 flex-wrap justify-center">
                       <div className="p-3 rounded-2xl shadow-xl"
                         style={{
-                          background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
+                          background: 'linear-gradient(135deg, #4578be, #5989d8)'
                         }}
                       >
-                        <TrendingUp className="w-6 h-6 md:w-8 md:h-8 text-white" />
+                        <TrendingUp className="w-5 h-5 text-white" />
                       </div>
-                      <h2 id="upgrade-modal-title" className="text-2xl md:text-3xl font-black text-gray-900 dark:text-white">Upgrade Item</h2>
+                      <h2 id="upgrade-modal-title" className="text-base font-bold text-gray-900 dark:text-white">Upgrade Item</h2>
                     </div>
                     <p className="text-gray-600 dark:text-white/50 text-xs md:text-sm px-4">Tentez votre chance pour multiplier la valeur</p>
                   </div>
 
-                  {/* 3D Item Display */}
-                  <div className="mb-8">
-                    <div className="relative perspective-1000 mx-auto max-w-xs">
-                      <motion.div
-                        className={`relative w-full aspect-square bg-gradient-to-br ${config.gradient} p-0.5 rounded-3xl ${config.glow} shadow-2xl`}
-                      >
-                        <div className="w-full h-full bg-gray-100 dark:bg-gray-900 rounded-[23px] flex items-center justify-center p-8">
-                          {item.image_url ? (
-                            <img
-                              src={item.image_url}
-                              alt={item.name}
-                              className="max-w-full max-h-full object-contain"
-                              style={{ filter: isUpgrading ? 'blur(1px) brightness(1.3)' : 'none' }}
-                            />
-                          ) : (
-                            <div className="w-20 h-20 bg-gray-200 dark:bg-white/5 rounded-2xl" />
-                          )}
-                        </div>
+                  {/* 3D Item Display OU Roulette */}
+                  <div className="mb-2">
+                    <AnimatePresence mode="wait">
+                      {!showAnimation ? (
+                        <motion.div
+                          key="item-display"
+                          initial={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.9 }}
+                          transition={{ duration: 0.3 }}
+                          className="relative perspective-1000 mx-auto max-w-[150px]"
+                        >
+                          <motion.div
+                            className={`relative w-full aspect-square bg-gradient-to-br ${config.gradient} p-0.5 rounded-3xl ${config.glow} shadow-2xl`}
+                          >
+                            <div className="w-full h-full bg-gray-100 dark:bg-gray-700/50 rounded-[23px] flex items-center justify-center p-2">
+                              {item.image_url ? (
+                                <img
+                                  src={item.image_url}
+                                  alt={item.name}
+                                  className="max-w-full max-h-full object-contain"
+                                />
+                              ) : (
+                                <div className="w-20 h-20 bg-gray-200 dark:bg-gray-700/30 rounded-2xl" />
+                              )}
+                            </div>
+                          </motion.div>
 
-                        {/* Particles */}
-                        {isUpgrading && (
-                          <>
-                            {[...Array(8)].map((_, i) => (
-                              <motion.div
-                                key={i}
-                                className="absolute w-1.5 h-1.5 rounded-full"
-                                style={{ background: 'var(--hybrid-accent-primary)' }}
-                                initial={{ x: '50%', y: '50%', opacity: 0 }}
-                                animate={{
-                                  x: `${50 + Math.cos((i * Math.PI * 2) / 8) * 180}%`,
-                                  y: `${50 + Math.sin((i * Math.PI * 2) / 8) * 180}%`,
-                                  opacity: [0, 1, 0]
-                                }}
-                                transition={{
-                                  duration: 1.5,
-                                  repeat: Infinity,
-                                  delay: i * 0.08,
-                                  ease: 'easeOut'
-                                }}
+                          {/* Item info */}
+                          <div className="text-center mt-2">
+                            <h3 className="text-base font-bold text-gray-900 dark:text-white mb-2">{item.name}</h3>
+                            <div className="inline-flex items-center gap-2 bg-gray-200 dark:bg-gray-700/30 backdrop-blur-sm border border-gray-300 dark:border-white/10 rounded-full px-4 py-1.5">
+                              <img
+                                src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
+                                alt="Coins"
+                                className="w-3.5 h-3.5"
                               />
-                            ))}
-                          </>
-                        )}
-                      </motion.div>
-
-                      {/* Item info */}
-                      <div className="text-center mt-5">
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{item.name}</h3>
-                        <div className="inline-flex items-center gap-2 bg-gray-200 dark:bg-white/5 backdrop-blur-sm border border-gray-300 dark:border-white/10 rounded-full px-4 py-1.5">
-                          <img
-                            src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
-                            alt="Coins"
-                            className="w-4 h-4"
+                              <span className="text-base font-black" style={{ color: '#4578be' }}>{item.market_value.toLocaleString()}</span>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="roulette"
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <UpgradeAnimation
+                            item={item}
+                            multiplier={selectedMultiplier}
+                            successRate={successRate}
+                            onComplete={(result) => {
+                              // L'animation est terminée
+                            }}
+                            isAnimating={showAnimation}
                           />
-                          <span className="text-lg font-black" style={{ color: 'var(--hybrid-accent-primary)' }}>{item.market_value.toLocaleString()}</span>
-                        </div>
-                      </div>
-                    </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
                   {/* Multiplier selector */}
-                  <div className="mb-6">
-                    <div className="flex items-center justify-between mb-4">
+                  <div className="mb-2">
+                    <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-bold text-gray-600 dark:text-white/60 uppercase tracking-wider">Multiplicateur</span>
                       <div className="flex items-center gap-2">
-                        <span className="text-2xl font-black text-gray-900 dark:text-white">
+                        <span className="text-base font-black text-gray-900 dark:text-white">
                           x{selectedMultiplier.toFixed(1)}
                         </span>
                         <span className="text-xs text-gray-500 dark:text-white/40">{successRate.toFixed(1)}%</span>
@@ -422,14 +424,14 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
 
                     {/* Custom multiplier input */}
                     <motion.div
-                      className="mb-4 p-4 rounded-xl border-2 transition-all"
+                      className="mb-2 p-2 rounded-xl border-2 transition-all"
                       animate={{
-                        borderColor: inputFocused ? 'var(--hybrid-accent-primary)' : 'rgba(var(--hybrid-accent-primary-rgb), 0.3)',
-                        backgroundColor: inputFocused ? 'rgba(var(--hybrid-accent-primary-rgb), 0.08)' : 'rgba(var(--hybrid-accent-primary-rgb), 0.05)'
+                        borderColor: inputFocused ? 'var(--hybrid-accent-primary)' : 'rgba(69, 120, 190, 0.3)',
+                        backgroundColor: inputFocused ? 'rgba(69, 120, 190, 0.08)' : 'rgba(69, 120, 190, 0.05)'
                       }}
                     >
                       <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
-                        <Zap className="w-4 h-4" style={{ color: 'var(--hybrid-accent-primary)' }} />
+                        <Zap className="w-3.5 h-3.5" style={{ color: '#4578be' }} />
                         Multiplicateur personnalisé (1.5x - 100x)
                       </label>
                       <div className="flex items-center gap-2">
@@ -447,7 +449,7 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                             boxShadow: selectedMultiplier > 1.5 ? '0 2px 8px rgba(0,0,0,0.1)' : 'none'
                           }}
                         >
-                          <Minus className="w-4 h-4 group-hover:text-gray-900 dark:group-hover:text-white transition-colors" />
+                          <Minus className="w-3.5 h-3.5 group-hover:text-gray-900 dark:group-hover:text-white transition-colors" />
                         </motion.button>
                         <input
                           type="number"
@@ -460,10 +462,10 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                           onBlur={() => setInputFocused(false)}
                           disabled={isUpgrading}
                           placeholder="2.5"
-                          className="flex-1 px-4 py-3 bg-white dark:bg-gray-800 border-2 rounded-xl text-gray-900 dark:text-white font-bold text-center focus:outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex-1 px-4 py-3 bg-white dark:bg-gray-700/70 border-2 rounded-xl text-gray-900 dark:text-white font-bold text-center focus:outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                           style={{
-                            borderColor: inputFocused ? 'var(--hybrid-accent-primary)' : 'var(--hybrid-border-default)',
-                            boxShadow: inputFocused ? '0 0 0 3px rgba(var(--hybrid-accent-primary-rgb), 0.1)' : 'none'
+                            borderColor: inputFocused ? 'var(--hybrid-accent-primary)' : 'rgba(69, 120, 190, 0.2)',
+                            boxShadow: inputFocused ? '0 0 0 3px rgba(69, 120, 190, 0.1)' : 'none'
                           }}
                         />
                         <motion.button
@@ -480,7 +482,7 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                             boxShadow: selectedMultiplier < 100 ? '0 2px 8px rgba(0,0,0,0.1)' : 'none'
                           }}
                         >
-                          <Plus className="w-4 h-4 group-hover:text-gray-900 dark:group-hover:text-white transition-colors" />
+                          <Plus className="w-3.5 h-3.5 group-hover:text-gray-900 dark:group-hover:text-white transition-colors" />
                         </motion.button>
                       </div>
                     </motion.div>
@@ -503,20 +505,20 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                           >
                             <div className="absolute -inset-0.5 rounded-xl opacity-0 group-hover:opacity-100 blur transition-opacity"
                               style={{
-                                background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
+                                background: 'linear-gradient(135deg, #4578be, #5989d8)'
                               }}
                             />
                             <div
                               className={`relative py-3 px-2 rounded-xl font-bold transition-all ${
                                 selectedMultiplier === mult
                                   ? 'text-white shadow-lg'
-                                  : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-300 dark:border-white/10'
+                                  : 'bg-gray-100 dark:bg-gray-700/30 text-gray-600 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-300 dark:border-white/10'
                               }`}
                               style={selectedMultiplier === mult ? {
-                                background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
+                                background: 'linear-gradient(135deg, #4578be, #5989d8)'
                               } : {}}
                             >
-                              <div className="text-lg font-black">x{mult}</div>
+                              <div className="text-base font-black">x{mult}</div>
                               <div className="text-[9px] opacity-70">{rate.toFixed(1)}%</div>
                             </div>
                           </motion.button>
@@ -532,7 +534,7 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                         initial={{ opacity: 0, y: -10, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                        className="mb-4 p-4 rounded-xl border-2 border-red-500/30 bg-red-500/10 flex items-start gap-3"
+                        className="mb-2 p-2 rounded-xl border-2 border-red-500/30 bg-red-500/10 flex items-start gap-2"
                       >
                         <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
                         <div className="flex-1">
@@ -542,39 +544,39 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                           onClick={() => setError(null)}
                           className="p-1 hover:bg-red-500/20 rounded-lg transition-colors"
                         >
-                          <X className="w-4 h-4 text-red-500" />
+                          <X className="w-3.5 h-3.5 text-red-500" />
                         </button>
                       </motion.div>
                     )}
                   </AnimatePresence>
 
                   {/* Stats */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-                    <div className="bg-gradient-to-br backdrop-blur-sm rounded-2xl p-4 border" style={{
-                      backgroundImage: `linear-gradient(to bottom right, rgba(var(--hybrid-accent-primary-rgb), 0.1), rgba(var(--hybrid-accent-secondary-rgb), 0.1))`,
-                      borderColor: 'rgba(var(--hybrid-accent-primary-rgb), 0.2)'
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+                    <div className="bg-gradient-to-br backdrop-blur-sm rounded-2xl p-2 border" style={{
+                      backgroundImage: `linear-gradient(to bottom right, rgba(69, 120, 190, 0.1), rgba(89, 137, 216, 0.1))`,
+                      borderColor: 'rgba(69, 120, 190, 0.2)'
                     }}>
                       <div className="flex items-center gap-2 mb-2">
-                        <Target className="w-4 h-4" style={{ color: 'var(--hybrid-accent-primary)' }} />
+                        <Target className="w-3.5 h-3.5" style={{ color: '#4578be' }} />
                         <span className="text-xs font-bold text-gray-600 dark:text-white/60 uppercase">Taux de réussite</span>
                       </div>
-                      <div className="text-2xl font-black mb-2" style={{ color: 'var(--hybrid-accent-primary)' }}>{successRate.toFixed(1)}%</div>
-                      <div className="w-full h-1.5 bg-gray-300 dark:bg-black/30 rounded-full overflow-hidden">
+                      <div className="text-base font-black mb-2" style={{ color: '#4578be' }}>{successRate.toFixed(1)}%</div>
+                      <div className="w-full h-1.5 bg-gray-300 dark:bg-gray-700/30 rounded-full overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${successRate}%` }}
                           className="h-full"
-                          style={{ background: `linear-gradient(90deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))` }}
+                          style={{ background: 'linear-gradient(90deg, #4578be, #5989d8)' }}
                         />
                       </div>
                     </div>
 
-                    <div className="bg-gradient-to-br backdrop-blur-sm rounded-2xl p-4 border" style={{
-                      backgroundImage: `linear-gradient(to bottom right, rgba(var(--hybrid-accent-primary-rgb), 0.1), rgba(var(--hybrid-accent-secondary-rgb), 0.1))`,
-                      borderColor: 'rgba(var(--hybrid-accent-primary-rgb), 0.2)'
+                    <div className="bg-gradient-to-br backdrop-blur-sm rounded-2xl p-2 border" style={{
+                      backgroundImage: `linear-gradient(to bottom right, rgba(69, 120, 190, 0.1), rgba(89, 137, 216, 0.1))`,
+                      borderColor: 'rgba(69, 120, 190, 0.2)'
                     }}>
                       <div className="flex items-center gap-2 mb-2">
-                        <Sparkles className="w-4 h-4" style={{ color: 'var(--hybrid-accent-primary)' }} />
+                        <Sparkles className="w-3.5 h-3.5" style={{ color: '#4578be' }} />
                         <span className="text-xs font-bold text-gray-600 dark:text-white/60 uppercase">Gain potentiel</span>
                       </div>
                       <div className="flex items-center gap-1.5">
@@ -583,7 +585,7 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                           alt="Coins"
                           className="w-5 h-5"
                         />
-                        <span className="text-2xl font-black" style={{ color: 'var(--hybrid-accent-primary)' }}>
+                        <span className="text-base font-black" style={{ color: '#4578be' }}>
                           {potentialWin.toLocaleString()}
                         </span>
                       </div>
@@ -596,11 +598,11 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                     whileTap={{ scale: 0.98 }}
                     onClick={handleUpgrade}
                     disabled={isUpgrading}
-                    className="relative w-full py-4 rounded-2xl font-black text-lg overflow-hidden group disabled:opacity-50"
+                    className="relative w-full py-2 rounded-2xl font-black text-base overflow-hidden group disabled:opacity-50"
                   >
                     <div className="absolute inset-0"
                       style={{
-                        background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`
+                        background: 'linear-gradient(135deg, #4578be, #5989d8)'
                       }}
                     />
                     <motion.div
@@ -609,7 +611,7 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                       className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
                     />
 
-                    <div className="relative flex items-center justify-center gap-3 text-white">
+                    <div className="relative flex items-center justify-center gap-2 text-white">
                       {isUpgrading ? (
                         <>
                           <Loader2 className="w-5 h-5 animate-spin" />
@@ -630,7 +632,7 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                 <motion.div
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="text-center py-12"
+                  className="text-center py-2"
                 >
                   {upgradeSuccess ? (
                     <>
@@ -638,13 +640,13 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                         initial={{ scale: 0, rotate: -180 }}
                         animate={{ scale: 1, rotate: 0 }}
                         transition={{ type: 'spring', damping: 12, delay: 0.1 }}
-                        className="mb-6"
+                        className="mb-2"
                       >
-                        <div className="inline-block p-8 rounded-full shadow-2xl" style={{
-                          background: `linear-gradient(135deg, var(--hybrid-accent-primary), var(--hybrid-accent-secondary))`,
-                          boxShadow: `0 25px 50px -12px rgba(var(--hybrid-accent-primary-rgb), 0.5)`
+                        <div className="inline-block p-2 rounded-full shadow-2xl" style={{
+                          background: 'linear-gradient(135deg, #4578be, #5989d8)',
+                          boxShadow: `0 25px 50px -12px rgba(69, 120, 190, 0.5)`
                         }}>
-                          <Trophy className="w-16 h-16 text-white" />
+                          <Trophy className="w-12 h-12 text-white" />
                         </div>
                       </motion.div>
 
@@ -652,7 +654,7 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.2 }}
-                        className="text-5xl font-black text-gray-900 dark:text-white mb-3"
+                        className="text-xl font-black text-gray-900 dark:text-white mb-2"
                       >
                         RÉUSSI !
                       </motion.h3>
@@ -661,26 +663,26 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.3 }}
-                        className="text-gray-600 dark:text-white/60 mb-8"
+                        className="text-gray-600 dark:text-white/60 mb-2"
                       >
                         Vous avez remporté l'upgrade x{selectedMultiplier.toFixed(1)}
                       </motion.p>
 
                       {/* Rewards display */}
-                      <div className="space-y-4 mb-8">
+                      <div className="space-y-1 mb-2">
                         {wonReward?.item && (
                           <motion.div
                             initial={{ scale: 0, y: 20 }}
                             animate={{ scale: 1, y: 0 }}
                             transition={{ delay: 0.4, type: 'spring', damping: 12 }}
-                            className="backdrop-blur-xl border-2 rounded-2xl p-6 mx-auto max-w-md"
+                            className="backdrop-blur-xl border-2 rounded-2xl p-2 mx-auto max-w-md"
                             style={{
-                              backgroundColor: 'rgba(var(--hybrid-accent-primary-rgb), 0.1)',
-                              borderColor: 'rgba(var(--hybrid-accent-primary-rgb), 0.3)'
+                              backgroundColor: 'rgba(69, 120, 190, 0.1)',
+                              borderColor: 'rgba(69, 120, 190, 0.3)'
                             }}
                           >
-                            <div className="flex items-center gap-4 mb-3">
-                              <Package className="w-6 h-6" style={{ color: 'var(--hybrid-accent-primary)' }} />
+                            <div className="flex items-center gap-4 mb-2">
+                              <Package className="w-5 h-5" style={{ color: '#4578be' }} />
                               <span className="text-sm font-bold text-gray-600 dark:text-white/60 uppercase">Objet gagné</span>
                             </div>
                             <div className="flex items-center gap-4">
@@ -690,14 +692,14 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                                 className="w-20 h-20 object-contain rounded-xl bg-white/10 p-2"
                               />
                               <div className="flex-1 text-left">
-                                <p className="text-lg font-black text-gray-900 dark:text-white">{wonReward.item.name}</p>
+                                <p className="text-base font-black text-gray-900 dark:text-white">{wonReward.item.name}</p>
                                 <div className="flex items-center gap-1.5 mt-1">
                                   <img
                                     src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
                                     alt="Coins"
-                                    className="w-4 h-4"
+                                    className="w-3.5 h-3.5"
                                   />
-                                  <span className="text-sm font-bold" style={{ color: 'var(--hybrid-accent-primary)' }}>
+                                  <span className="text-sm font-bold" style={{ color: '#4578be' }}>
                                     {wonReward.item.market_value.toLocaleString()} coins
                                   </span>
                                 </div>
@@ -711,15 +713,15 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
                             transition={{ delay: wonReward.item ? 0.5 : 0.4, type: 'spring', damping: 12 }}
-                            className="backdrop-blur-xl border-2 rounded-2xl p-6 mx-auto max-w-md"
+                            className="backdrop-blur-xl border-2 rounded-2xl p-2 mx-auto max-w-md"
                             style={{
-                              backgroundColor: 'rgba(var(--hybrid-accent-primary-rgb), 0.1)',
-                              borderColor: 'rgba(var(--hybrid-accent-primary-rgb), 0.3)'
+                              backgroundColor: 'rgba(69, 120, 190, 0.1)',
+                              borderColor: 'rgba(69, 120, 190, 0.3)'
                             }}
                           >
                             <div className="flex items-center justify-between gap-4">
                               <div className="flex items-center gap-2">
-                                <Sparkles className="w-5 h-5" style={{ color: 'var(--hybrid-accent-primary)' }} />
+                                <Sparkles className="w-5 h-5" style={{ color: '#4578be' }} />
                                 <span className="text-sm font-bold text-gray-600 dark:text-white/60 uppercase">
                                   {wonReward.item ? 'Bonus coins' : 'Coins gagnés'}
                                 </span>
@@ -728,9 +730,9 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                                 <img
                                   src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
                                   alt="Coins"
-                                  className="w-6 h-6"
+                                  className="w-5 h-5"
                                 />
-                                <span className="text-3xl font-black" style={{ color: 'var(--hybrid-accent-primary)' }}>
+                                <span className="text-xl font-black" style={{ color: '#4578be' }}>
                                   +{wonReward.coins.toLocaleString()}
                                 </span>
                               </div>
@@ -756,10 +758,10 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         transition={{ type: 'spring', damping: 12, delay: 0.1 }}
-                        className="mb-6"
+                        className="mb-2"
                       >
-                        <div className="inline-block p-8 bg-gradient-to-br from-red-500 to-pink-600 rounded-full shadow-2xl shadow-red-500/50">
-                          <AlertCircle className="w-16 h-16 text-white" />
+                        <div className="inline-block p-2 bg-gradient-to-br from-red-500 to-pink-600 rounded-full shadow-2xl shadow-red-500/50">
+                          <AlertCircle className="w-12 h-12 text-white" />
                         </div>
                       </motion.div>
 
@@ -767,7 +769,7 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.2 }}
-                        className="text-5xl font-black text-gray-900 dark:text-white mb-3"
+                        className="text-xl font-black text-gray-900 dark:text-white mb-2"
                       >
                         ÉCHEC
                       </motion.h3>
@@ -804,7 +806,7 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
                       // Fermer le modal
                       onClose()
                     }}
-                    className="mt-8 px-12 py-3 bg-gray-200 hover:bg-gray-300 dark:bg-white/10 dark:hover:bg-white/20 text-gray-900 dark:text-white rounded-xl font-bold transition-all"
+                    className="mt-2 px-8 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700/40 dark:hover:bg-white/20 text-gray-900 dark:text-white rounded-xl font-bold transition-all"
                   >
                     Fermer
                   </motion.button>

@@ -163,6 +163,9 @@ module.exports = {
         // Nouveaux gradients avec variables CSS
         'gradient-theme-primary': 'linear-gradient(135deg, rgb(var(--primary-light) / 0.1) 0%, rgb(var(--primary) / 0.05) 100%)',
         'gradient-theme-surface': 'linear-gradient(135deg, rgb(var(--surface)) 0%, rgb(var(--surface-elevated)) 100%)',
+
+        // Gradient radial pour hero
+        'gradient-radial': 'radial-gradient(circle, var(--tw-gradient-stops))',
       },
 
       // 3D perspective for upgrade animations

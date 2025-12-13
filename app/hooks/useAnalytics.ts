@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
 
 export const useAnalytics = () => {
+  const supabase = createClient()
+
   const trackEvent = async (eventName: string, properties: Record<string, any> = {}) => {
     try {
       const { data: { session } } = await supabase.auth.getSession()

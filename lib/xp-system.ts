@@ -1,20 +1,26 @@
 // lib/xp-system.ts - Système d'expérience centralisé pour ReveelBox
 
 /**
- * SYSTÈME D'EXPÉRIENCE REVEELBOX
+ * SYSTÈME D'EXPÉRIENCE REVEELBOX V2
  * 
- * Formule unifiée :
- * - Niveau = Math.floor(totalExp / 100) + 1
- * - XP par niveau = 100 (constant)
- * - XP courant dans le niveau = totalExp % 100
- * - XP restant pour niveau suivant = 100 - (totalExp % 100)
+ * Formule basée sur l'argent dépensé :
+ * - 1€ dépensé = 5 XP
+ * - Progression NON LINÉAIRE avec paliers définis
  * 
- * Exemples :
- * - 0 XP = Niveau 1 (0/100)
- * - 99 XP = Niveau 1 (99/100) 
- * - 100 XP = Niveau 2 (0/100)
- * - 250 XP = Niveau 3 (50/100)
- * - 2000 XP = Niveau 21 (0/100)
+ * Paliers de niveau :
+ * - Niveau 2 = 100 XP (20€)
+ * - Niveau 10 = 1,500 XP (300€)
+ * - Niveau 20 = 7,500 XP (1,500€)
+ * - Niveau 30 = 20,000 XP (4,000€)
+ * - Niveau 40 = 50,000 XP (10,000€)
+ * - Niveau 50 = 150,000 XP (30,000€)
+ * - Niveau 60 = 350,000 XP (70,000€)
+ * - Niveau 70 = 1,000,000 XP (200,000€)
+ * - Niveau 80 = 2,500,000 XP (500,000€)
+ * - Niveau 90 = 7,500,000 XP (1,500,000€)
+ * - Niveau 100 = 20,000,000 XP (4,000,000€)
+ * 
+ * Interpolation linéaire entre les paliers pour les niveaux intermédiaires
  */
 
 export interface UserLevel {
@@ -33,43 +39,149 @@ export interface ExpGainSource {
 }
 
 /**
+ * TABLE DES PALIERS DE NIVEAU
+ */
+const LEVEL_THRESHOLDS = [
+  { level: 1, xp: 0 },
+  { level: 2, xp: 100 },
+  { level: 10, xp: 1500 },
+  { level: 20, xp: 7500 },
+  { level: 30, xp: 20000 },
+  { level: 40, xp: 50000 },
+  { level: 50, xp: 150000 },
+  { level: 60, xp: 350000 },
+  { level: 70, xp: 1000000 },
+  { level: 80, xp: 2500000 },
+  { level: 90, xp: 7500000 },
+  { level: 100, xp: 20000000 },
+]
+
+/**
  * Calcule le niveau d'un utilisateur basé sur son XP total
+ * Utilise l'interpolation linéaire entre les paliers
  */
 export function calculateLevel(totalExp: number): number {
   if (totalExp < 0) return 1
-  return Math.floor(totalExp / 100) + 1
+  
+  // Trouver les deux paliers qui encadrent l'XP
+  for (let i = 0; i < LEVEL_THRESHOLDS.length - 1; i++) {
+    if (totalExp >= LEVEL_THRESHOLDS[i].xp && totalExp < LEVEL_THRESHOLDS[i + 1].xp) {
+      const lowerThreshold = LEVEL_THRESHOLDS[i]
+      const upperThreshold = LEVEL_THRESHOLDS[i + 1]
+      
+      // Interpolation linéaire
+      const xpInRange = totalExp - lowerThreshold.xp
+      const xpRangeSize = upperThreshold.xp - lowerThreshold.xp
+      const levelRange = upperThreshold.level - lowerThreshold.level
+      
+      const levelProgress = (xpInRange / xpRangeSize) * levelRange
+      return lowerThreshold.level + Math.floor(levelProgress)
+    }
+  }
+  
+  // Si au-delà du niveau 100
+  if (totalExp >= LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1].xp) {
+    return 100
+  }
+  
+  return 1
 }
 
 /**
- * Calcule l'XP actuel dans le niveau courant (0-99)
+ * Calcule l'XP nécessaire pour un niveau donné
+ */
+function getXPForLevel(level: number): number {
+  if (level <= 1) return 0
+  if (level >= 100) return LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1].xp
+  
+  // Trouver les paliers qui encadrent le niveau
+  for (let i = 0; i < LEVEL_THRESHOLDS.length - 1; i++) {
+    if (level >= LEVEL_THRESHOLDS[i].level && level < LEVEL_THRESHOLDS[i + 1].level) {
+      const lowerThreshold = LEVEL_THRESHOLDS[i]
+      const upperThreshold = LEVEL_THRESHOLDS[i + 1]
+      
+      // Interpolation linéaire inverse
+      const levelInRange = level - lowerThreshold.level
+      const levelRangeSize = upperThreshold.level - lowerThreshold.level
+      const xpRange = upperThreshold.xp - lowerThreshold.xp
+      
+      const xpProgress = (levelInRange / levelRangeSize) * xpRange
+      return Math.floor(lowerThreshold.xp + xpProgress)
+    }
+  }
+  
+  return 0
+}
+
+/**
+ * Calcule l'XP actuel dans le niveau courant
  */
 export function getCurrentLevelExp(totalExp: number): number {
   if (totalExp < 0) return 0
-  return totalExp % 100
+  
+  const currentLevel = calculateLevel(totalExp)
+  const currentLevelXP = getXPForLevel(currentLevel)
+  
+  return totalExp - currentLevelXP
 }
 
 /**
  * Calcule l'XP nécessaire pour atteindre le niveau suivant
  */
 export function getExpToNextLevel(totalExp: number): number {
-  const currentLevelExp = getCurrentLevelExp(totalExp)
-  return 100 - currentLevelExp
+  const currentLevel = calculateLevel(totalExp)
+  if (currentLevel >= 100) return 0
+  
+  const currentLevelXP = getXPForLevel(currentLevel)
+  const nextLevelXP = getXPForLevel(currentLevel + 1)
+  
+  return nextLevelXP - currentLevelXP
 }
 
 /**
  * Calcule le pourcentage de progression dans le niveau actuel (0-100%)
  */
 export function getLevelProgressPercentage(totalExp: number): number {
+  const currentLevel = calculateLevel(totalExp)
+  if (currentLevel >= 100) return 100
+  
   const currentLevelExp = getCurrentLevelExp(totalExp)
-  return Math.round((currentLevelExp / 100) * 100)
+  const expToNextLevel = getExpToNextLevel(totalExp)
+  
+  if (expToNextLevel === 0) return 100
+  
+  return Math.min(100, Math.round((currentLevelExp / expToNextLevel) * 100))
 }
 
 /**
  * Calcule l'XP total nécessaire pour atteindre un niveau donné
  */
 export function getExpRequiredForLevel(targetLevel: number): number {
-  if (targetLevel <= 1) return 0
-  return (targetLevel - 1) * 100
+  return getXPForLevel(targetLevel)
+}
+
+/**
+ * CONVERSION COINS → XP
+ * 10€ = 17,50 coins = 50 XP
+ * 1 coin = 2,857 XP (arrondi à 2.86)
+ */
+export const COINS_TO_XP_RATIO = 50 / 17.5 // ≈ 2.857
+
+/**
+ * Calcule l'XP gagné à partir des coins dépensés
+ * À utiliser à CHAQUE déduction de la balance
+ */
+export function calculateExpFromCoinsSpent(coinsAmount: number): number {
+  if (coinsAmount <= 0) return 0
+  return Math.floor(coinsAmount * COINS_TO_XP_RATIO)
+}
+
+/**
+ * Calcule combien de coins nécessaires pour gagner X XP
+ */
+export function calculateCoinsForExp(expAmount: number): number {
+  if (expAmount <= 0) return 0
+  return Math.ceil(expAmount / COINS_TO_XP_RATIO)
 }
 
 /**

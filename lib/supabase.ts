@@ -1,6 +1,6 @@
 // lib/supabase.ts
 import { createClient as createSupabaseClient } from '@/utils/supabase/client'
-import type { Database } from '@/types/database'
+import type { Database } from '@/app/types/database'
 
 export const createClient = () => createSupabaseClient()
 

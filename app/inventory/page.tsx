@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence, Variants } from 'framer-motion'
 import {
@@ -86,6 +86,7 @@ export default function InventoryPage() {
   const [sellLoading, setSellLoading] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [sortBy, setSortBy] = useState<'recent' | 'value_asc' | 'value_desc' | 'rarity'>('recent')
+  const isLoadingInventory = useRef(false)
 
   // Protection de route
   useEffect(() => {
@@ -102,17 +103,19 @@ export default function InventoryPage() {
 
   // Chargement inventaire
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (isAuthenticated && user?.id) {
       loadInventory()
     }
-  }, [isAuthenticated, user])
+  }, [isAuthenticated, user?.id])
 
   const loadInventory = async () => {
-    if (!user?.id) return
-    
+    if (!user?.id || isLoadingInventory.current) return
+
+    isLoadingInventory.current = true
+
     try {
       setInventoryLoading(true)
-      
+
       const { data, error } = await supabase
         .from('user_inventory')
         .select(`
@@ -137,12 +140,13 @@ export default function InventoryPage() {
       }
 
       setInventory(data || [])
-      
+
     } catch (error) {
       console.error('Erreur:', error)
       showNotification('error', 'Une erreur est survenue')
     } finally {
       setInventoryLoading(false)
+      isLoadingInventory.current = false
     }
   }
 
@@ -328,7 +332,7 @@ export default function InventoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 relative">
+    <div className="min-h-screen pt-16 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 relative">
       {/* Particles Background */}
       <ParticlesBackground />
 

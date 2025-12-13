@@ -1,26 +1,36 @@
+// app/battles/[id]/page.tsx - Version sécurisée avec tirage unique
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { use, useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  ArrowLeft, Bot, Eye, Play, Trophy, Zap, ChevronDown, Sparkles, Crown
-} from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
+import { useRouter } from 'next/navigation'
+import { ArrowLeft, Trophy, Users, Bot, Crown, Loader2, Coins, X } from 'lucide-react'
+import { BattleWheel } from '@/app/components/BattleWheel/BattleWheel'
 
 const supabase = createClient()
 
-// ========================================================================================
-// TYPES
-// ========================================================================================
-
-interface BattleItem {
+interface LootBox {
   id: string
   name: string
-  image_url: string | null
+  image_url: string
+  price_virtual: number
+}
+
+interface Item {
+  id: string
+  name: string
+  image_url: string
   market_value: number
   rarity: string
-  probability: number
+}
+
+interface BattleBox {
+  id: string
+  loot_box_id: string
+  quantity: number
+  order_position: number
+  loot_box: LootBox
 }
 
 interface BattleParticipant {
@@ -30,1248 +40,1222 @@ interface BattleParticipant {
   bot_name: string | null
   bot_avatar_url: string | null
   position: number
-  team: number
   total_value: number
-  is_ready: boolean
-  is_winner: boolean
-  final_rank: number | null
-  items_won: BattleItem[]
-  joined_at: string
-  username?: string | null
-  avatar_url?: string | null
-  level?: number
-}
-
-interface BattleBox {
-  id: string
-  loot_box_id: string
-  quantity: number
-  order_position: number
-  cost_per_box: number
-  loot_boxes: {
-    id: string
-    name: string
-    image_url: string | null
-    price_virtual: number
-  } | null
+  profiles?: {
+    username: string
+    avatar_url: string
+  }
 }
 
 interface Battle {
   id: string
-  name: string
-  description: string | null
-  mode: 'classic' | 'crazy' | 'shared' | 'fast' | 'jackpot' | 'terminal' | 'clutch'
+  mode: string
+  status: string
   max_players: number
   entry_cost: number
-  total_prize: number
-  status: 'waiting' | 'countdown' | 'active' | 'finished' | 'cancelled' | 'expired'
-  is_private: boolean
-  total_boxes: number
-  current_box: number
-  started_at: string | null
-  finished_at: string | null
-  countdown_starts_at: string | null
+  winner_user_id: string | null
+  has_bots: boolean
   creator_id: string
-  participants: BattleParticipant[]
   battle_boxes: BattleBox[]
+  battle_participants: BattleParticipant[]
 }
 
-// ========================================================================================
-// CONSTANTS
-// ========================================================================================
-
-const RARITY_COLORS = {
-  common: { gradient: 'from-gray-600 to-gray-800', glow: 'rgba(156, 163, 175, 0.5)' },
-  rare: { gradient: 'from-blue-600 to-blue-800', glow: 'rgba(37, 99, 235, 0.8)' },
-  epic: { gradient: 'from-purple-600 to-purple-800', glow: 'rgba(147, 51, 234, 0.8)' },
-  legendary: { gradient: 'from-yellow-600 to-yellow-800', glow: 'rgba(234, 179, 8, 0.9)' }
+interface BattleOpening {
+  id: string
+  participant_id: string
+  item_id: string
+  loot_box_id: string
+  item_value: number
+  item_rarity: string
+  opened_at: string
+  items: Item
 }
 
-const MODE_LABELS = {
-  classic: 'Classic',
-  crazy: 'Crazy',
-  shared: 'Shared',
-  fast: 'Fast',
-  jackpot: 'Jackpot',
-  terminal: 'Terminal',
-  clutch: 'Clutch'
+interface OpeningResult {
+  item: Item
+  box_id: string
+  box_name: string
 }
 
-// ========================================================================================
-// ANIMATED BACKGROUND COMPONENT
-// ========================================================================================
+// Icône de coin
+function CoinIcon({ size = 16 }: { size?: number }) {
+  return (
+    <img
+      src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
+      alt="Coins"
+      className="inline-block"
+      style={{
+        width: `${size}px`,
+        height: `${size}px`,
+        verticalAlign: 'middle'
+      }}
+    />
+  )
+}
 
-function AnimatedBackground() {
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  // Positions fixes pour éviter l'erreur de hydration
-  const particles = useMemo(() => {
-    return Array.from({ length: 20 }, (_, i) => ({
-      id: i,
-      left: (i * 5.2) % 100, // Distribution équilibrée
-      top: (i * 7.3) % 100,
-      duration: 3 + (i % 4),
-      delay: (i % 5) * 0.4
-    }))
-  }, [])
-
-  if (!mounted) {
-    return <div className="fixed inset-0 -z-10 bg-slate-950" />
+// Effet visuel selon la rareté
+const getRarityGlow = (rarity: string) => {
+  switch (rarity.toLowerCase()) {
+    case 'legendary':
+      return 'shadow-[0_0_30px_rgba(251,191,36,0.8)] animate-pulse'
+    case 'epic':
+      return 'shadow-[0_0_25px_rgba(168,85,247,0.7)]'
+    case 'rare':
+      return 'shadow-[0_0_20px_rgba(59,130,246,0.6)]'
+    case 'uncommon':
+      return 'shadow-[0_0_15px_rgba(34,197,94,0.5)]'
+    default:
+      return ''
   }
-
-  return (
-    <div className="fixed inset-0 -z-10 overflow-hidden">
-      {/* Gradient animé principal */}
-      <motion.div
-        className="absolute inset-0"
-        animate={{
-          background: [
-            'radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(139, 92, 246, 0.15) 0%, transparent 50%)',
-            'radial-gradient(circle at 80% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 50%), radial-gradient(circle at 20% 50%, rgba(139, 92, 246, 0.15) 0%, transparent 50%)',
-            'radial-gradient(circle at 50% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 50%), radial-gradient(circle at 50% 20%, rgba(139, 92, 246, 0.15) 0%, transparent 50%)',
-            'radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(139, 92, 246, 0.15) 0%, transparent 50%)',
-          ]
-        }}
-        transition={{
-          duration: 20,
-          repeat: Infinity,
-          ease: "linear"
-        }}
-      />
-
-      {/* Brouillard flottant */}
-      {[...Array(3)].map((_, i) => (
-        <motion.div
-          key={`fog-${i}`}
-          className="absolute rounded-full blur-3xl"
-          style={{
-            width: '600px',
-            height: '600px',
-            background: i === 0 
-              ? 'radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%)'
-              : i === 1
-              ? 'radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 70%)'
-              : 'radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, transparent 70%)',
-          }}
-          animate={{
-            x: [
-              `${-200 + i * 100}px`,
-              `${200 + i * 150}px`,
-              `${-200 + i * 100}px`,
-            ],
-            y: [
-              `${-100 + i * 80}px`,
-              `${150 - i * 50}px`,
-              `${-100 + i * 80}px`,
-            ],
-          }}
-          transition={{
-            duration: 25 + i * 5,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-        />
-      ))}
-
-      {/* Particules flottantes */}
-      {particles.map((particle) => (
-        <motion.div
-          key={`particle-${particle.id}`}
-          className="absolute w-1 h-1 bg-blue-400/30 rounded-full"
-          style={{
-            left: `${particle.left}%`,
-            top: `${particle.top}%`,
-          }}
-          animate={{
-            y: [0, -30, 0],
-            opacity: [0.3, 0.8, 0.3],
-          }}
-          transition={{
-            duration: particle.duration,
-            repeat: Infinity,
-            delay: particle.delay,
-            ease: "easeInOut"
-          }}
-        />
-      ))}
-    </div>
-  )
 }
 
-// ========================================================================================
-// INTEGRATED COUNTDOWN COMPONENT
-// ========================================================================================
-
-function IntegratedCountdown({ countdown }: { countdown: number }) {
-  return (
-    <motion.div
-      initial={{ scale: 0, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      exit={{ scale: 0, opacity: 0 }}
-      className="absolute inset-0 z-30 flex items-center justify-center"
-    >
-      <motion.div
-        animate={{
-          scale: [1, 1.2, 1],
-          rotate: [0, 5, -5, 0],
-        }}
-        transition={{
-          duration: 0.8,
-          ease: "easeOut"
-        }}
-        className="relative"
-      >
-        {/* Glow effect */}
-        <motion.div
-          className="absolute inset-0 bg-blue-500/30 rounded-full blur-3xl"
-          animate={{
-            scale: [1, 1.5, 1],
-            opacity: [0.5, 0.8, 0.5],
-          }}
-          transition={{
-            duration: 0.8,
-            ease: "easeInOut"
-          }}
-        />
-        
-        {/* Number */}
-        <div className="relative text-9xl font-black text-white drop-shadow-[0_0_30px_rgba(59,130,246,1)]">
-          {countdown}
-        </div>
-      </motion.div>
-    </motion.div>
-  )
+const getRarityColor = (rarity: string) => {
+  switch (rarity.toLowerCase()) {
+    case 'legendary':
+      return 'border-yellow-500 bg-yellow-500/10'
+    case 'epic':
+      return 'border-purple-500 bg-purple-500/10'
+    case 'rare':
+      return 'border-blue-500 bg-blue-500/10'
+    case 'uncommon':
+      return 'border-green-500 bg-green-500/10'
+    default:
+      return 'border-gray-500 bg-gray-500/10'
+  }
 }
 
-// ========================================================================================
-// IMPROVED ROULETTE WHEEL COMPONENT
-// ========================================================================================
-
-function ImprovedRouletteWheel({ 
-  items, 
-  winningItem,
-  isSpinning,
-  participantId,
-  onSpinComplete
-}: { 
-  items: BattleItem[]
-  winningItem: BattleItem | null
-  isSpinning: boolean
-  participantId: string
-  onSpinComplete?: () => void
-}) {
-  const [spinPosition, setSpinPosition] = useState(0)
-  const [showWinEffect, setShowWinEffect] = useState(false)
-  
-  // Créer un tableau d'items répété pour l'effet de scroll infini
-  const repeatedItems = useMemo(() => {
-    const repeated = []
-    for (let i = 0; i < 15; i++) {
-      repeated.push(...items)
-    }
-    return repeated
-  }, [items])
-
-  useEffect(() => {
-    if (!isSpinning || !winningItem) return
-
-    setShowWinEffect(false)
-    
-    // Trouver l'index de l'item gagnant dans le tableau répété (milieu)
-    const middleIndex = Math.floor(repeatedItems.length / 2)
-    const winningIndex = repeatedItems.findIndex((item, idx) => 
-      idx > middleIndex && item.id === winningItem.id
-    )
-
-    if (winningIndex === -1) return
-
-    // Calculer la position finale (centrer l'item gagnant)
-    const itemWidth = 140
-    const containerWidth = 600
-    const finalPosition = -(winningIndex * itemWidth - containerWidth / 2 + itemWidth / 2)
-
-    // Reset position
-    setSpinPosition(0)
-    
-    const spinDuration = 5000 // 5 secondes
-    const startTime = Date.now()
-    
-    const animate = () => {
-      const elapsed = Date.now() - startTime
-      const progress = Math.min(elapsed / spinDuration, 1)
-      
-      // Easing function pour ralentir progressivement
-      const easeOut = 1 - Math.pow(1 - progress, 4)
-      
-      const currentPosition = finalPosition * easeOut
-      setSpinPosition(currentPosition)
-      
-      if (progress < 1) {
-        requestAnimationFrame(animate)
-      } else {
-        // Animation terminée - afficher l'effet wow
-        setShowWinEffect(true)
-        if (onSpinComplete) {
-          setTimeout(onSpinComplete, 100)
-        }
-      }
-    }
-    
-    requestAnimationFrame(animate)
-  }, [isSpinning, winningItem, repeatedItems, onSpinComplete])
-
-  if (!isSpinning) return null
-
-  return (
-    <div className="w-full mb-6 relative">
-      <div className="relative w-full h-60 overflow-hidden bg-gradient-to-b from-slate-900/90 to-slate-800/90 rounded-2xl border-2 border-blue-500/50 shadow-[0_0_50px_rgba(59,130,246,0.3)]">
-        
-        {/* Flèche indicatrice supérieure */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 z-20">
-          <motion.div
-            animate={{
-              y: [0, 10, 0],
-            }}
-            transition={{
-              duration: 1,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          >
-            <ChevronDown 
-              className="w-16 h-16 text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,1)]" 
-              strokeWidth={4} 
-            />
-          </motion.div>
-        </div>
-
-        {/* Items défilants */}
-        <div
-          className="flex items-center h-full py-8"
-          style={{
-            transform: `translateX(${spinPosition}px)`,
-            transition: 'none'
-          }}
-        >
-          {repeatedItems.map((item, index) => {
-            const isWinningItem = winningItem && item.id === winningItem.id && index === Math.floor(repeatedItems.length / 2) + repeatedItems.slice(Math.floor(repeatedItems.length / 2)).findIndex(i => i.id === winningItem.id)
-            const rarity = item.rarity as keyof typeof RARITY_COLORS
-            
-            return (
-              <motion.div
-                key={`${item.id}-${index}`}
-                className="flex-shrink-0 w-[140px] px-2"
-                animate={showWinEffect && isWinningItem ? {
-                  scale: [1, 1.15, 1.1],
-                } : {}}
-                transition={{
-                  duration: 0.5,
-                  ease: "easeOut"
-                }}
-              >
-                <div className={`
-                  bg-gradient-to-br ${RARITY_COLORS[rarity]?.gradient || RARITY_COLORS.common.gradient}
-                  rounded-xl p-4 border-2 
-                  ${showWinEffect && isWinningItem 
-                    ? 'border-yellow-400 shadow-[0_0_40px_rgba(250,204,21,0.8)]' 
-                    : 'border-blue-500/30'
-                  }
-                  transition-all duration-300
-                `}>
-                  <div className="aspect-square mb-2 flex items-center justify-center bg-black/20 rounded-lg p-2">
-                    <img
-                      src={item.image_url || '/placeholder-item.png'}
-                      alt={item.name}
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                  <div className="text-white text-xs font-medium text-center truncate px-1">
-                    {item.name}
-                  </div>
-                  <div className="text-green-400 font-bold text-center text-sm mt-1">
-                    ${item.market_value.toFixed(2)}
-                  </div>
-                </div>
-              </motion.div>
-            )
-          })}
-        </div>
-
-        {/* Overlay gradient pour effet de profondeur */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-slate-900 to-transparent" />
-          <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-slate-800 to-transparent" />
-        </div>
-
-        {/* Ligne centrale */}
-        <div className="absolute inset-y-0 left-1/2 w-1 bg-yellow-400/70 -translate-x-1/2 z-10 shadow-[0_0_15px_rgba(250,204,21,0.8)]" />
-
-        {/* Effet de particules lors du win */}
-        <AnimatePresence>
-          {showWinEffect && (
-            <>
-              {[...Array(12)].map((_, i) => (
-                <motion.div
-                  key={`particle-win-${i}`}
-                  className="absolute w-2 h-2 bg-yellow-400 rounded-full"
-                  style={{
-                    left: '50%',
-                    top: '50%',
-                  }}
-                  initial={{ scale: 0, x: 0, y: 0, opacity: 1 }}
-                  animate={{
-                    scale: [0, 1, 0],
-                    x: Math.cos((i / 12) * Math.PI * 2) * 100,
-                    y: Math.sin((i / 12) * Math.PI * 2) * 100,
-                    opacity: [1, 1, 0],
-                  }}
-                  transition={{
-                    duration: 1,
-                    ease: "easeOut"
-                  }}
-                />
-              ))}
-              
-              {/* Flash lumineux */}
-              <motion.div
-                className="absolute inset-0 bg-gradient-radial from-yellow-400/40 via-transparent to-transparent"
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: [0, 1, 0], scale: [0.5, 1.5, 2] }}
-                transition={{ duration: 1 }}
-              />
-            </>
-          )}
-        </AnimatePresence>
-      </div>
-    </div>
-  )
-}
-
-// ========================================================================================
-// WON ITEM DISPLAY COMPONENT
-// ========================================================================================
-
-function WonItemDisplay({ item }: { item: BattleItem | null }) {
-  if (!item) return null
-
-  const rarity = item.rarity as keyof typeof RARITY_COLORS
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.8 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{
-        type: "spring",
-        stiffness: 200,
-        damping: 15
-      }}
-      className="mt-4"
-    >
-      <div className={`
-        relative bg-gradient-to-br ${RARITY_COLORS[rarity]?.gradient || RARITY_COLORS.common.gradient}
-        rounded-xl p-4 border-2 border-yellow-400/50
-        shadow-[0_0_30px_${RARITY_COLORS[rarity]?.glow || RARITY_COLORS.common.glow}]
-      `}>
-        {/* Badge "WON" */}
-        <motion.div
-          initial={{ scale: 0, rotate: -180 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{
-            delay: 0.2,
-            type: "spring",
-            stiffness: 200,
-            damping: 10
-          }}
-          className="absolute -top-3 -right-3 bg-yellow-400 text-slate-900 font-black text-xs px-3 py-1 rounded-full shadow-lg flex items-center gap-1"
-        >
-          <Sparkles className="w-3 h-3" />
-          WON
-        </motion.div>
-
-        <div className="flex items-center gap-4">
-          <div className="w-20 h-20 bg-black/30 rounded-lg flex items-center justify-center p-2">
-            <img
-              src={item.image_url || '/placeholder-item.png'}
-              alt={item.name}
-              className="w-full h-full object-contain"
-            />
-          </div>
-          <div className="flex-1">
-            <div className="text-white font-bold text-sm mb-1">
-              {item.name}
-            </div>
-            <div className="text-green-400 font-black text-xl">
-              ${item.market_value.toFixed(2)}
-            </div>
-            <div className="text-xs text-white/60 capitalize">
-              {item.rarity}
-            </div>
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  )
-}
-
-// ========================================================================================
-// PLAYER CARD COMPONENT
-// ========================================================================================
-
-function PlayerCard({ 
-  participant, 
-  position, 
-  isCurrentUser,
-  currentRound,
-  rouletteItems,
-  winningItem,
-  isSpinning,
-  onSpinComplete
-}: { 
-  participant: BattleParticipant
-  position: 'left' | 'right' | 'center'
-  isCurrentUser: boolean
-  currentRound: number
-  rouletteItems: BattleItem[]
-  winningItem: BattleItem | null
-  isSpinning: boolean
-  onSpinComplete?: () => void
-}) {
-  const displayName = participant.is_bot 
-    ? participant.bot_name 
-    : participant.username || 'Player'
-  
-  const avatarUrl = participant.is_bot 
-    ? participant.bot_avatar_url 
-    : participant.avatar_url
-
-  const totalValue = participant.items_won.reduce((sum, item) => sum + item.market_value, 0)
-  
-  const cardColor = participant.team === 0 
-    ? 'from-blue-600/20 to-blue-800/20 border-blue-500/50' 
-    : 'from-red-600/20 to-red-800/20 border-red-500/50'
-
-  const teamLabel = participant.team === 0 ? 'BLUE' : 'RED'
-  const teamColor = participant.team === 0 ? 'text-blue-400' : 'text-red-400'
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9, y: 20 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{
-        type: "spring",
-        stiffness: 150,
-        damping: 20
-      }}
-      className={`
-        relative bg-gradient-to-br ${cardColor}
-        backdrop-blur-sm rounded-2xl border-2 p-6
-        shadow-[0_0_50px_rgba(59,130,246,0.2)]
-      `}
-    >
-      {/* Header avec Avatar et Info */}
-      <div className="flex items-center gap-4 mb-6">
-        <div className="relative">
-          <div className={`
-            w-20 h-20 rounded-full overflow-hidden border-4 
-            ${participant.team === 0 ? 'border-blue-500' : 'border-red-500'}
-            shadow-lg
-          `}>
-            {avatarUrl ? (
-              <img 
-                src={avatarUrl} 
-                alt={displayName || ''} 
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center">
-                {participant.is_bot ? (
-                  <Bot className="w-10 h-10 text-purple-400" />
-                ) : (
-                  <div className="text-2xl font-bold text-white">
-                    {displayName?.charAt(0).toUpperCase()}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          
-          {/* Badge position */}
-          <div className={`
-            absolute -bottom-2 left-1/2 -translate-x-1/2
-            w-8 h-8 rounded-full flex items-center justify-center
-            font-black text-sm
-            ${participant.team === 0 
-              ? 'bg-blue-500 text-white' 
-              : 'bg-red-500 text-white'
-            }
-            border-2 border-white shadow-lg
-          `}>
-            #{participant.position + 1}
-          </div>
-        </div>
-
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="text-lg font-bold text-white truncate">
-              {displayName}
-            </div>
-            {participant.is_bot && (
-              <div className="px-2 py-0.5 bg-purple-500/30 border border-purple-500/50 rounded text-purple-400 text-xs font-bold">
-                BOT
-              </div>
-            )}
-            {isCurrentUser && (
-              <div className="px-2 py-0.5 bg-green-500/30 border border-green-500/50 rounded text-green-400 text-xs font-bold">
-                YOU
-              </div>
-            )}
-          </div>
-          
-          <div className={`text-sm font-bold ${teamColor}`}>
-            TEAM {teamLabel}
-          </div>
-          
-          {participant.level && (
-            <div className="text-xs text-white/60">
-              Level {participant.level}
-            </div>
-          )}
-        </div>
-
-        {/* Total Value */}
-        <div className="text-right">
-          <div className="text-xs text-white/60 mb-1">TOTAL VALUE</div>
-          <div className="text-2xl font-black text-green-400">
-            ${totalValue.toFixed(2)}
-          </div>
-        </div>
-      </div>
-
-      {/* Roulette Zone */}
-      {rouletteItems.length > 0 && (
-        <ImprovedRouletteWheel
-          items={rouletteItems}
-          winningItem={winningItem}
-          isSpinning={isSpinning}
-          participantId={participant.id}
-          onSpinComplete={onSpinComplete}
-        />
-      )}
-
-      {/* Won Item Display */}
-      {winningItem && !isSpinning && (
-        <WonItemDisplay item={winningItem} />
-      )}
-
-      {/* Items Won List */}
-      {participant.items_won.length > 0 && !isSpinning && (
-        <div className="mt-6">
-          <div className="text-xs text-white/60 mb-3 font-medium">
-            ITEMS WON ({participant.items_won.length})
-          </div>
-          <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto">
-            {participant.items_won.map((item, idx) => {
-              const rarity = item.rarity as keyof typeof RARITY_COLORS
-              return (
-                <div 
-                  key={`${item.id}-${idx}`}
-                  className={`
-                    bg-gradient-to-br ${RARITY_COLORS[rarity]?.gradient || RARITY_COLORS.common.gradient}
-                    rounded-lg p-2 border border-white/10
-                  `}
-                >
-                  <div className="aspect-square mb-1 flex items-center justify-center bg-black/20 rounded">
-                    <img
-                      src={item.image_url || '/placeholder-item.png'}
-                      alt={item.name}
-                      className="w-full h-full object-contain p-1"
-                    />
-                  </div>
-                  <div className="text-[10px] text-white/80 text-center truncate">
-                    {item.name}
-                  </div>
-                  <div className="text-xs text-green-400 font-bold text-center">
-                    ${item.market_value.toFixed(2)}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-    </motion.div>
-  )
-}
-
-// ========================================================================================
-// MAIN BATTLE PAGE COMPONENT
-// ========================================================================================
-
-export default function BattlePage() {
-  const params = useParams()
+export default function BattleRoom({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params)
+  const battleId = resolvedParams.id
   const router = useRouter()
-  const battleId = params?.id as string
 
-  // State
   const [battle, setBattle] = useState<Battle | null>(null)
-  const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [currentRound, setCurrentRound] = useState(1)
-  const [isSpinning, setIsSpinning] = useState(false)
-  const [showRoulette, setShowRoulette] = useState(false)
-  const [rouletteItems, setRouletteItems] = useState<BattleItem[]>([])
-  const [winningItems, setWinningItems] = useState<Map<string, BattleItem>>(new Map())
-  const [globalCountdown, setGlobalCountdown] = useState(0)
-  const [fastMode, setFastMode] = useState(false)
-  const [addingBot, setAddingBot] = useState(false)
-  const [integratedCountdown, setIntegratedCountdown] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [isOpening, setIsOpening] = useState(false)
+  const [currentBoxIndex, setCurrentBoxIndex] = useState(0)
+  const [player1Results, setPlayer1Results] = useState<OpeningResult[]>([])
+  const [player2Results, setPlayer2Results] = useState<OpeningResult[]>([])
+  const [currentPlayer1Result, setCurrentPlayer1Result] = useState<OpeningResult | null>(null)
+  const [currentPlayer2Result, setCurrentPlayer2Result] = useState<OpeningResult | null>(null)
+  const [showResults, setShowResults] = useState(false)
+  const [winner, setWinner] = useState<'player1' | 'player2' | null>(null)
+  const [isWheel1Spinning, setIsWheel1Spinning] = useState(false)
+  const [isWheel2Spinning, setIsWheel2Spinning] = useState(false)
+  const [allOpenings, setAllOpenings] = useState<BattleOpening[]>([])
+  const [spectatorCount, setSpectatorCount] = useState(0)
+  const [isJoining, setIsJoining] = useState(false)
+  const [canJoin, setCanJoin] = useState(false)
 
-  const myParticipant = useMemo(() => {
-    if (!battle || !user) return null
-    return battle.participants.find(p => p.user_id === user.id) || null
-  }, [battle, user])
-
-  const isSpectator = !myParticipant && battle?.status !== 'waiting'
-
-  // Fetch user
-  useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { user: userData } } = await supabase.auth.getUser()
-      setUser(userData)
-    }
-    fetchUser()
-  }, [])
-
-  // Fetch battle
-  const fetchBattle = useCallback(async () => {
-    if (!battleId) {
-      console.log('No battleId provided')
-      return
-    }
-
-    try {
-      console.log('Fetching battle:', battleId)
-      
-      const { data, error } = await supabase
-        .from('battles')
-        .select(`
-          *,
-          participants:battle_participants(
-            *,
-            profiles:user_id(username, avatar_url, level)
-          ),
-          battle_boxes(
-            *,
-            loot_boxes(id, name, image_url, price_virtual)
-          )
-        `)
-        .eq('id', battleId)
-        .single()
-
-      if (error) {
-        console.error('Supabase error:', error)
-        throw error
-      }
-
-      if (data) {
-        console.log('Battle data fetched:', data)
-        const processedData = {
-          ...data,
-          participants: data.participants.map((p: any) => ({
-            ...p,
-            username: p.profiles?.username,
-            avatar_url: p.profiles?.avatar_url,
-            level: p.profiles?.level,
-            items_won: p.items_won || []
-          })).sort((a: any, b: any) => a.position - b.position)
-        }
-        setBattle(processedData)
-        setCurrentRound(data.current_box || 1)
-      } else {
-        console.log('No battle data returned')
-      }
-    } catch (error) {
-      console.error('Error fetching battle:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [battleId])
+  const hasStartedOpening = useRef(false)
+  const hasGeneratedOpenings = useRef(false)
+  const wheel1FinishedRef = useRef(false)
+  const wheel2FinishedRef = useRef(false)
+  const isLoadingBattle = useRef(false)
+  const hasFinalized = useRef(false)
 
   useEffect(() => {
-    fetchBattle()
-  }, [fetchBattle])
-
-  // Realtime subscription
-  useEffect(() => {
-    if (!battleId) return
+    hasStartedOpening.current = false
+    hasGeneratedOpenings.current = false
+    loadCurrentUser().then(() => {
+      loadBattle()
+    })
 
     const channel = supabase
       .channel(`battle:${battleId}`)
-      .on('postgres_changes', 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'battles',
-          filter: `id=eq.${battleId}`
-        }, 
-        () => fetchBattle()
-      )
-      .on('postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'battle_participants',
-          filter: `battle_id=eq.${battleId}`
-        },
-        () => fetchBattle()
-      )
-      .on('postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'battle_openings',
-          filter: `battle_id=eq.${battleId}`
-        },
-        () => fetchBattle()
-      )
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'battle_participants',
+        filter: `battle_id=eq.${battleId}`
+      }, () => {
+        loadBattle()
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'battles',
+        filter: `id=eq.${battleId}`
+      }, () => {
+        loadBattle()
+      })
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [battleId, fetchBattle])
+  }, [battleId])
 
-  // Handle countdown
+  // Re-check canJoin when currentUser or battle changes
   useEffect(() => {
-    if (!battle) return
-
-    if (battle.status === 'countdown' && battle.countdown_starts_at) {
-      const countdownEnd = new Date(battle.countdown_starts_at).getTime() + 3000
-      
-      const interval = setInterval(() => {
-        const now = Date.now()
-        const remaining = Math.ceil((countdownEnd - now) / 1000)
-        
-        if (remaining > 0) {
-          setIntegratedCountdown(remaining)
-        } else {
-          setIntegratedCountdown(null)
-          clearInterval(interval)
-        }
-      }, 100)
-
-      return () => clearInterval(interval)
+    if (battle && currentUser) {
+      const isWaiting = battle.status === 'waiting'
+      const hasRoom = battle.battle_participants.length < battle.max_players
+      const isAlreadyParticipant = battle.battle_participants.some((p: any) => p.user_id === currentUser.id)
+      setCanJoin(isWaiting && hasRoom && !isAlreadyParticipant)
     } else {
-      setIntegratedCountdown(null)
+      setCanJoin(false)
     }
-  }, [battle])
+  }, [battle, currentUser])
 
-  // Simulate box opening (when battle becomes active)
-  useEffect(() => {
-    if (!battle || battle.status !== 'active' || isSpinning) return
+  const loadCurrentUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    setCurrentUser(user)
+  }
 
-    const simulateOpening = async () => {
-      try {
-        // Get all items for the current box
-        const currentBox = battle.battle_boxes.find(b => b.order_position === currentRound)
-        if (!currentBox?.loot_boxes?.id) return
+  const loadBattle = async () => {
+    // Éviter les appels récursifs
+    if (isLoadingBattle.current) {
+      return
+    }
 
-        const { data: boxItems, error } = await supabase
-          .from('loot_box_items')
-          .select(`
-            items(id, name, image_url, market_value, rarity),
-            probability
-          `)
-          .eq('loot_box_id', currentBox.loot_boxes.id)
+    isLoadingBattle.current = true
+    try {
+      const { data, error } = await supabase
+        .from('battles')
+        .select(`
+          *,
+          battle_boxes(
+            *,
+            loot_box:loot_boxes(*)
+          ),
+          battle_participants(
+            *,
+            profiles(username, avatar_url)
+          )
+        `)
+        .eq('id', battleId)
+        .single()
 
-        if (error || !boxItems) return
+      if (error) throw error
 
-        const items: BattleItem[] = boxItems.map((bi: any) => ({
-          ...bi.items,
-          probability: bi.probability
-        }))
+      const sortedData = {
+        ...data,
+        battle_boxes: [...data.battle_boxes].sort((a: any, b: any) => a.order_position - b.order_position)
+      }
 
-        setRouletteItems(items)
-        setShowRoulette(true)
-        setIsSpinning(true)
+      setBattle(sortedData as any)
+      setLoading(false)
 
-        // Simulate opening for each participant
-        const newWinningItems = new Map<string, BattleItem>()
-        
-        for (const participant of battle.participants) {
-          const { data: opening } = await supabase.rpc('simulate_battle_box_opening', {
-            p_battle_id: battle.id,
-            p_loot_box_id: currentBox.loot_boxes.id,
-            p_participant_id: participant.id
-          })
+      // Auto-fill avec bots SEULEMENT si has_bots est true
+      if (data.has_bots && data.battle_participants.length < data.max_players && data.status === 'waiting') {
+        const botsNeeded = data.max_players - data.battle_participants.length
+        isLoadingBattle.current = false // Permettre le prochain appel
+        for (let i = 0; i < botsNeeded; i++) {
+          await addBot(data.id, data.battle_participants.length + 1 + i)
+        }
+        await loadBattle()
+        return
+      }
 
-          if (opening?.won_item) {
-            newWinningItems.set(participant.id, opening.won_item)
+      // Transition vers countdown
+      if (data.battle_participants.length === data.max_players && data.status === 'waiting') {
+        console.log('🎮 Tous les joueurs sont là ! Démarrage de la battle...')
+        await supabase
+          .from('battles')
+          .update({ status: 'countdown' })
+          .eq('id', battleId)
+
+        // Générer immédiatement les tirages
+        if (!hasGeneratedOpenings.current) {
+          hasGeneratedOpenings.current = true
+          isLoadingBattle.current = false
+          await generateAllOpenings()
+        }
+        return
+      }
+
+      // Générer les tirages si status = countdown (backup au cas où)
+      if (data.status === 'countdown' && !hasGeneratedOpenings.current) {
+        hasGeneratedOpenings.current = true
+        await generateAllOpenings()
+      }
+
+      // Charger les tirages si status = active
+      if (data.status === 'active' && !hasStartedOpening.current) {
+        hasStartedOpening.current = true
+        await loadAndDisplayOpenings(sortedData as any)
+      }
+
+      // Afficher les résultats si finished
+      if (data.status === 'finished') {
+        await loadAndShowFinalResults(sortedData as any)
+      }
+    } catch (err: any) {
+      console.error('Error loading battle:', err)
+      setError(err.message)
+      setLoading(false)
+    } finally {
+      isLoadingBattle.current = false
+    }
+  }
+
+  const addBot = async (battleId: string, position: number) => {
+    const botNames = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Omega']
+    const botName = botNames[Math.floor(Math.random() * botNames.length)]
+
+    await supabase
+      .from('battle_participants')
+      .insert({
+        battle_id: battleId,
+        is_bot: true,
+        bot_name: botName,
+        bot_avatar_url: '/bot-avatar.png',
+        position,
+        total_value: 0
+      })
+  }
+
+  const generateAllOpenings = async () => {
+    setIsGenerating(true)
+    try {
+      const { data, error } = await supabase.rpc('generate_all_battle_openings', {
+        p_battle_id: battleId
+      })
+
+      if (error) throw error
+
+      console.log('✅ All openings generated:', data)
+
+      // Passer la battle en mode 'active' pour démarrer l'affichage
+      await supabase
+        .from('battles')
+        .update({ status: 'active', started_at: new Date().toISOString() })
+        .eq('id', battleId)
+
+    } catch (error) {
+      console.error('Error generating openings:', error)
+      setError('Failed to generate battle openings')
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  const loadAndDisplayOpenings = async (battleData: Battle) => {
+    try {
+      // Charger tous les tirages depuis la DB
+      const { data: openings, error } = await supabase
+        .from('battle_openings')
+        .select(`
+          *,
+          items(*)
+        `)
+        .eq('battle_id', battleId)
+        .order('opened_at', { ascending: true })
+
+      if (error) throw error
+      if (!openings || openings.length === 0) {
+        setError('No openings found')
+        return
+      }
+
+      setAllOpenings(openings as any)
+      setIsOpening(true)
+
+      // Démarrer l'affichage séquentiel
+      await displayOpeningsSequentially(battleData, openings as any)
+    } catch (error) {
+      console.error('Error loading openings:', error)
+      setError('Failed to load battle openings')
+    }
+  }
+
+  const displayOpeningsSequentially = async (battleData: Battle, openings: BattleOpening[]) => {
+    const player1 = battleData.battle_participants.find(p => p.position === 1)
+    const player2 = battleData.battle_participants.find(p => p.position === 2)
+
+    if (!player1 || !player2) return
+
+    // Grouper les openings par box
+    const openingsByBox: { [key: number]: BattleOpening[] } = {}
+
+    battleData.battle_boxes.forEach((box, idx) => {
+      openingsByBox[idx] = openings.filter(o => o.loot_box_id === box.loot_box_id)
+    })
+
+    // Afficher box par box
+    for (let boxIndex = 0; boxIndex < battleData.battle_boxes.length; boxIndex++) {
+      setCurrentBoxIndex(boxIndex)
+
+      const boxOpenings = openingsByBox[boxIndex]
+      const p1Opening = boxOpenings.find(o => o.participant_id === player1.id)
+      const p2Opening = boxOpenings.find(o => o.participant_id === player2.id)
+
+      if (!p1Opening || !p2Opening) continue
+
+      const result1: OpeningResult = {
+        item: p1Opening.items,
+        box_id: p1Opening.loot_box_id,
+        box_name: battleData.battle_boxes[boxIndex].loot_box.name
+      }
+
+      const result2: OpeningResult = {
+        item: p2Opening.items,
+        box_id: p2Opening.loot_box_id,
+        box_name: battleData.battle_boxes[boxIndex].loot_box.name
+      }
+
+      setCurrentPlayer1Result(result1)
+      setCurrentPlayer2Result(result2)
+
+      setIsWheel1Spinning(true)
+      setIsWheel2Spinning(true)
+
+      // Attendre que les deux roues finissent
+      await new Promise<void>(resolve => {
+        const checkFinished = () => {
+          if (wheel1FinishedRef.current && wheel2FinishedRef.current) {
+            resolve()
+          } else {
+            setTimeout(checkFinished, 100)
           }
         }
+        checkFinished()
+      })
 
-        setWinningItems(newWinningItems)
+      setIsWheel1Spinning(false)
+      setIsWheel2Spinning(false)
 
-        // Stop spinning after animation
-        setTimeout(() => {
-          setIsSpinning(false)
-          fetchBattle()
-        }, fastMode ? 3000 : 6000)
+      setPlayer1Results(prev => [...prev, result1])
+      setPlayer2Results(prev => [...prev, result2])
 
-      } catch (error) {
-        console.error('Error simulating opening:', error)
+      // Délai de 2 secondes entre les rounds
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      setCurrentPlayer1Result(null)
+      setCurrentPlayer2Result(null)
+
+      wheel1FinishedRef.current = false
+      wheel2FinishedRef.current = false
+
+      await new Promise(resolve => setTimeout(resolve, 500))
+    }
+
+    setIsOpening(false)
+    await showWinner(battleData)
+  }
+
+  const showWinner = async (battleData: Battle) => {
+    const player1 = battleData.battle_participants.find(p => p.position === 1)
+    const player2 = battleData.battle_participants.find(p => p.position === 2)
+
+    if (player1 && player2) {
+      if (player1.total_value > player2.total_value) {
+        setWinner('player1')
+      } else if (player2.total_value > player1.total_value) {
+        setWinner('player2')
+      } else {
+        // Coinflip
+        setWinner(Math.random() < 0.5 ? 'player1' : 'player2')
       }
     }
 
-    simulateOpening()
-  }, [battle?.status, currentRound, fastMode])
+    // CORRECTION CRITIQUE: Appeler finalize_battle UNE SEULE FOIS
+    if (!hasFinalized.current) {
+      hasFinalized.current = true
+      try {
+        const { data, error } = await supabase.rpc('finalize_battle', {
+          p_battle_id: battleId
+        })
 
-  // Add bot
-  const handleAddBot = async () => {
-    if (!battle || !user) return
-    
-    setAddingBot(true)
+        if (error) {
+          console.error('Erreur lors de la finalisation de la battle:', error)
+        } else {
+          console.log('Battle finalisée avec succès, items distribués au gagnant')
+        }
+      } catch (error) {
+        console.error('Erreur critique lors de la finalisation:', error)
+      }
+    }
+
+    setShowResults(true)
+  }
+
+  const loadAndShowFinalResults = async (battleData: Battle) => {
+    // Charger et afficher directement les résultats finaux
+    const { data: openings } = await supabase
+      .from('battle_openings')
+      .select(`*, items(*)`)
+      .eq('battle_id', battleId)
+
+    if (openings) {
+      const player1 = battleData.battle_participants.find(p => p.position === 1)
+      const player2 = battleData.battle_participants.find(p => p.position === 2)
+
+      const p1Openings = openings.filter((o: any) => o.participant_id === player1?.id)
+      const p2Openings = openings.filter((o: any) => o.participant_id === player2?.id)
+
+      const p1Results = p1Openings.map((o: any) => ({
+        item: o.items,
+        box_id: o.loot_box_id,
+        box_name: 'Box'
+      }))
+
+      const p2Results = p2Openings.map((o: any) => ({
+        item: o.items,
+        box_id: o.loot_box_id,
+        box_name: 'Box'
+      }))
+
+      setPlayer1Results(p1Results)
+      setPlayer2Results(p2Results)
+
+      await showWinner(battleData)
+    }
+  }
+
+  const onWheel1Finish = useCallback(() => {
+    wheel1FinishedRef.current = true
+  }, [])
+
+  const onWheel2Finish = useCallback(() => {
+    wheel2FinishedRef.current = true
+  }, [])
+
+  const joinBattle = async () => {
+    if (!currentUser || !battle || isJoining) return
+
+    setIsJoining(true)
     try {
-      const { error } = await supabase.rpc('add_bot_to_battle', {
-        p_battle_id: battle.id
-      })
-      
-      if (error) throw error
-      await fetchBattle()
+      // Vérifier le solde de l'utilisateur
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('virtual_currency')
+        .eq('id', currentUser.id)
+        .single()
+
+      if (!profile) {
+        alert('Profil non trouvé')
+        return
+      }
+
+      const userBalance = parseFloat(profile.virtual_currency)
+      if (userBalance < battle.entry_cost) {
+        alert('Solde insuffisant pour rejoindre cette battle')
+        return
+      }
+
+      // Trouver la prochaine position disponible
+      const nextPosition = Math.max(...battle.battle_participants.map(p => p.position)) + 1
+
+      // Ajouter le joueur comme participant
+      const { error: participantError } = await supabase
+        .from('battle_participants')
+        .insert({
+          battle_id: battleId,
+          user_id: currentUser.id,
+          position: nextPosition,
+          team: nextPosition,
+          is_ready: true,
+          has_paid: true,
+          total_value: 0
+        })
+
+      if (participantError) throw participantError
+
+      // Déduire le coût
+      await supabase
+        .from('profiles')
+        .update({
+          virtual_currency: (userBalance - battle.entry_cost).toString()
+        })
+        .eq('id', currentUser.id)
+
+      // Créer une transaction
+      await supabase
+        .from('transactions')
+        .insert({
+          user_id: currentUser.id,
+          type: 'battle_entry',
+          virtual_amount: -battle.entry_cost,
+          battle_id: battleId,
+          description: `Battle entry: ${battle.mode}`
+        })
+
+      // Recharger la battle
+      await loadBattle()
     } catch (error) {
-      console.error('Error adding bot:', error)
+      console.error('Error joining battle:', error)
+      alert('Erreur lors de la jointure à la battle')
     } finally {
-      setAddingBot(false)
+      setIsJoining(false)
+    }
+  }
+
+  const replayBattle = async () => {
+    if (!battle || !currentUser) return
+
+    try {
+      // Récupérer les informations de la battle
+      const entryCost = battle.entry_cost
+      const battleBoxesData = battle.battle_boxes.map((box, index) => ({
+        loot_box_id: box.loot_box_id,
+        quantity: box.quantity || 1,
+        order_position: index + 1,
+        cost_per_box: Math.floor(box.loot_box.price_virtual)
+      }))
+
+      // Créer une nouvelle battle identique
+      const { data: newBattle, error: battleError } = await supabase
+        .from('battles')
+        .insert({
+          name: battle.name || `Battle ${battle.mode}`,
+          mode: battle.mode,
+          max_players: battle.max_players,
+          entry_cost: entryCost,
+          total_prize: entryCost * battle.max_players,
+          status: 'waiting',
+          creator_id: currentUser.id,
+          total_boxes: battle.battle_boxes.reduce((sum, box) => sum + (box.quantity || 1), 0),
+          has_bots: false,
+          bots_count: 0
+        })
+        .select()
+        .single()
+
+      if (battleError) throw battleError
+
+      // Ajouter les boxes
+      const boxesWithBattleId = battleBoxesData.map(box => ({
+        ...box,
+        battle_id: newBattle.id
+      }))
+
+      const { error: boxesError } = await supabase
+        .from('battle_boxes')
+        .insert(boxesWithBattleId)
+
+      if (boxesError) throw boxesError
+
+      // Ajouter le joueur comme participant
+      const { error: participantError } = await supabase
+        .from('battle_participants')
+        .insert({
+          battle_id: newBattle.id,
+          user_id: currentUser.id,
+          position: 1,
+          team: 1,
+          is_ready: true,
+          has_paid: true
+        })
+
+      if (participantError) throw participantError
+
+      // Déduire le coût
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('virtual_currency')
+        .eq('id', currentUser.id)
+        .single()
+
+      if (profile) {
+        await supabase
+          .from('profiles')
+          .update({
+            virtual_currency: (parseFloat(profile.virtual_currency) - entryCost).toString()
+          })
+          .eq('id', currentUser.id)
+
+        await supabase
+          .from('transactions')
+          .insert({
+            user_id: currentUser.id,
+            type: 'battle_entry',
+            virtual_amount: -entryCost,
+            battle_id: newBattle.id,
+            description: `Battle entry: ${newBattle.name}`
+          })
+      }
+
+      // Rediriger vers la nouvelle battle
+      window.location.href = `/battles/${newBattle.id}`
+    } catch (error) {
+      console.error('Error replaying battle:', error)
+      alert('Erreur lors de la création de la battle')
     }
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <AnimatedBackground />
-        <div className="relative z-10">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full"
-          />
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="text-white text-lg">Loading battle...</div>
         </div>
       </div>
     )
   }
 
-  if (!battle) {
+  if (error || !battle) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <AnimatedBackground />
-        <div className="relative z-10 text-center">
-          <div className="text-white text-2xl font-bold mb-4">Battle not found</div>
-          <button
-            onClick={() => router.push('/battle')}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-          >
-            Back to Battles
-          </button>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black flex items-center justify-center">
+        <div className="text-white text-xl">{error || 'Battle not found'}</div>
       </div>
     )
   }
+
+  const player1 = battle.battle_participants.find(p => p.position === 1)
+  const player2 = battle.battle_participants.find(p => p.position === 2)
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white pb-24">
-      <AnimatedBackground />
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black">
+      {/* Utilisation optimale de l'espace selon la taille d'écran */}
+      <div className="mx-auto px-2 sm:px-4 lg:px-6 xl:px-8 py-3 sm:py-4 lg:py-6 max-w-[100vw] 2xl:max-w-[1920px]">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <button
+            onClick={() => router.push('/battles')}
+            className="flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-4"
+          >
+            <ArrowLeft size={20} />
+            Back to Battles
+          </button>
 
-      {/* Header */}
-      <div className="relative z-10 backdrop-blur-xl bg-slate-900/50 border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => router.push('/battle')}
-              className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              Back
-            </button>
-
-            <div className="text-center flex-1">
-              <div className="flex items-center justify-center gap-3 mb-2">
-                <motion.div
-                  animate={{
-                    scale: [1, 1.1, 1],
-                    rotate: [0, 5, -5, 0],
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                  }}
-                >
-                  <Trophy className="w-8 h-8 text-yellow-400" />
-                </motion.div>
-                <h1 className="text-3xl font-black text-white">
-                  {battle.name}
-                </h1>
+          <div className="bg-white/5 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/10">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Crown className="text-yellow-500" size={20} sm-size={24} />
+                  <span className="text-white text-lg sm:text-xl font-bold">{battle.mode.toUpperCase()}</span>
+                </div>
+                <div className="h-6 w-px bg-white/20 hidden sm:block" />
+                <div className="flex items-center gap-2 text-white/80">
+                  <Users size={18} />
+                  <span className="text-sm sm:text-base">{battle.battle_participants.length}/{battle.max_players}</span>
+                </div>
+                {/* Compteur de spectateurs discret */}
+                {spectatorCount > 0 && (
+                  <>
+                    <div className="h-6 w-px bg-white/20" />
+                    <div className="flex items-center gap-1.5 text-white/40 text-xs sm:text-sm">
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                      <span>{spectatorCount} watching</span>
+                    </div>
+                  </>
+                )}
               </div>
-              
-              <div className="flex items-center justify-center gap-4 text-sm">
-                <div className="px-3 py-1 bg-blue-500/20 border border-blue-500/50 rounded-full text-blue-400 font-bold">
-                  {MODE_LABELS[battle.mode].toUpperCase()}
-                </div>
-                <span className="text-white/60">•</span>
-                <div className="text-white/80">
-                  BOX <span className="font-bold text-white">{currentRound}</span> OF <span className="font-bold text-white">{battle.total_boxes}</span>
-                </div>
-                <span className="text-white/60">•</span>
-                <div className="text-yellow-400 font-black text-lg">
-                  ${battle.total_prize.toFixed(2)} PRIZE POOL
+              <div className="flex items-center gap-3">
+                {canJoin && (
+                  <motion.button
+                    onClick={joinBattle}
+                    disabled={isJoining}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="px-6 py-3 text-white font-bold rounded-xl transition-all flex items-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-green-500 to-emerald-500"
+                  >
+                    {isJoining ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Joining...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Users size={18} />
+                        <span>Rejoindre - {battle.entry_cost}</span>
+                        <CoinIcon size={18} />
+                      </>
+                    )}
+                  </motion.button>
+                )}
+                {battle.status === 'waiting' && battle.battle_participants.length < battle.max_players && currentUser && battle.creator_id === currentUser.id && (
+                  <button
+                    onClick={() => addBot(battleId, battle.battle_participants.length + 1)}
+                    className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white font-semibold rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <Bot size={16} />
+                    Call Bot
+                  </button>
+                )}
+                <div className="flex flex-col items-end gap-1">
+                  <div className="text-white/40 text-[10px] uppercase">Valeur totale unboxée</div>
+                  <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-green-500/10 rounded-lg border border-green-500/30">
+                    <CoinIcon size={16} />
+                    <span className="text-green-500 font-bold text-sm sm:text-base">
+                      {(player1Results.reduce((sum, r) => sum + r.item.market_value, 0) +
+                        player2Results.reduce((sum, r) => sum + r.item.market_value, 0)).toFixed(2)}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {isSpectator && (
-                <div className="flex items-center gap-2 px-3 py-2 bg-purple-500/20 border border-purple-500/50 rounded-lg text-purple-400 text-sm">
-                  <Eye className="w-4 h-4" />
-                  Spectator
-                </div>
-              )}
-
-              <label className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg cursor-pointer hover:bg-white/10 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={fastMode}
-                  onChange={(e) => setFastMode(e.target.checked)}
-                  className="rounded"
-                />
-                <Zap className="w-4 h-4 text-yellow-400" />
-                <span className="text-sm font-medium">Fast</span>
-              </label>
             </div>
           </div>
+        </motion.div>
 
-          {/* Bot Manager */}
-          {user && !isSpectator && myParticipant && battle.creator_id === user.id && battle.status === 'waiting' && (
-            <div className="flex items-center justify-center gap-3 mt-4">
-              <span className="text-sm text-white/60">
-                {battle.max_players - battle.participants.length} slots available
-              </span>
-              <button
-                onClick={handleAddBot}
-                disabled={addingBot}
-                className="px-4 py-2 bg-purple-500/20 border border-purple-500/50 rounded-lg text-purple-400 hover:bg-purple-500/30 transition-colors text-sm flex items-center gap-2 disabled:opacity-50"
-              >
-                <Bot className="w-4 h-4" />
-                {addingBot ? 'Adding...' : 'Add Bot'}
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Main Battle Area */}
-      <div className="max-w-7xl mx-auto px-6 py-8 relative z-10">
-        
-        {/* Integrated Countdown */}
+        {/* Loading Overlay pour génération */}
         <AnimatePresence>
-          {integratedCountdown !== null && integratedCountdown > 0 && (
-            <div className="relative mb-8">
-              <IntegratedCountdown countdown={integratedCountdown} />
-            </div>
+          {(isGenerating || battle.status === 'countdown') && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 flex items-center justify-center z-50 bg-black/80 backdrop-blur-sm"
+            >
+              <motion.div className="flex flex-col items-center gap-4">
+                <Loader2 className="w-16 h-16 text-blue-500 animate-spin" />
+                <div className="text-white text-xl font-semibold">
+                  {isGenerating ? 'Generating battle...' : 'Starting battle...'}
+                </div>
+              </motion.div>
+            </motion.div>
           )}
         </AnimatePresence>
 
-        {battle.participants.length >= 2 && battle.participants.length === 2 ? (
-          /* 1v1 Layout */
-          <div className="grid grid-cols-2 gap-8">
-            <PlayerCard 
-              participant={battle.participants[0]} 
-              position="left"
-              isCurrentUser={user ? battle.participants[0].user_id === user.id : false}
-              currentRound={currentRound}
-              rouletteItems={showRoulette ? rouletteItems : []}
-              winningItem={winningItems.get(battle.participants[0].id) || null}
-              isSpinning={isSpinning}
-            />
-            
-            <PlayerCard 
-              participant={battle.participants[1]} 
-              position="right"
-              isCurrentUser={user ? battle.participants[1].user_id === user.id : false}
-              currentRound={currentRound}
-              rouletteItems={showRoulette ? rouletteItems : []}
-              winningItem={winningItems.get(battle.participants[1].id) || null}
-              isSpinning={isSpinning}
-            />
-          </div>
-        ) : battle.participants.length === 3 ? (
-          /* 1v1v1 Layout */
-          <div>
-            <div className="grid grid-cols-2 gap-8 mb-8">
-              <PlayerCard 
-                participant={battle.participants[0]} 
-                position="left"
-                isCurrentUser={user ? battle.participants[0].user_id === user.id : false}
-                currentRound={currentRound}
-                rouletteItems={showRoulette ? rouletteItems : []}
-                winningItem={winningItems.get(battle.participants[0].id) || null}
-                isSpinning={isSpinning}
-              />
-              <PlayerCard 
-                participant={battle.participants[1]} 
-                position="right"
-                isCurrentUser={user ? battle.participants[1].user_id === user.id : false}
-                currentRound={currentRound}
-                rouletteItems={showRoulette ? rouletteItems : []}
-                winningItem={winningItems.get(battle.participants[1].id) || null}
-                isSpinning={isSpinning}
-              />
+        {/* Players Header - Redesignées avec plus d'infos */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
+          {/* Player 1 */}
+          <motion.div
+            initial={{ opacity: 0, x: -50 }}
+            animate={{ opacity: 1, x: 0 }}
+            className={`relative bg-gradient-to-r from-blue-500/10 to-transparent backdrop-blur-md rounded-xl p-3 sm:p-4 border-2 transition-all ${
+              player1 && player2 && player1.total_value > player2.total_value
+                ? 'border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.5)]'
+                : 'border-blue-500/30'
+            }`}
+          >
+            {/* Couronne pour le leader */}
+            {player1 && player2 && player1.total_value > player2.total_value && (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-500 text-black px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"
+              >
+                <Crown size={14} />
+                LEADER
+              </motion.div>
+            )}
+
+            <div className="flex items-start gap-3 mb-3">
+              {/* Avatar avec pulse si en tête */}
+              <div className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 border-blue-500 ${
+                player1 && player2 && player1.total_value > player2.total_value ? 'animate-pulse' : ''
+              }`}>
+                {player1?.is_bot ? (
+                  <img
+                    src="/images/bot-avatar.svg"
+                    alt="Bot"
+                    className="w-full h-full object-cover bg-gradient-to-br from-blue-500 to-blue-700"
+                  />
+                ) : (
+                  <img
+                    src={player1?.profiles?.avatar_url || '/images/bot-avatar.svg'}
+                    alt="Player 1"
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.currentTarget.src = '/images/bot-avatar.svg' }}
+                  />
+                )}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="text-blue-400 text-xs font-semibold uppercase">Player 1</div>
+                <div className="text-white font-bold truncate text-sm sm:text-base">
+                  {player1?.is_bot ? player1?.bot_name : player1?.profiles?.username || 'Player 1'}
+                </div>
+                {!player1?.is_bot && (
+                  <div className="flex items-center gap-2 mt-1 text-xs text-white/60">
+                    <span>Lvl 12</span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                      <Trophy size={12} className="text-yellow-500" />
+                      25 wins
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="flex justify-center">
-              <div className="w-1/2">
-                <PlayerCard 
-                  participant={battle.participants[2]} 
-                  position="center"
-                  isCurrentUser={user ? battle.participants[2].user_id === user.id : false}
-                  currentRound={currentRound}
-                  rouletteItems={showRoulette ? rouletteItems : []}
-                  winningItem={winningItems.get(battle.participants[2].id) || null}
-                  isSpinning={isSpinning}
-                />
+
+            {/* Statistiques */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-black/30 rounded-lg p-2">
+                <div className="text-white/50 text-[10px] sm:text-xs mb-0.5">Valeur unboxée</div>
+                <div className="text-green-500 text-base sm:text-xl font-bold flex items-center gap-1">
+                  <Coins size={14} />
+                  <span className="truncate">{player1Results.reduce((sum, r) => sum + r.item.market_value, 0).toFixed(2)}</span>
+                </div>
+              </div>
+              <div className="bg-black/30 rounded-lg p-2">
+                <div className="text-white/50 text-[10px] sm:text-xs mb-0.5">Meilleur item</div>
+                <div className="text-yellow-500 text-base sm:text-xl font-bold flex items-center gap-1">
+                  <Coins size={14} />
+                  <span className="truncate">
+                    {player1Results.length > 0
+                      ? Math.max(...player1Results.map(r => r.item.market_value)).toFixed(2)
+                      : '0.00'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+          </motion.div>
+
+          {/* Player 2 */}
+          <motion.div
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            className={`relative bg-gradient-to-l from-red-500/10 to-transparent backdrop-blur-md rounded-xl p-3 sm:p-4 border-2 transition-all ${
+              !player2 && battle.status === 'waiting'
+                ? 'border-white/20 border-dashed'
+                : player1 && player2 && player2.total_value > player1.total_value
+                ? 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)]'
+                : 'border-red-500/30'
+            }`}
+          >
+            {/* Couronne pour le leader */}
+            {player1 && player2 && player2.total_value > player1.total_value && (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-500 text-black px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"
+              >
+                <Crown size={14} />
+                LEADER
+              </motion.div>
+            )}
+
+            <div className="flex items-start gap-3 mb-3">
+              <div className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 ${
+                !player2 && battle.status === 'waiting'
+                  ? 'border-white/20 bg-white/5'
+                  : 'border-red-500'
+              } ${
+                player1 && player2 && player2.total_value > player1.total_value ? 'animate-pulse' : ''
+              }`}>
+                {!player2 && battle.status === 'waiting' ? (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Users size={28} className="text-white/30" />
+                  </div>
+                ) : player2?.is_bot ? (
+                  <img
+                    src="/images/bot-avatar.svg"
+                    alt="Bot"
+                    className="w-full h-full object-cover bg-gradient-to-br from-red-500 to-red-700"
+                  />
+                ) : (
+                  <img
+                    src={player2?.profiles?.avatar_url || '/images/bot-avatar.svg'}
+                    alt="Player 2"
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.currentTarget.src = '/images/bot-avatar.svg' }}
+                  />
+                )}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className={`text-xs font-semibold uppercase ${
+                  !player2 && battle.status === 'waiting' ? 'text-white/40' : 'text-red-400'
+                }`}>
+                  {!player2 && battle.status === 'waiting' ? 'En attente' : 'Player 2'}
+                </div>
+                <div className={`font-bold truncate text-sm sm:text-base ${
+                  !player2 && battle.status === 'waiting' ? 'text-white/40' : 'text-white'
+                }`}>
+                  {!player2 && battle.status === 'waiting'
+                    ? 'Waiting...'
+                    : player2?.is_bot
+                    ? player2?.bot_name
+                    : player2?.profiles?.username || 'Player 2'
+                  }
+                </div>
+                {player2 && !player2?.is_bot && (
+                  <div className="flex items-center gap-2 mt-1 text-xs text-white/60">
+                    <span>Lvl 12</span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                      <Trophy size={12} className="text-yellow-500" />
+                      25 wins
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Statistiques */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-black/30 rounded-lg p-2">
+                <div className="text-white/50 text-[10px] sm:text-xs mb-0.5">Valeur unboxée</div>
+                <div className="text-green-500 text-base sm:text-xl font-bold flex items-center gap-1">
+                  <Coins size={14} />
+                  <span className="truncate">{player2Results.reduce((sum, r) => sum + r.item.market_value, 0).toFixed(2)}</span>
+                </div>
+              </div>
+              <div className="bg-black/30 rounded-lg p-2">
+                <div className="text-white/50 text-[10px] sm:text-xs mb-0.5">Meilleur item</div>
+                <div className="text-yellow-500 text-base sm:text-xl font-bold flex items-center gap-1">
+                  <Coins size={14} />
+                  <span className="truncate">
+                    {player2Results.length > 0
+                      ? Math.max(...player2Results.map(r => r.item.market_value)).toFixed(2)
+                      : '0.00'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+          </motion.div>
+        </div>
+
+        {/* Loot List pour chaque joueur - sous les stats */}
+        {isOpening && (
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            {/* Player 1 Loot List */}
+            <div className="bg-white/5 backdrop-blur-md rounded-xl p-4 border border-blue-500/30">
+              <div className="text-blue-400 text-sm font-semibold mb-3 flex items-center gap-2">
+                <Trophy size={16} />
+                Items de {player1?.profiles?.username || player1?.bot_name || 'Player 1'}
+              </div>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {player1Results.length === 0 ? (
+                  <div className="text-white/40 text-center py-8 text-sm">Aucun item pour le moment...</div>
+                ) : (
+                  player1Results.map((result, idx) => (
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.1 }}
+                      className={`flex items-center gap-3 bg-black/30 rounded-lg p-2 border ${getRarityColor(result.item.rarity)}`}
+                    >
+                      <img
+                        src={result.item.image_url}
+                        alt={result.item.name}
+                        className="w-12 h-12 object-contain"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-white text-sm font-medium truncate">{result.item.name}</div>
+                        <div className="text-white/60 text-xs capitalize">{result.item.rarity}</div>
+                      </div>
+                      <div className="text-green-500 font-bold text-sm flex items-center gap-1 whitespace-nowrap">
+                        <Coins size={14} />
+                        {result.item.market_value.toFixed(2)}
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Player 2 Loot List */}
+            <div className="bg-white/5 backdrop-blur-md rounded-xl p-4 border border-red-500/30">
+              <div className="text-red-400 text-sm font-semibold mb-3 flex items-center gap-2">
+                <Trophy size={16} />
+                Items de {player2?.profiles?.username || player2?.bot_name || 'Player 2'}
+              </div>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {player2Results.length === 0 ? (
+                  <div className="text-white/40 text-center py-8 text-sm">Aucun item pour le moment...</div>
+                ) : (
+                  player2Results.map((result, idx) => (
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.1 }}
+                      className={`flex items-center gap-3 bg-black/30 rounded-lg p-2 border ${getRarityColor(result.item.rarity)}`}
+                    >
+                      <img
+                        src={result.item.image_url}
+                        alt={result.item.name}
+                        className="w-12 h-12 object-contain"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-white text-sm font-medium truncate">{result.item.name}</div>
+                        <div className="text-white/60 text-xs capitalize">{result.item.rarity}</div>
+                      </div>
+                      <div className="text-green-500 font-bold text-sm flex items-center gap-1 whitespace-nowrap">
+                        <Coins size={14} />
+                        {result.item.market_value.toFixed(2)}
+                      </div>
+                    </motion.div>
+                  ))
+                )}
               </div>
             </div>
           </div>
-        ) : battle.participants.length === 4 ? (
-          /* 2v2 Layout */
-          <div>
-            <div className="grid grid-cols-2 gap-8 mb-8">
-              <PlayerCard 
-                participant={battle.participants[0]} 
-                position="left"
-                isCurrentUser={user ? battle.participants[0].user_id === user.id : false}
-                currentRound={currentRound}
-                rouletteItems={showRoulette ? rouletteItems : []}
-                winningItem={winningItems.get(battle.participants[0].id) || null}
-                isSpinning={isSpinning}
-              />
-              <PlayerCard 
-                participant={battle.participants[1]} 
-                position="right"
-                isCurrentUser={user ? battle.participants[1].user_id === user.id : false}
-                currentRound={currentRound}
-                rouletteItems={showRoulette ? rouletteItems : []}
-                winningItem={winningItems.get(battle.participants[1].id) || null}
-                isSpinning={isSpinning}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-8">
-              <PlayerCard 
-                participant={battle.participants[2]} 
-                position="left"
-                isCurrentUser={user ? battle.participants[2].user_id === user.id : false}
-                currentRound={currentRound}
-                rouletteItems={showRoulette ? rouletteItems : []}
-                winningItem={winningItems.get(battle.participants[2].id) || null}
-                isSpinning={isSpinning}
-              />
-              <PlayerCard 
-                participant={battle.participants[3]} 
-                position="right"
-                isCurrentUser={user ? battle.participants[3].user_id === user.id : false}
-                currentRound={currentRound}
-                rouletteItems={showRoulette ? rouletteItems : []}
-                winningItem={winningItems.get(battle.participants[3].id) || null}
-                isSpinning={isSpinning}
-              />
-            </div>
-          </div>
-        ) : (
-          /* Waiting for players */
+        )}
+
+        {/* Battle Progress */}
+        {isOpening && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center py-20"
+            className="mb-6 bg-white/5 backdrop-blur-md rounded-xl p-4 border border-white/10"
           >
-            <div className="bg-gradient-to-br from-blue-600/20 to-purple-600/20 backdrop-blur-sm rounded-2xl p-12 max-w-2xl mx-auto border-2 border-blue-500/50">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-white/60 text-sm">Opening Progress</span>
+              <span className="text-white font-semibold">
+                Box {currentBoxIndex + 1} / {battle.battle_boxes.length}
+              </span>
+            </div>
+            <div className="w-full bg-black/30 rounded-full h-2 overflow-hidden">
               <motion.div
+                className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
+                initial={{ width: '0%' }}
                 animate={{
-                  scale: [1, 1.1, 1],
-                  rotate: [0, 5, -5, 0],
+                  width: `${((currentBoxIndex) / battle.battle_boxes.length) * 100}%`
                 }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-                className="mb-6"
-              >
-                <Users className="w-20 h-20 text-blue-400 mx-auto" />
-              </motion.div>
-              
-              <div className="text-yellow-400 font-black text-3xl mb-4">
-                Waiting for Players...
-              </div>
-              
-              <div className="text-white/80 text-lg mb-3">
-                {battle.participants.length}/{battle.max_players} Players Joined
-              </div>
-              
-              <div className="text-white/60">
-                {battle.max_players - battle.participants.length} more player{battle.max_players - battle.participants.length !== 1 ? 's' : ''} needed to start
-              </div>
-
-              {/* Progress Bar */}
-              <div className="mt-6 bg-white/10 rounded-full h-3 overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ 
-                    width: `${(battle.participants.length / battle.max_players) * 100}%` 
-                  }}
-                  transition={{ duration: 0.5, ease: "easeOut" }}
-                  className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
-                />
-              </div>
+                transition={{ duration: 0.5 }}
+              />
             </div>
           </motion.div>
         )}
-      </div>
 
-      {/* Status Bar */}
-      <motion.div 
-        initial={{ y: 100 }}
-        animate={{ y: 0 }}
-        className="fixed bottom-0 left-0 right-0 bg-slate-900/90 backdrop-blur-xl border-t border-white/10 z-20"
-      >
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-white/60">Status:</span>
-            <span className={`font-bold ${
-              battle.status === 'waiting' ? 'text-yellow-400' :
-              battle.status === 'countdown' ? 'text-orange-400' :
-              battle.status === 'active' ? 'text-green-400' :
-              battle.status === 'finished' ? 'text-blue-400' : 'text-white/60'
-            }`}>
-              {battle.status === 'waiting' ? 'WAITING' :
-               battle.status === 'countdown' ? 'STARTING' :
-               battle.status === 'active' ? 'ACTIVE' :
-               battle.status === 'finished' ? 'FINISHED' : battle.status.toUpperCase()}
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-white/60">Mode:</span>
-            <span className="text-blue-400 font-bold">{MODE_LABELS[battle.mode].toUpperCase()}</span>
-          </div>
-          
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-white/60">Players:</span>
-            <span className="text-white font-bold">{battle.participants.length}/{battle.max_players}</span>
-          </div>
-        </div>
-      </motion.div>
+        {/* Wheels */}
+        {isOpening && battle.battle_boxes.length > 0 && currentBoxIndex < battle.battle_boxes.length && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="grid grid-cols-2 gap-4 mb-6"
+          >
+            <BattleWheel
+              lootBoxId={battle.battle_boxes[currentBoxIndex]?.loot_box?.id}
+              winningItem={currentPlayer1Result?.item || null}
+              onFinish={onWheel1Finish}
+              isSpinning={isWheel1Spinning}
+              playerSide="left"
+            />
+            <BattleWheel
+              lootBoxId={battle.battle_boxes[currentBoxIndex]?.loot_box?.id}
+              winningItem={currentPlayer2Result?.item || null}
+              onFinish={onWheel2Finish}
+              isSpinning={isWheel2Spinning}
+              playerSide="right"
+            />
+          </motion.div>
+        )}
+
+        {/* Results Modal - Design épuré et professionnel */}
+        <AnimatePresence>
+          {showResults && winner && (() => {
+            const winningPlayer = winner === 'player1' ? player1 : player2
+            // CORRECTION: Afficher TOUS les items de la battle, pas seulement ceux du gagnant
+            const allBattleItems = [...player1Results, ...player2Results]
+            const winnerName = winningPlayer?.is_bot
+              ? winningPlayer?.bot_name
+              : winningPlayer?.profiles?.username
+
+            // Avatar par défaut pour les bots
+            const DEFAULT_BOT_AVATAR = '/images/bot-avatar.svg'
+            const winnerAvatar = winningPlayer?.is_bot
+              ? DEFAULT_BOT_AVATAR
+              : winningPlayer?.profiles?.avatar_url
+
+            // Calculer la valeur totale de TOUS les items
+            const totalValue = allBattleItems.reduce((sum, r) => sum + r.item.market_value, 0)
+
+            return (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 flex items-center justify-center z-50 bg-black/60 backdrop-blur-sm p-4"
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                  className="bg-white dark:bg-gray-900 rounded-2xl p-6 max-w-3xl w-full shadow-2xl relative"
+                >
+                  {/* Bouton de fermeture */}
+                  <button
+                    onClick={() => setShowResults(false)}
+                    className="absolute top-4 right-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                  >
+                    <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                  </button>
+
+                  {/* Header simple */}
+                  <div className="text-center mb-6">
+                    <Trophy className="w-16 h-16 text-green-500 mx-auto mb-3" />
+                    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                      Victoire !
+                    </h2>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">
+                      Battle terminée
+                    </p>
+                  </div>
+
+                  {/* Gagnant */}
+                  <div className="flex items-center justify-center gap-4 mb-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                    <img
+                      src={winnerAvatar || DEFAULT_BOT_AVATAR}
+                      alt={winnerName || 'Winner'}
+                      className="w-16 h-16 rounded-full border-2 border-green-500 object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = DEFAULT_BOT_AVATAR
+                      }}
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Gagnant</p>
+                      <p className="text-xl font-bold text-gray-900 dark:text-white">{winnerName}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Valeur totale</p>
+                      <div className="flex items-center gap-2">
+                        <Coins className="w-5 h-5 text-green-500" />
+                        <span className="text-xl font-bold text-green-500">
+                          {totalValue.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tous les items de la battle */}
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                      Objets de la battle ({allBattleItems.length})
+                    </h3>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
+                      {allBattleItems.map((result, index) => (
+                        <div
+                          key={index}
+                          className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-2 border border-gray-200 dark:border-gray-700 hover:border-green-500 dark:hover:border-green-500 transition-colors"
+                        >
+                          <img
+                            src={result.item.image_url}
+                            alt={result.item.name}
+                            className="w-full h-16 object-contain mb-2"
+                          />
+                          <p className="text-xs text-gray-600 dark:text-gray-400 truncate text-center mb-1">
+                            {result.item.name}
+                          </p>
+                          <div className="flex items-center justify-center gap-1">
+                            <Coins className="w-3 h-3 text-green-500" />
+                            <span className="text-xs font-semibold text-green-500">
+                              {result.item.market_value.toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Boutons d'action */}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={replayBattle}
+                      className="flex-1 px-4 py-3 bg-blue-500 text-white font-semibold rounded-xl hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                    >
+                      🔄 Rejouer
+                    </button>
+                    <button
+                      onClick={() => router.push('/battles')}
+                      className="flex-1 px-4 py-3 bg-green-500 text-white font-semibold rounded-xl hover:bg-green-600 transition-colors"
+                    >
+                      Retour aux battles
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )
+          })()}
+        </AnimatePresence>
+      </div>
     </div>
   )
 }

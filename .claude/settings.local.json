@@ -10,7 +10,20 @@
       "mcp__supabase__execute_sql",
       "Bash(npm run lint:*)",
       "Bash(git checkout:*)",
-      "mcp__supabase__list_tables"
+      "mcp__supabase__list_tables",
+      "Bash(dir:*)",
+      "Bash(timeout:*)",
+      "Bash(nul)",
+      "Bash(npx eslint:*)",
+      "Bash(mkdir:*)",
+      "Bash(npm run dev:*)",
+      "mcp__supabase-mcp__get_table_schema",
+      "mcp__supabase__apply_migration",
+      "Bash(cat:*)",
+      "Bash(for file in app/utils/*)",
+      "Bash(do echo \"[$file]\")",
+      "Bash(done)",
+      "Bash(git add:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -214,18 +214,18 @@ export function useMinesGame() {
     }
   }
 
-  const cashOut = async (): Promise<boolean> => {
+  const cashOut = async (): Promise<CashOutResponse | null> => {
     if (!currentGame || currentGame.status !== 'in_progress') {
-      return false
+      return null
     }
 
     if (currentGame.boxes_revealed === 0) {
       toast.error('Vous devez révéler au moins une boîte avant d\'encaisser')
-      return false
+      return null
     }
 
     setLoading(true)
-    
+
     try {
       const { data, error } = await supabase.rpc('cash_out_mines_game', {
         p_game_id: currentGame.id
@@ -234,31 +234,31 @@ export function useMinesGame() {
       if (error) throw error
 
       const response = data as CashOutResponse
-      
+
       if (response.success) {
         await refreshBalance()
         await loadGameHistory()
-        
+
         // Recharger la partie pour avoir le statut à jour
         const { data: gameData } = await supabase
           .from('mines_games')
           .select('*')
           .eq('id', currentGame.id)
           .single()
-        
+
         if (gameData) {
           setCurrentGame(gameData as MinesGameState)
         }
-        
+
         toast.success(`🏆 Vous avez encaissé ${response.win_amount.toFixed(2)} coins ! (Profit: +${response.profit.toFixed(2)})`)
-        return true
+        return response
       }
-      
-      return false
+
+      return null
     } catch (error: any) {
       console.error('Error cashing out:', error)
       toast.error(error.message || 'Erreur lors de l\'encaissement')
-      return false
+      return null
     } finally {
       setLoading(false)
     }
@@ -274,6 +274,9 @@ export function useMinesGame() {
     return Math.pow(baseMultiplier, revealed)
   }
 
+  // Calculer le gameState basé sur currentGame
+  const gameState = currentGame?.status === 'in_progress' ? 'playing' : 'idle'
+
   return {
     // État
     user,
@@ -281,14 +284,15 @@ export function useMinesGame() {
     currentGame,
     gameHistory,
     loading,
-    
+    gameState,
+
     // Actions
     startGame,
     revealBox,
     cashOut,
     resetGame,
     refreshBalance,
-    
+
     // Utilitaires
     calculateMultiplier
   }
