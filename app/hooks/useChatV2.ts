@@ -1,6 +1,56 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase-chat'
-import type { Message, Profile, TypingUser, Room, ChatState } from '@/app/components/chat/v2/types'
+
+// Types
+interface Profile {
+  id: string
+  username: string
+  avatar_url?: string
+  level?: number
+  is_admin?: boolean
+  is_banned?: boolean
+  total_exp?: number
+}
+
+interface Message {
+  id: string
+  content: string
+  user_id: string
+  room_id?: string
+  created_at: string
+  updated_at?: string
+  deleted_at?: string | null
+  reply_to_id?: string | null
+  message_type?: string
+  tempId?: string
+  isPending?: boolean
+  profiles?: Profile
+}
+
+interface TypingUser {
+  user_id: string
+  username: string
+  timestamp: number
+}
+
+interface Room {
+  id: string
+  name: string
+  description?: string
+  is_active: boolean
+  created_at: string
+}
+
+interface ChatState {
+  messages: Message[]
+  users: Profile[]
+  typingUsers: TypingUser[]
+  activeRoom: Room | null
+  loading: boolean
+  error: string | null
+  hasMore: boolean
+  page: number
+}
 
 const MESSAGES_PER_PAGE = 50
 const TYPING_TIMEOUT = 3000
@@ -37,7 +87,7 @@ export const useChatV2 = (roomId?: string) => {
         return null
       }
 
-      setState(prev => ({ ...prev, activeRoom: rooms[0] }))
+      setState((prev: ChatState) => ({ ...prev, activeRoom: rooms[0] }))
       return rooms[0].id
     } catch (error) {
       console.error('Erreur getDefaultRoomId:', error)
@@ -51,7 +101,7 @@ export const useChatV2 = (roomId?: string) => {
     isLoadingRef.current = true
 
     try {
-      setState(prev => ({ ...prev, loading: true, error: null }))
+      setState((prev: ChatState) => ({ ...prev, loading: true, error: null }))
 
       const activeRoomId = roomId || await getDefaultRoomId()
       if (!activeRoomId) {
@@ -72,7 +122,7 @@ export const useChatV2 = (roomId?: string) => {
       if (messagesError) throw messagesError
 
       if (!messages || messages.length === 0) {
-        setState(prev => ({
+        setState((prev: ChatState) => ({
           ...prev,
           loading: false,
           hasMore: false,

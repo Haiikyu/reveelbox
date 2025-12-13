@@ -23,7 +23,8 @@
       "Bash(for file in app/utils/*)",
       "Bash(do echo \"[$file]\")",
       "Bash(done)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

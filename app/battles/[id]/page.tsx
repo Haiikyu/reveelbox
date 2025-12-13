@@ -49,6 +49,7 @@ interface BattleParticipant {
 
 interface Battle {
   id: string
+  name?: string
   mode: string
   status: string
   max_players: number

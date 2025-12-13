@@ -115,7 +115,9 @@ export default function ReveelBoxNavbar() {
       if (error) throw error
       
       const pins = (data || [])
-        .filter(item => item.shop_pins)
+        .filter((item): item is typeof item & { shop_pins: { id: any; svg_code: any } } =>
+          item.shop_pins !== null && !Array.isArray(item.shop_pins)
+        )
         .map(item => ({
           id: item.shop_pins.id,
           svg_code: item.shop_pins.svg_code
@@ -147,9 +149,10 @@ export default function ReveelBoxNavbar() {
         setAvatarFrame(null)
         return
       }
-      
-      if (data?.shop_frames?.svg_code) {
-        setAvatarFrame(data.shop_frames.svg_code)
+
+      const shopFrames = data?.shop_frames as unknown as { svg_code: string } | null | undefined
+      if (shopFrames && !Array.isArray(shopFrames) && shopFrames.svg_code) {
+        setAvatarFrame(shopFrames.svg_code)
       }
     } catch (error) {
       setAvatarFrame(null)
@@ -176,9 +179,10 @@ export default function ReveelBoxNavbar() {
         setBannerSvg(null)
         return
       }
-      
-      if (data?.shop_banners?.svg_code) {
-        setBannerSvg(data.shop_banners.svg_code)
+
+      const shopBanners = data?.shop_banners as unknown as { svg_code: string } | null | undefined
+      if (shopBanners && !Array.isArray(shopBanners) && shopBanners.svg_code) {
+        setBannerSvg(shopBanners.svg_code)
       }
     } catch (error) {
       setBannerSvg(null)
@@ -190,8 +194,8 @@ export default function ReveelBoxNavbar() {
     
     try {
       // Calculer le rang en temps réel en comptant combien de joueurs ont plus de coins dépensés
-      const userCoins = profile.total_coins_spent || 0
-      
+      const userCoins = (profile as any).total_coins_spent || 0
+
       const { count, error } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
@@ -741,7 +745,7 @@ export default function ReveelBoxNavbar() {
                                     
                                     <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-lg min-w-[60px] justify-center">
                                       <span className="text-sm">😊</span>
-                                      <span className="font-bold text-white text-sm">{profile?.recommendations_count || 0}</span>
+                                      <span className="font-bold text-white text-sm">{(profile as any)?.recommendations_count || 0}</span>
                                     </div>
                                     
                                     <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-lg min-w-[60px] justify-center">
@@ -780,7 +784,7 @@ export default function ReveelBoxNavbar() {
                                   className="w-4 h-4"
                                 />
                                 <span className="text-xs text-gray-300">
-                                  <span className="font-black text-[#4578be]">{(profile?.total_coins_spent || 0).toLocaleString()}</span> coins joués
+                                  <span className="font-black text-[#4578be]">{((profile as any)?.total_coins_spent || 0).toLocaleString()}</span> coins joués
                                 </span>
                               </div>
                             </div>

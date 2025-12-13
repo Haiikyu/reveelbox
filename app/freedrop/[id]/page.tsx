@@ -140,9 +140,11 @@ export default function FreedropOpeningPage() {
         const status = await freedropService.checkClaimStatus(user.id, box.id)
         setClaimStatus(status)
 
-        if (!status.can_claim && status.already_claimed_today) {
+        if (!status) {
+          setPageState('error')
+        } else if (!status.can_claim && status.already_claimed) {
           setPageState('already_claimed')
-        } else if (!status.can_claim && !status.level_sufficient) {
+        } else if (!status.can_claim && !status.has_level) {
           setPageState('access_denied')
         } else {
           setPageState('ready')
@@ -201,12 +203,11 @@ export default function FreedropOpeningPage() {
   }
 
   const handleSecureClaim = async () => {
-    if (!user?.id || !box || isSpinning) return
+    if (!user?.id || !box || isSpinning || !winningItem) return
     try {
       setIsSpinning(true)
-      const result = await freedropService.claimBox(user.id, box.id)
-      if (result.success && result.item) {
-        setWinningItem(result.item)
+      const result = await freedropService.claimFreedrop(user.id, box.id, winningItem.id)
+      if (result.success) {
         setTimeout(() => {
           setIsSpinning(false)
           setShowResult(true)
@@ -556,7 +557,7 @@ export default function FreedropOpeningPage() {
                 <div className="flex-1 flex items-end justify-center pb-4">
                   <FreedropButtons
                     canClaim={claimStatus?.can_claim || false}
-                    alreadyClaimed={claimStatus?.already_claimed_today || false}
+                    alreadyClaimed={claimStatus?.already_claimed || false}
                     requiredLevel={box.required_level}
                     userLevel={profile?.level || 1}
                     onClaimBox={handleSecureClaim}

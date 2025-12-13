@@ -138,73 +138,66 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                   {messages.map((msg) => (
                     <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative">
                       <div className="relative rounded-xl overflow-hidden">
-                        {/* Bannière en background */}
+                        {/* Bannière VISIBLE */}
                         {msg.banner_svg && (
-                          <div className="absolute inset-0 opacity-40" dangerouslySetInnerHTML={{ __html: msg.banner_svg }} />
+                          <div className="absolute inset-0 opacity-60" dangerouslySetInnerHTML={{ __html: msg.banner_svg }} />
                         )}
-                        <div className="absolute inset-0 bg-gradient-to-r from-gray-800/90 to-gray-800/80" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-gray-800/85 to-gray-800/75" />
+
+                        {/* PINS EN POSITION ABSOLUTE - Haut droite */}
+                        {(msg.pins || []).length > 0 && (
+                          <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
+                            {(msg.pins || []).slice(0, 4).map((pin, i) => (
+                              <div 
+                                key={i}
+                                className="w-5 h-5 flex-shrink-0 bg-gray-900/50 rounded p-0.5"
+                              >
+                                <div 
+                                  className="w-full h-full"
+                                  dangerouslySetInnerHTML={{ __html: pin.svg_code }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        )}
 
                         {/* Contenu */}
                         <div className="relative flex gap-3 p-3">
-                          {/* Avatar */}
-                          <div className="relative flex-shrink-0">
-                            <div className={`h-10 w-10 rounded-lg overflow-hidden ${msg.frame_svg ? '' : 'border-2 border-gray-600'}`}>
-                              {msg.avatar_url ? (
-                                <img src={msg.avatar_url} alt="" className="h-full w-full object-cover" />
-                              ) : (
-                                <div className="h-full w-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center text-white text-sm font-bold">
-                                  {msg.username?.[0]?.toUpperCase() || '?'}
-                                </div>
+                          {/* Colonne gauche : Avatar + Niveau */}
+                          <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                            {/* Avatar avec cadre */}
+                            <div className="relative">
+                              <div className={`h-10 w-10 rounded-lg overflow-hidden ${msg.frame_svg ? '' : 'border-2 border-gray-600'}`}>
+                                {msg.avatar_url ? (
+                                  <img src={msg.avatar_url} alt="" className="h-full w-full object-cover" />
+                                ) : (
+                                  <div className="h-full w-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center text-white text-sm font-bold">
+                                    {msg.username?.[0]?.toUpperCase() || '?'}
+                                  </div>
+                                )}
+                              </div>
+                              {msg.frame_svg && (
+                                <div className="absolute pointer-events-none" style={{ top: '-2px', left: '-2px', width: '44px', height: '44px' }} dangerouslySetInnerHTML={{ __html: msg.frame_svg }} />
                               )}
                             </div>
-                            {msg.frame_svg && (
-                              <div className="absolute pointer-events-none" style={{ top: '-2px', left: '-2px', width: '44px', height: '44px' }} dangerouslySetInnerHTML={{ __html: msg.frame_svg }} />
-                            )}
+                            
+                            {/* Niveau sous l'avatar */}
+                            <span className="text-[9px] bg-[#4578be]/30 text-[#4578be] px-1.5 py-0.5 rounded font-bold whitespace-nowrap">
+                              Niv.{msg.level || 1}
+                            </span>
                           </div>
 
-                          {/* Message */}
-                          <div className="flex-1 min-w-0">
-                            {/* Ligne 1 : Pseudo + Pins + Badges + Time */}
-                            <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                          {/* Colonne droite : Pseudo + Message */}
+                          <div className="flex-1 min-w-0 pr-24">
+                            {/* Ligne 1 : Pseudo + Badges + Time */}
+                            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                               {/* Pseudo */}
                               <span className={`font-bold text-sm ${msg.is_admin ? 'text-red-400' : 'text-white'}`}>
                                 {msg.username || 'Anonyme'}
                               </span>
                               
-                              {/* Pins - Taille fixe 16px avec img wrapper */}
-                              {(msg.pins || []).length > 0 && (
-                                <div className="flex items-center gap-1">
-                                  {(msg.pins || []).slice(0, 4).map((pin, i) => (
-                                    <div 
-                                      key={i} 
-                                      className="flex-shrink-0 inline-block"
-                                      style={{ 
-                                        width: '16px', 
-                                        height: '16px',
-                                        lineHeight: 0
-                                      }}
-                                    >
-                                      <div 
-                                        className="w-full h-full"
-                                        dangerouslySetInnerHTML={{ __html: pin.svg_code }}
-                                        style={{
-                                          display: 'block',
-                                          maxWidth: '16px',
-                                          maxHeight: '16px'
-                                        }}
-                                      />
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                              
                               {/* Badge admin */}
                               {msg.is_admin && <Shield className="h-3 w-3 text-red-400" />}
-                              
-                              {/* Niveau */}
-                              <span className="text-[10px] bg-[#4578be]/20 text-[#4578be] px-1.5 py-0.5 rounded-full font-bold">
-                                Niv.{msg.level || 1}
-                              </span>
                               
                               {/* Timestamp */}
                               <span className="text-[10px] text-gray-500 ml-auto">

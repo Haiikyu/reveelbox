@@ -12,7 +12,7 @@ interface HeroTransitionProps {
 const DURATION = 0.9 // 900ms
 
 // Easing premium
-const EASE = [0.65, 0, 0.35, 1] // easeInOutCubic
+const EASE: [number, number, number, number] = [0.65, 0, 0.35, 1] // easeInOutCubic
 
 // 🎬 Hero - Sort progressivement
 const heroVariants: Variants = {

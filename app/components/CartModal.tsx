@@ -180,11 +180,6 @@ export default function CartModal({
                       onClick={() => onSelectItem(item.id)}
                       className={`p-3 rounded-xl border-2 transition-all cursor-pointer ${
                         selectedItems.includes(item.id)
-                          ? 'bg-opacity-10'
-                          : 'hover:border-gray-300 dark:hover:border-gray-700 bg-gray-50 dark:bg-gray-800/30'
-                      }`}
-                      className={`p-3 rounded-xl border-2 transition-all cursor-pointer ${
-                        selectedItems.includes(item.id)
                           ? 'bg-[#4578be]/10 border-[#4578be]'
                           : 'hover:border-gray-300 dark:hover:border-gray-600 bg-gray-50 dark:bg-gray-700/30 border-gray-200 dark:border-gray-700/50'
                       }`}
@@ -202,7 +197,7 @@ export default function CartModal({
                           <p className="text-sm text-gray-500 dark:text-gray-400">x{item.quantity}</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-black" className="text-[#4578be]">
+                          <p className="font-black text-[#4578be]">
                             {(item.market_value * item.quantity).toLocaleString()} coins
                           </p>
                         </div>

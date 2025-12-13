@@ -92,16 +92,16 @@ export default function CreateCoinflipPage() {
             src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
             alt="coin"
             initial={{
-              x: Math.random() * window.innerWidth,
+              x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1920),
               y: -50,
               rotate: Math.random() * 360,
               opacity: 0.3,
               scale: 0.3 + Math.random() * 0.4
             }}
             animate={{
-              y: window.innerHeight + 50,
+              y: (typeof window !== 'undefined' ? window.innerHeight : 1080) + 50,
               rotate: Math.random() * 720,
-              x: Math.random() * window.innerWidth
+              x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1920)
             }}
             transition={{
               duration: 8 + Math.random() * 4,

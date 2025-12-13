@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 interface UpgradeAnimationProps {
   item: {
     name: string
-    image_url: string
+    image_url?: string
     market_value: number
     rarity: string
   }
