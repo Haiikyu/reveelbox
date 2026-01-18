@@ -105,7 +105,8 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+            className="fixed inset-0 bg-black/50 lg:hidden"
+            style={{ zIndex: 9998 }}
           />
 
           {/* Panel */}
@@ -114,7 +115,8 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed top-0 right-0 h-screen w-full lg:w-[400px] bg-gray-900 shadow-2xl z-50 flex flex-col"
+            className="fixed top-0 right-0 h-screen w-full lg:w-[400px] bg-gray-900 shadow-2xl flex flex-col"
+            style={{ zIndex: 9999 }}
           >
             {/* Header */}
             <div className="bg-gray-800 p-4 flex items-center justify-between border-b border-gray-700">
@@ -138,28 +140,11 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                   {messages.map((msg) => (
                     <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative">
                       <div className="relative rounded-xl overflow-hidden">
-                        {/* Bannière VISIBLE */}
+                        {/* Bannière TRÈS VISIBLE */}
                         {msg.banner_svg && (
-                          <div className="absolute inset-0 opacity-60" dangerouslySetInnerHTML={{ __html: msg.banner_svg }} />
+                          <div className="absolute inset-0 opacity-75" dangerouslySetInnerHTML={{ __html: msg.banner_svg }} />
                         )}
-                        <div className="absolute inset-0 bg-gradient-to-r from-gray-800/85 to-gray-800/75" />
-
-                        {/* PINS EN POSITION ABSOLUTE - Haut droite */}
-                        {(msg.pins || []).length > 0 && (
-                          <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
-                            {(msg.pins || []).slice(0, 4).map((pin, i) => (
-                              <div 
-                                key={i}
-                                className="w-5 h-5 flex-shrink-0 bg-gray-900/50 rounded p-0.5"
-                              >
-                                <div 
-                                  className="w-full h-full"
-                                  dangerouslySetInnerHTML={{ __html: pin.svg_code }}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        <div className="absolute inset-0 bg-gradient-to-r from-gray-800/80 to-gray-800/70" />
 
                         {/* Contenu */}
                         <div className="relative flex gap-3 p-3">
@@ -187,10 +172,10 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                             </span>
                           </div>
 
-                          {/* Colonne droite : Pseudo + Message */}
-                          <div className="flex-1 min-w-0 pr-24">
+                          {/* Colonne droite : Pseudo + Pins + Message */}
+                          <div className="flex-1 min-w-0">
                             {/* Ligne 1 : Pseudo + Badges + Time */}
-                            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
                               {/* Pseudo */}
                               <span className={`font-bold text-sm ${msg.is_admin ? 'text-red-400' : 'text-white'}`}>
                                 {msg.username || 'Anonyme'}
@@ -199,13 +184,59 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                               {/* Badge admin */}
                               {msg.is_admin && <Shield className="h-3 w-3 text-red-400" />}
                               
-                              {/* Timestamp */}
-                              <span className="text-[10px] text-gray-500 ml-auto">
-                                {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: fr })}
-                              </span>
+                              {/* Timestamp - N'affiche RIEN si < 1 minute */}
+                              {(() => {
+                                const messageDate = new Date(msg.created_at)
+                                const now = new Date()
+                                const diffInSeconds = Math.floor((now.getTime() - messageDate.getTime()) / 1000)
+                                
+                                if (diffInSeconds < 60) {
+                                  return null // N'affiche RIEN
+                                }
+                                
+                                return (
+                                  <span className="text-[10px] text-gray-500 ml-auto">
+                                    {formatDistanceToNow(messageDate, { addSuffix: true, locale: fr })}
+                                  </span>
+                                )
+                              })()}
                             </div>
                             
-                            {/* Ligne 2 : Message */}
+                            {/* Ligne 2 : PINS entre pseudo et message */}
+                            {(msg.pins || []).length > 0 && (
+                              <div className="flex items-center gap-1 mb-2">
+                                {(msg.pins || []).slice(0, 4).map((pin, i) => (
+                                  <div 
+                                    key={i}
+                                    className="bg-gray-900/70 rounded border border-gray-700"
+                                    style={{ 
+                                      width: '22px',
+                                      height: '22px',
+                                      padding: '2px',
+                                      overflow: 'hidden',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center'
+                                    }}
+                                  >
+                                    <div 
+                                      style={{
+                                        width: '18px',
+                                        height: '18px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transform: 'scale(0.9)',
+                                        transformOrigin: 'center'
+                                      }}
+                                      dangerouslySetInnerHTML={{ __html: pin.svg_code }}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            
+                            {/* Ligne 3 : Message */}
                             <p className="text-gray-200 text-sm break-words leading-relaxed">
                               {msg.message}
                             </p>
@@ -226,16 +257,31 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                   type="text"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder={user ? "Message..." : "Connectez-vous"}
-                  disabled={!user || sending}
-                  className="flex-1 bg-gray-700/50 text-white px-3 py-2 rounded-lg text-sm border border-gray-600 focus:border-[#4578be] focus:outline-none disabled:opacity-50"
-                  maxLength={500}
+                  placeholder={
+                    !user 
+                      ? "Connectez-vous" 
+                      : (profile?.level || 1) < 2 
+                        ? "🔒 Niveau 2 requis"
+                        : "Message..."
+                  }
+                  disabled={!user || sending || (profile?.level || 1) < 2}
+                  className="flex-1 bg-gray-700/50 text-white px-3 py-2 rounded-lg text-sm border border-gray-600 focus:border-[#4578be] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                  maxLength={200}
                 />
-                <button type="submit" disabled={!user || !newMessage.trim() || sending} className="bg-[#4578be] text-white px-4 py-2 rounded-lg hover:bg-[#5989d8] transition-all disabled:opacity-50">
+                <button 
+                  type="submit" 
+                  disabled={!user || !newMessage.trim() || sending || (profile?.level || 1) < 2} 
+                  className="bg-[#4578be] text-white px-4 py-2 rounded-lg hover:bg-[#5989d8] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </button>
               </div>
-              <p className="text-[10px] text-gray-500 mt-1">{newMessage.length}/500</p>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-[10px] text-gray-500">{newMessage.length}/200</p>
+                {user && (profile?.level || 1) < 2 && (
+                  <p className="text-[10px] text-yellow-500">⚠️ Atteignez le niveau 2 pour discuter</p>
+                )}
+              </div>
             </form>
           </motion.div>
         </>

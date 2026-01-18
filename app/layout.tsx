@@ -7,7 +7,6 @@ import { AuthProvider } from './components/AuthProvider'
 import { ThemeProvider } from './components/ThemeProvider'
 import { Providers } from './providers'
 import { NotificationProvider } from './components/ui/NotificationSystem'
-import './styles/chat.css'
 import LayoutContent from './components/LayoutContent'
 
 

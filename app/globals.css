@@ -1276,3 +1276,13 @@ html:not(.dark):not(.light) {
   font-weight: bold;
   box-shadow: 0 2px 4px rgba(224, 176, 0, 0.4);
 }
+
+/* Hide scrollbar for drag-to-scroll */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

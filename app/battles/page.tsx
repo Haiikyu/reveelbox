@@ -55,13 +55,13 @@ interface Battle {
 }
 
 const MODE_CONFIGS = {
-  classic: { icon: Crown, label: 'Classic', color: 'text-blue-500', darkColor: 'dark:text-blue-400' },
-  crazy: { icon: Zap, label: 'Crazy', color: 'text-purple-500', darkColor: 'dark:text-purple-400' },
-  shared: { icon: Users, label: 'Shared', color: 'text-green-500', darkColor: 'dark:text-green-400' },
-  fast: { icon: Trophy, label: 'Fast', color: 'text-orange-500', darkColor: 'dark:text-orange-400' },
-  jackpot: { icon: Target, label: 'Jackpot', color: 'text-yellow-500', darkColor: 'dark:text-yellow-400' },
-  terminal: { icon: Star, label: 'Terminal', color: 'text-red-500', darkColor: 'dark:text-red-400' },
-  clutch: { icon: Shield, label: 'Clutch', color: 'text-pink-500', darkColor: 'dark:text-pink-400' }
+  classic: { icon: Crown, label: 'Classic', color: 'text-blue-500', darkColor: 'dark:text-blue-400', hexColor: '#3b82f6' },
+  crazy: { icon: Zap, label: 'Crazy', color: 'text-purple-500', darkColor: 'dark:text-purple-400', hexColor: '#a855f7' },
+  shared: { icon: Users, label: 'Shared', color: 'text-green-500', darkColor: 'dark:text-green-400', hexColor: '#22c55e' },
+  fast: { icon: Trophy, label: 'Fast', color: 'text-orange-500', darkColor: 'dark:text-orange-400', hexColor: '#f97316' },
+  jackpot: { icon: Target, label: 'Jackpot', color: 'text-yellow-500', darkColor: 'dark:text-yellow-400', hexColor: '#eab308' },
+  terminal: { icon: Star, label: 'Terminal', color: 'text-red-500', darkColor: 'dark:text-red-400', hexColor: '#ef4444' },
+  clutch: { icon: Shield, label: 'Clutch', color: 'text-pink-500', darkColor: 'dark:text-pink-400', hexColor: '#ec4899' }
 }
 
 const getHexagonPoints = (x: number, y: number, size: number) => {
@@ -583,11 +583,16 @@ function MinimalBattleCard({ battle, index }: {
   battle: Battle
   index: number
 }) {
+  const { resolvedTheme } = useTheme()
   const modeConfig = MODE_CONFIGS[battle.mode as keyof typeof MODE_CONFIGS] || MODE_CONFIGS.classic
   const ModeIcon = modeConfig.icon
   const emptySlots = battle.max_players - battle.participants.length
-  const powerLevel = getPowerLevel(battle.entry_cost)
-  
+
+  // Calculate total price from all boxes
+  const totalPrice = battle.battle_boxes.reduce((sum, box) => {
+    return sum + (box.price_virtual * box.quantity)
+  }, 0)
+
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
   const [isHovering, setIsHovering] = useState(false)
 
@@ -597,91 +602,121 @@ function MinimalBattleCard({ battle, index }: {
     const y = e.clientY - rect.top
     setMousePosition({ x, y })
   }
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      whileHover={{ y: -2 }}
+      whileHover={{ y: -6, boxShadow: resolvedTheme === 'dark'
+        ? '0 32px 64px -12px rgba(0, 0, 0, 0.6)'
+        : '0 32px 64px -12px rgba(0, 0, 0, 0.25)'
+      }}
       onClick={() => window.location.href = `/battles/${battle.id}?spectate=true`}
-      className="card-hover relative rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden cursor-pointer border-2 border-primary/30"
+      className="relative rounded-[28px] overflow-hidden cursor-pointer"
+      style={{
+        background: resolvedTheme === 'dark' ? 'rgba(30, 41, 59, 0.9)' : 'rgba(248, 250, 252, 0.95)',
+        boxShadow: resolvedTheme === 'dark'
+          ? '0 24px 48px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06)'
+          : '0 24px 48px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)'
+      }}
     >
-      <motion.div
-        className="absolute inset-0 opacity-30"
-        animate={{
-          backgroundPosition: ['0% 0%', '200% 200%']
-        }}
-        transition={{
-          duration: 8,
-          repeat: Infinity,
-          ease: 'linear'
-        }}
+      {/* Subtle top highlight */}
+      <div
+        className="absolute top-0 left-0 right-0 h-px"
         style={{
-          background: 'linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, 0.3) 50%, transparent 60%)',
-          backgroundSize: '200% 200%'
+          background: resolvedTheme === 'dark'
+            ? 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent)'
+            : 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent)'
         }}
       />
 
-      <div className="relative z-10 p-6 backdrop-blur-sm">
+      <div className="relative z-10 p-6">
         <div className="flex items-center gap-6">
-          
+
           <div className="flex flex-col items-center gap-2">
-            <div className="relative flex items-center justify-center w-16 h-16 rounded-xl card-glass"
+            <div
+              className="relative flex items-center justify-center w-16 h-16 rounded-xl"
+              style={{
+                background: resolvedTheme === 'dark' ? 'rgba(51, 65, 85, 0.5)' : 'rgba(226, 232, 240, 0.8)',
+                boxShadow: resolvedTheme === 'dark'
+                  ? '0 8px 16px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.2)'
+                  : '0 8px 16px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.5), inset 0 -1px 0 rgba(0, 0, 0, 0.1)'
+              }}
             >
               <ModeIcon className={`w-8 h-8 ${modeConfig.color} ${modeConfig.darkColor}`} />
             </div>
-            
-            {/* POWER LEVEL */}
-            <motion.div
-              className="px-3 py-1 rounded-full text-[10px] font-black border"
-              animate={{
-                boxShadow: [
-                  `0 0 10px ${powerLevel.color}40`,
-                  `0 0 20px ${powerLevel.color}60`,
-                  `0 0 10px ${powerLevel.color}40`
-                ]
-              }}
-              transition={{ duration: 2, repeat: Infinity }}
+
+            {/* MODE BADGE */}
+            <div
+              className="px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase"
               style={{
-                background: `${powerLevel.color}20`,
-                borderColor: `${powerLevel.color}50`,
-                color: powerLevel.color
+                background: resolvedTheme === 'dark' ? 'rgba(15, 23, 42, 0.8)' : 'rgba(248, 250, 252, 0.9)',
+                color: modeConfig.hexColor,
+                boxShadow: `0 4px 12px ${modeConfig.hexColor}50, inset 0 1px 0 ${resolvedTheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.5)'}, 0 0 0 1px ${modeConfig.hexColor}60`
               }}
             >
-              {powerLevel.level}
-            </motion.div>
+              {modeConfig.label}
+            </div>
           </div>
 
           <div className="flex flex-col gap-1 min-w-[140px]">
-            <div className="text-sm font-medium text-secondary">
-              {modeConfig.label}
+            <div className="text-sm font-semibold text-secondary tracking-wide">
+              {modeConfig.label.toUpperCase()}
             </div>
             <div className="flex items-center gap-2">
-              <Coins className="w-5 h-5 text-warning" />
+              <div
+                className="p-1.5 rounded-lg"
+                style={{
+                  background: resolvedTheme === 'dark'
+                    ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(245, 158, 11, 0.1))'
+                    : 'linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.15))',
+                  boxShadow: resolvedTheme === 'dark' ? 'inset 0 2px 4px rgba(0, 0, 0, 0.2)' : 'inset 0 2px 4px rgba(0, 0, 0, 0.1)'
+                }}
+              >
+                <img
+                  src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
+                  alt="Coins"
+                  className="w-5 h-5 object-contain"
+                />
+              </div>
               <span className="text-2xl font-bold text-success">
-                {Math.floor(battle.entry_cost * 100)}
+                {Math.floor(totalPrice)}
               </span>
             </div>
-            <div className="text-xs text-secondary">
+            <div className="text-xs text-secondary font-medium">
               {battle.total_boxes} boxes à ouvrir
             </div>
           </div>
 
-          <div className="w-px h-16 bg-gradient-to-b from-transparent via-primary/30 to-transparent" />
+          <div
+            className="w-px h-16 rounded-full"
+            style={{
+              background: resolvedTheme === 'dark'
+                ? 'linear-gradient(to bottom, transparent, rgba(148, 163, 184, 0.2), transparent)'
+                : 'linear-gradient(to bottom, transparent, rgba(100, 116, 139, 0.2), transparent)'
+            }}
+          />
 
           <div className="flex items-center gap-2">
             {battle.participants.map((p) => (
               <div key={p.id} className="relative">
-                <div className="w-14 h-14 rounded-full overflow-hidden shadow-md hover:scale-110 transition-transform border-2 border-primary/40">
+                <div
+                  className="w-14 h-14 rounded-xl overflow-hidden hover:scale-110 transition-transform"
+                  style={{
+                    boxShadow: resolvedTheme === 'dark'
+                      ? '0 8px 16px rgba(0, 0, 0, 0.4), 0 0 0 3px rgba(255, 255, 255, 0.1)'
+                      : '0 8px 16px rgba(0, 0, 0, 0.15), 0 0 0 3px rgba(0, 0, 0, 0.05)'
+                  }}
+                >
                   {p.is_bot ? (
                     <div className="w-full h-full flex items-center justify-center bg-accent">
                       <Bot className="w-7 h-7 text-white" />
                     </div>
                   ) : (
-                    <img 
-                      src={p.avatar_url || '/default-avatar.png'} 
-                      alt={p.username || 'Player'} 
+                    <img
+                      src={p.avatar_url || '/default-avatar.png'}
+                      alt={p.username || 'Player'}
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement
@@ -692,73 +727,94 @@ function MinimalBattleCard({ battle, index }: {
                 </div>
               </div>
             ))}
-            
+
             {Array.from({ length: emptySlots }).map((_, idx) => (
               <div
                 key={`empty-${idx}`}
-                className="w-14 h-14 rounded-full border-2 border-dashed border-primary/30 bg-secondary flex items-center justify-center transition-all hover:scale-105"
+                className="w-14 h-14 rounded-xl flex items-center justify-center hover:scale-110 transition-all border-2 border-dashed"
+                style={{
+                  background: resolvedTheme === 'dark' ? 'rgba(51, 65, 85, 0.3)' : 'rgba(226, 232, 240, 0.5)',
+                  boxShadow: resolvedTheme === 'dark'
+                    ? 'inset 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(148, 163, 184, 0.2)'
+                    : 'inset 0 2px 8px rgba(0, 0, 0, 0.1), 0 0 0 2px rgba(100, 116, 139, 0.2)',
+                  borderColor: resolvedTheme === 'dark' ? 'rgba(148, 163, 184, 0.3)' : 'rgba(100, 116, 139, 0.3)'
+                }}
               >
-                <span className="text-2xl font-light text-muted">
-                  +
-                </span>
+                <span className="text-2xl font-light text-muted">+</span>
               </div>
             ))}
           </div>
 
-          <div className="w-px h-16 bg-gradient-to-b from-transparent via-primary/30 to-transparent" />
+          <div
+            className="w-px h-16 rounded-full"
+            style={{
+              background: resolvedTheme === 'dark'
+                ? 'linear-gradient(to bottom, transparent, rgba(148, 163, 184, 0.2), transparent)'
+                : 'linear-gradient(to bottom, transparent, rgba(100, 116, 139, 0.2), transparent)'
+            }}
+          />
 
-          <div className="flex items-center gap-2 flex-1">
-            {battle.battle_boxes.map((box, idx) => {
-              const isOpened = idx < (battle.current_box || 0)
-              return (
-                <div key={box.loot_box_id} className="relative group/box">
-                  <img 
-                    src={box.box_image || '/mystery-box.png'} 
-                    alt={box.box_name} 
-                    className={`w-24 h-24 object-contain transition-all ${
-                      isOpened ? 'opacity-30 grayscale' : 'opacity-100 group-hover/box:scale-110'
-                    }`}
-                    style={{
-                      filter: isOpened ? undefined : 'drop-shadow(0 2px 8px rgba(148, 163, 184, 0.4))'
-                    }}
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement
-                      target.src = '/mystery-box.png'
-                    }}
-                  />
-                  {box.quantity > 1 && (
-                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-accent rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm border-2 border-surface">
-                      {box.quantity}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+          <div className="flex-1 overflow-x-auto scrollbar-hide">
+            <div className="flex items-center gap-3 pb-2">
+              {battle.battle_boxes.map((box, idx) => {
+                const isOpened = idx < (battle.current_box || 0)
+                return (
+                  <div key={box.loot_box_id} className="relative group/box flex-shrink-0">
+                    <img
+                      src={box.box_image || '/mystery-box.png'}
+                      alt={box.box_name}
+                      className={`w-24 h-24 object-contain transition-all ${
+                        isOpened ? 'opacity-30 grayscale' : 'opacity-100 group-hover/box:scale-110'
+                      }`}
+                      style={{
+                        filter: isOpened ? undefined : 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15))'
+                      }}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement
+                        target.src = '/mystery-box.png'
+                      }}
+                    />
+                    {box.quantity > 1 && (
+                      <div
+                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                        style={{
+                          background: 'linear-gradient(135deg, #a855f7, #7c3aed)',
+                          boxShadow: resolvedTheme === 'dark'
+                            ? '0 4px 12px rgba(168, 85, 247, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3)'
+                            : '0 4px 12px rgba(168, 85, 247, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)'
+                        }}
+                      >
+                        {box.quantity}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
 
           <motion.button
-            whileHover={{ scale: 0.98 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.98 }}
             onClick={(e) => {
               e.stopPropagation()
               window.location.href = `/battles/${battle.id}?spectate=true`
             }}
-            onMouseMove={handleMouseMove}
-            onMouseEnter={() => setIsHovering(true)}
-            onMouseLeave={() => setIsHovering(false)}
-            className={`relative px-6 py-4 rounded-xl font-bold text-sm min-w-[120px] overflow-hidden text-white transition-all ${
-              battle.participant_count < battle.max_players ? 'btn-success' : 'btn-primary'
-            }`}
+            className="px-6 py-4 rounded-xl font-bold text-white min-w-[120px]"
+            style={{
+              background: battle.participant_count < battle.max_players
+                ? 'linear-gradient(135deg, #10b981, #059669)'
+                : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+              boxShadow: battle.participant_count < battle.max_players
+                ? resolvedTheme === 'dark'
+                  ? '0 12px 28px rgba(16, 185, 129, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -1px 0 rgba(0, 0, 0, 0.2)'
+                  : '0 12px 28px rgba(16, 185, 129, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.1)'
+                : resolvedTheme === 'dark'
+                  ? '0 12px 28px rgba(59, 130, 246, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -1px 0 rgba(0, 0, 0, 0.2)'
+                  : '0 12px 28px rgba(59, 130, 246, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.1)'
+            }}
           >
-            <HexagonGrid
-              mouseX={isHovering ? mousePosition.x : -100}
-              mouseY={isHovering ? mousePosition.y : -100}
-              theme={'dark'}
-              isJoinable={battle.participant_count < battle.max_players}
-              buttonType="default"
-            />
-            
-            <div className="relative z-10 flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-2">
               {battle.participant_count < battle.max_players ? (
                 <>
                   <Users className="w-5 h-5" />

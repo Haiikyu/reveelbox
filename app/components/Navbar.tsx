@@ -14,6 +14,8 @@ import {
 } from 'lucide-react'
 import { useAuth } from './AuthProvider'
 import { useTheme } from './ThemeProvider'
+import LoginModal from './LoginModal'
+import SignupModal from './SignupModal'
 
 interface InventoryItem {
   id: string
@@ -83,6 +85,8 @@ export default function ReveelBoxNavbar() {
   const [avatarFrame, setAvatarFrame] = useState<string | null>(null)
   const [bannerSvg, setBannerSvg] = useState<string | null>(null)
   const [leaderboardRank, setLeaderboardRank] = useState<number | null>(null)
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
+  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false)
   const supabase = createClient()
 
   // Charger les pins équipés + cadre + bannière + rang
@@ -855,19 +859,19 @@ export default function ReveelBoxNavbar() {
               ) : (
                 <div className="flex items-center gap-2">
                   <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
-                    <Link
-                      href="/login"
+                    <button
+                      onClick={() => setIsLoginModalOpen(true)}
                       className="px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white rounded-xl hover:bg-gradient-to-br hover:from-gray-100/80 hover:to-gray-50 dark:hover:from-gray-800/60 dark:hover:to-gray-800/40 transition-all duration-300 hover:shadow-md"
                     >
                       Connexion
-                    </Link>
+                    </button>
                   </motion.div>
                   <motion.div
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
-                    <Link
-                      href="/signup"
+                    <button
+                      onClick={() => setIsSignupModalOpen(true)}
                       className="relative px-4 py-1.5 text-white rounded-xl text-sm font-bold shadow-lg bg-gradient-to-br from-[#4578be] to-[#5989d8] hover:shadow-xl transition-all duration-300 overflow-hidden group"
                       style={{
                         boxShadow: '0 4px 16px rgba(69, 120, 190, 0.4), 0 0 24px rgba(69, 120, 190, 0.15)'
@@ -879,7 +883,7 @@ export default function ReveelBoxNavbar() {
                         transition={{ duration: 2, repeat: Infinity, ease: "linear", repeatDelay: 1 }}
                       />
                       <span className="relative drop-shadow-md">S'inscrire</span>
-                    </Link>
+                    </button>
                   </motion.div>
                 </div>
               )}
@@ -1101,6 +1105,25 @@ export default function ReveelBoxNavbar() {
         isOpen={paymentModalOpen}
         onClose={() => setPaymentModalOpen(false)}
         buttonRef={paymentButtonRef}
+      />
+
+      {/* Modals Login/Signup */}
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onSwitchToSignup={() => {
+          setIsLoginModalOpen(false)
+          setIsSignupModalOpen(true)
+        }}
+      />
+
+      <SignupModal
+        isOpen={isSignupModalOpen}
+        onClose={() => setIsSignupModalOpen(false)}
+        onSwitchToLogin={() => {
+          setIsSignupModalOpen(false)
+          setIsLoginModalOpen(true)
+        }}
       />
     </>
   )
