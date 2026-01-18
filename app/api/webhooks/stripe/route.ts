@@ -1,28 +1,41 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2023-10-16',
-})
+// Initialisation sécurisée pour éviter le crash au build
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+const stripe = stripeSecretKey 
+  ? new Stripe(stripeSecretKey, { apiVersion: '2023-10-16' }) 
+  : null;
+
+const supabaseAdmin = (supabaseUrl && supabaseServiceKey) 
+  ? createClient(supabaseUrl, supabaseServiceKey) 
+  : null;
 
 export async function POST(request: NextRequest) {
+  // Vérification de l'initialisation des clients
+  if (!stripe || !supabaseAdmin || !webhookSecret) {
+    console.error('Missing environment variables for Stripe or Supabase');
+    return NextResponse.json({ error: 'Internal Server Configuration Error' }, { status: 500 });
+  }
+
   const body = await request.text()
-  const signature = request.headers.get('stripe-signature')!
+  const signature = request.headers.get('stripe-signature')
+
+  if (!signature) {
+    return NextResponse.json({ error: 'Missing stripe-signature' }, { status: 400 });
+  }
 
   let event: Stripe.Event
 
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    )
+    event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
   } catch (err) {
     console.error('Webhook signature verification failed:', err)
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
@@ -71,7 +84,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Failed to activate pass' }, { status: 500 })
         }
 
-        // Auto-claim Jour 1 (Pseudo OR)
+        // Auto-claim Jour 1
         const { data: day1Reward } = await supabaseAdmin
           .from('battle_pass_rewards')
           .select('id, reward_type, reward_value')
@@ -80,7 +93,6 @@ export async function POST(request: NextRequest) {
           .single()
 
         if (day1Reward) {
-          // Claim la récompense
           await supabaseAdmin
             .from('user_battle_pass_claims')
             .insert({
@@ -90,7 +102,6 @@ export async function POST(request: NextRequest) {
               reward_id: day1Reward.id,
             })
 
-          // Si Pseudo OR, activer
           if (day1Reward.reward_type === 'gold_username') {
             const durationDays = day1Reward.reward_value.duration_days || 30
             await supabaseAdmin
@@ -111,12 +122,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Processing failed' }, { status: 500 })
       }
     }
-
-    // ═══════════════════════════════════════════════════════════
-    // AUTRES PAIEMENTS (coins, etc.)
-    // ═══════════════════════════════════════════════════════════
-    // Ajoute ici la logique pour les autres types de paiements
-    // Par exemple : achat de coins, premium, etc.
   }
 
   return NextResponse.json({ received: true })
