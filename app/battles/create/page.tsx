@@ -38,6 +38,37 @@ const GAME_MODES = [
   { id: 'clutch', name: 'Clutch', icon: Shield }
 ]
 
+const MODE_DESCRIPTIONS: { [key: string]: { title: string; description: string } } = {
+  classic: {
+    title: 'Mode Classic',
+    description: 'Le joueur ou l\'équipe ayant accumulé la plus grande valeur totale remporte la victoire. Chaque item ouvert compte dans le score final.'
+  },
+  crazy: {
+    title: 'Mode Crazy',
+    description: 'L\'inverse du mode Classic ! Le joueur ou l\'équipe avec la plus petite valeur totale gagne. Faites attention à ne pas gagner d\'items trop chers.'
+  },
+  shared: {
+    title: 'Mode Shared',
+    description: 'Tous les joueurs collaborent ensemble. À la fin de la partie, les gains sont équitablement partagés entre tous les participants.'
+  },
+  fast: {
+    title: 'Modificateur Fast',
+    description: 'Accélère considérablement l\'ouverture des cases. Parfait pour des parties rapides et intenses !'
+  },
+  jackpot: {
+    title: 'Modificateur Jackpot',
+    description: 'La victoire se joue à la roulette ! Vos chances de gagner sont proportionnelles à la valeur de vos items. Plus vous gagnez de valeur, plus vous avez de chances de remporter le jackpot final.'
+  },
+  terminal: {
+    title: 'Mode Terminal',
+    description: 'Seule la dernière case compte ! Le joueur ou l\'équipe qui obtient l\'item le plus cher dans la toute dernière case remporte l\'intégralité des gains.'
+  },
+  clutch: {
+    title: 'Mode Clutch',
+    description: 'Le joueur ou l\'équipe ayant obtenu l\'item individuel le plus cher durant toute la partie remporte la victoire, peu importe la valeur totale.'
+  }
+}
+
 const MAX_BOXES = 100
 
 function CoinIcon({ size = 16 }: { size?: number }) {
@@ -267,6 +298,8 @@ export default function BattleCreateConnected() {
   const [hoveredFavorite, setHoveredFavorite] = useState(false)
   const [errorNotification, setErrorNotification] = useState<string | null>(null)
   const [showLeaderboardInfo, setShowLeaderboardInfo] = useState(false)
+  const [selectedModeInfo, setSelectedModeInfo] = useState<string | null>(null)
+  const [hoveredMode, setHoveredMode] = useState<string | null>(null)
 
   const [filterButtonMouse, setFilterButtonMouse] = useState<{[key: string]: {x: number, y: number}}>({})
   const [sortButtonMouse, setSortButtonMouse] = useState<{[key: string]: {x: number, y: number}}>({})
@@ -368,10 +401,8 @@ export default function BattleCreateConnected() {
 
   const maxPlayers = useMemo(() => {
     if (selectedModes.includes('shared')) {
-      const match = teamConfig.match(/(\d+)vs(\d+)/)
-      if (match) {
-        return parseInt(match[1]) + parseInt(match[2])
-      }
+      // Pour shared, teamConfig est directement le nombre de joueurs (2, 3, 4, 5 ou 6)
+      return parseInt(teamConfig) || 2
     }
     const match = teamConfig.match(/\d+/g)
     return match ? match.reduce((sum, n) => sum + parseInt(n), 0) : 2
@@ -379,7 +410,8 @@ export default function BattleCreateConnected() {
 
   const teamOptions = useMemo(() => {
     if (selectedModes.includes('shared')) {
-      return ['2vs2', '3vs3', '4vs4', '5vs5', '6vs6']
+      // Pour shared, simple sélecteur du nombre de joueurs (2 à 6)
+      return ['2', '3', '4', '5', '6']
     }
     return ['1v1', '2v2', '3v3', '1v1v1', '1v1v1v1']
   }, [selectedModes])
@@ -417,7 +449,7 @@ export default function BattleCreateConnected() {
         }
         
         if (modeId === 'shared') {
-          setTeamConfig('2vs2')
+          setTeamConfig('2')  // Commence à 2 joueurs pour shared
         } else {
           setTeamConfig('1v1')
         }
@@ -713,13 +745,6 @@ export default function BattleCreateConnected() {
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="text-xs flex items-center">
-                <span className="text-blue-200">Balance:</span>
-                <span className="ml-1.5 text-white font-bold flex items-center">
-                  {parseFloat(user?.virtual_currency || '0').toFixed(2)}
-                  <CoinIcon size={14} />
-                </span>
-              </div>
               <div className="text-xs">
                 <span className="text-blue-200">Total Boxes:</span>
                 <span className={`ml-1.5 font-bold ${totalBoxes > MAX_BOXES ? 'text-red-400' : 'text-white'}`}>
@@ -783,8 +808,10 @@ export default function BattleCreateConnected() {
                   <button
                     key={mode.id}
                     onClick={() => toggleMode(mode.id)}
+                    onMouseEnter={() => setHoveredMode(mode.id)}
+                    onMouseLeave={() => setHoveredMode(null)}
                     disabled={isDisabled}
-                    className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-xs ${
+                    className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-xs group ${
                       isDisabled 
                         ? 'opacity-30 cursor-not-allowed'
                         : isActive
@@ -818,232 +845,196 @@ export default function BattleCreateConnected() {
                         MOD
                       </span>
                     )}
+
+                    {hoveredMode === mode.id && (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSelectedModeInfo(selectedModeInfo === mode.id ? null : mode.id)
+                        }}
+                        className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 text-white/70 hover:text-white transition-colors cursor-pointer z-10"
+                      >
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </motion.div>
+                    )}
                   </button>
                 )
               })}
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-blue-200 font-medium">PLAYERS</span>
-              {teamOptions.map(option => {
-                const isSelected = teamConfig === option
-                return (
-                  <button
-                    key={option}
-                    onClick={() => setTeamConfig(option)}
-                    className={`relative px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${
-                      isSelected
-                        ? 'bg-white/25 text-white border-2 border-white/40 shadow-lg scale-105'
-                        : 'bg-white/10 text-white/70 border-2 border-white/20 hover:bg-white/15 hover:border-white/30'
-                    }`}
-                  >
-                    <div className={`absolute inset-0 rounded-lg transition-opacity ${
-                      isSelected ? 'opacity-100' : 'opacity-0'
-                    }`} style={{
-                      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 50%, rgba(255, 255, 255, 0.1) 100%)'
-                    }} />
+              {selectedModes.includes('shared') ? (
+                // Pour SHARED : simple sélecteur de joueurs
+                <>
+                  <span className="text-[10px] text-blue-200 font-medium">PLAYERS</span>
+                  {teamOptions.map(option => {
+                    const isSelected = teamConfig === option
+                    const displayText = `${option} joueurs`
                     
-                    <span className="relative z-10">{option}</span>
-                    
-                    {isSelected && (
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full border-2 border-blue-600"
-                      />
-                    )}
-                  </button>
-                )
-              })}
+                    return (
+                      <button
+                        key={option}
+                        onClick={() => setTeamConfig(option)}
+                        className={`relative px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${
+                          isSelected
+                            ? 'bg-white/25 text-white border-2 border-white/40 shadow-lg scale-105'
+                            : 'bg-white/10 text-white/70 border-2 border-white/20 hover:bg-white/15 hover:border-white/30'
+                        }`}
+                      >
+                        <div className={`absolute inset-0 rounded-lg transition-opacity ${
+                          isSelected ? 'opacity-100' : 'opacity-0'
+                        }`} style={{
+                          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 50%, rgba(255, 255, 255, 0.1) 100%)'
+                        }} />
+                        
+                        <span className="relative z-10">{displayText}</span>
+                        
+                        {isSelected && (
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full border-2 border-blue-600"
+                          />
+                        )}
+                      </button>
+                    )
+                  })}
+                </>
+              ) : (
+                // Pour les AUTRES modes : séparer PLAYER et ÉQUIPE
+                <>
+                  {/* Section PLAYER */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-blue-200 font-medium">PLAYER</span>
+                    {['1v1', '1v1v1', '1v1v1v1'].map(option => {
+                      const isSelected = teamConfig === option
+                      return (
+                        <button
+                          key={option}
+                          onClick={() => setTeamConfig(option)}
+                          className={`relative px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${
+                            isSelected
+                              ? 'bg-white/25 text-white border-2 border-white/40 shadow-lg scale-105'
+                              : 'bg-white/10 text-white/70 border-2 border-white/20 hover:bg-white/15 hover:border-white/30'
+                          }`}
+                        >
+                          <div className={`absolute inset-0 rounded-lg transition-opacity ${
+                            isSelected ? 'opacity-100' : 'opacity-0'
+                          }`} style={{
+                            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 50%, rgba(255, 255, 255, 0.1) 100%)'
+                          }} />
+                          
+                          <span className="relative z-10">{option}</span>
+                          
+                          {isSelected && (
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full border-2 border-blue-600"
+                            />
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Section ÉQUIPE */}
+                  <div className="flex items-center gap-2 ml-4">
+                    <span className="text-[10px] text-blue-200 font-medium">ÉQUIPE</span>
+                    {['2v2', '3v3'].map(option => {
+                      const isSelected = teamConfig === option
+                      return (
+                        <button
+                          key={option}
+                          onClick={() => setTeamConfig(option)}
+                          className={`relative px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${
+                            isSelected
+                              ? 'bg-white/25 text-white border-2 border-white/40 shadow-lg scale-105'
+                              : 'bg-white/10 text-white/70 border-2 border-white/20 hover:bg-white/15 hover:border-white/30'
+                          }`}
+                        >
+                          <div className={`absolute inset-0 rounded-lg transition-opacity ${
+                            isSelected ? 'opacity-100' : 'opacity-0'
+                          }`} style={{
+                            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 50%, rgba(255, 255, 255, 0.1) 100%)'
+                          }} />
+                          
+                          <span className="relative z-10">{option}</span>
+                          
+                          {isSelected && (
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full border-2 border-blue-600"
+                            />
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* SIDEBAR GAUCHE */}
-      <div className="fixed left-0 top-20 bottom-0 w-28 bg-gradient-to-b from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl border-r border-white/10 z-20 flex flex-col items-center py-6">
-        <motion.div
-          className="relative w-full h-full flex flex-col items-center"
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-        >
-          {/* TOP 3 LEADERBOARD */}
-          <div className="w-full px-2 space-y-2 mb-3">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <div className="text-[10px] font-black text-center text-white/60">LEADERBOARD</div>
-              <button
-                onClick={() => setShowLeaderboardInfo(!showLeaderboardInfo)}
-                className="w-4 h-4 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white text-[8px] font-bold transition-colors"
-              >
-                i
-              </button>
-            </div>
-
-            <AnimatePresence>
-              {showLeaderboardInfo && (
-                <motion.div
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  className="absolute left-full ml-2 top-0 w-64 p-3 bg-slate-900 border-2 border-white/20 rounded-xl shadow-2xl z-50"
-                >
-                  <div className="text-xs text-white/90 space-y-2">
-                    <div className="font-bold text-white">💡 How it works:</div>
-                    <div className="text-white/70">
-                      Plus votre battle coûte cher en coins, plus vous gagnez de points de POWER !
+      {/* CONTENEUR EXPLICATIF DES MODES */}
+      <AnimatePresence>
+        {selectedModeInfo && (() => {
+          const mode = GAME_MODES.find(m => m.id === selectedModeInfo)
+          const modeInfo = MODE_DESCRIPTIONS[selectedModeInfo]
+          if (!mode || !modeInfo) return null
+          
+          const Icon = mode.icon
+          const colorClasses = {
+            classic: { bg: 'from-blue-500/20 to-blue-600/20', border: 'border-blue-400/30', icon: 'bg-blue-500/30', iconColor: 'text-blue-300' },
+            crazy: { bg: 'from-purple-500/20 to-purple-600/20', border: 'border-purple-400/30', icon: 'bg-purple-500/30', iconColor: 'text-purple-300' },
+            shared: { bg: 'from-green-500/20 to-green-600/20', border: 'border-green-400/30', icon: 'bg-green-500/30', iconColor: 'text-green-300' },
+            fast: { bg: 'from-orange-500/20 to-orange-600/20', border: 'border-orange-400/30', icon: 'bg-orange-500/30', iconColor: 'text-orange-300' },
+            jackpot: { bg: 'from-yellow-500/20 to-yellow-600/20', border: 'border-yellow-400/30', icon: 'bg-yellow-500/30', iconColor: 'text-yellow-300' },
+            terminal: { bg: 'from-red-500/20 to-red-600/20', border: 'border-red-400/30', icon: 'bg-red-500/30', iconColor: 'text-red-300' },
+            clutch: { bg: 'from-pink-500/20 to-pink-600/20', border: 'border-pink-400/30', icon: 'bg-pink-500/30', iconColor: 'text-pink-300' }
+          }
+          const colors = colorClasses[selectedModeInfo as keyof typeof colorClasses]
+          
+          return (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="max-w-[1800px] mx-auto px-6 py-3 relative z-10">
+                <div className={`bg-gradient-to-r ${colors.bg} rounded-xl p-4 border ${colors.border} backdrop-blur-sm`}>
+                  <div className="flex items-start gap-3">
+                    <div className={`w-8 h-8 rounded-full ${colors.icon} flex items-center justify-center flex-shrink-0`}>
+                      <Icon className={`w-4 h-4 ${colors.iconColor}`} />
                     </div>
-                    <div className="text-white/70">
-                      Créez des battles LEGENDARY pour dominer le leaderboard ! 🔥
+                    <div className="flex-1">
+                      <h3 className="text-sm font-bold text-white mb-1">{modeInfo.title}</h3>
+                      <p className="text-xs text-white/80">
+                        {modeInfo.description}
+                      </p>
                     </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            
-            {/* Position 1 - Or */}
-            <motion.div 
-              className="relative bg-gradient-to-br from-yellow-500/20 to-yellow-600/10 rounded-xl p-1.5 border-2 border-yellow-500/40"
-              whileHover={{ scale: 1.05, y: -2 }}
-            >
-              <div className="absolute -top-2 -right-2 w-5 h-5 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center text-[9px] font-black text-black shadow-lg">
-                1
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center text-xs font-black">
-                  🏆
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[8px] font-bold text-white truncate">MegaBattle</div>
-                  <div className="text-[9px] font-black text-yellow-400">142 PWR</div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Position 2 - Argent */}
-            <motion.div 
-              className="relative bg-gradient-to-br from-gray-400/20 to-gray-500/10 rounded-xl p-1.5 border-2 border-gray-400/40"
-              whileHover={{ scale: 1.05, y: -2 }}
-            >
-              <div className="absolute -top-2 -right-2 w-5 h-5 bg-gradient-to-br from-gray-300 to-gray-500 rounded-full flex items-center justify-center text-[9px] font-black text-black shadow-lg">
-                2
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-300 to-gray-500 flex items-center justify-center text-xs font-black">
-                  🥈
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[8px] font-bold text-white truncate">UltraWar</div>
-                  <div className="text-[9px] font-black text-gray-300">98 PWR</div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Position 3 - Bronze */}
-            <motion.div 
-              className="relative bg-gradient-to-br from-orange-600/20 to-orange-700/10 rounded-xl p-1.5 border-2 border-orange-600/40"
-              whileHover={{ scale: 1.05, y: -2 }}
-            >
-              <div className="absolute -top-2 -right-2 w-5 h-5 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center text-[9px] font-black text-black shadow-lg">
-                3
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-xs font-black">
-                  🥉
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[8px] font-bold text-white truncate">ProFight</div>
-                  <div className="text-[9px] font-black text-orange-400">73 PWR</div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-
-          <div className="w-full px-2 border-t border-white/10 pt-2"></div>
-
-          {/* Position du joueur actuel */}
-          <motion.div 
-            className="w-full px-2 mb-3"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <div className="text-[9px] font-black text-center text-white/60 mb-1.5">YOUR RANK</div>
-            <motion.div 
-              className="relative bg-gradient-to-br from-blue-500/30 to-purple-600/20 rounded-xl p-1.5 border-2 border-blue-400/50"
-              animate={{ 
-                boxShadow: totalValue > 0 ? [
-                  `0 0 10px ${totalValue <= 50 ? 'rgba(34, 197, 94, 0.4)' : totalValue <= 100 ? 'rgba(59, 130, 246, 0.4)' : totalValue <= 300 ? 'rgba(168, 85, 247, 0.4)' : totalValue <= 1000 ? 'rgba(249, 115, 22, 0.4)' : 'rgba(234, 179, 8, 0.6)'}`,
-                  `0 0 20px ${totalValue <= 50 ? 'rgba(34, 197, 94, 0.6)' : totalValue <= 100 ? 'rgba(59, 130, 246, 0.6)' : totalValue <= 300 ? 'rgba(168, 85, 247, 0.6)' : totalValue <= 1000 ? 'rgba(249, 115, 22, 0.6)' : 'rgba(234, 179, 8, 0.8)'}`,
-                  `0 0 10px ${totalValue <= 50 ? 'rgba(34, 197, 94, 0.4)' : totalValue <= 100 ? 'rgba(59, 130, 246, 0.4)' : totalValue <= 300 ? 'rgba(168, 85, 247, 0.4)' : totalValue <= 1000 ? 'rgba(249, 115, 22, 0.4)' : 'rgba(234, 179, 8, 0.6)'}`,
-                ] : []
-              }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-            >
-              <div className="absolute -top-2 -right-2 w-5 h-5 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-[9px] font-black text-white shadow-lg">
-                ?
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-purple-600 flex items-center justify-center text-lg">
-                  👤
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[8px] font-bold text-white truncate">You</div>
-                  <div 
-                    className="text-[10px] font-black"
-                    style={{
-                      color: totalValue <= 50 ? '#22c55e' :
-                             totalValue <= 100 ? '#3b82f6' :
-                             totalValue <= 300 ? '#a855f7' :
-                             totalValue <= 1000 ? '#f97316' : '#eab308'
-                    }}
-                  >
-                    {Math.floor(totalValue)} PWR
+                    <button
+                      onClick={() => setSelectedModeInfo(null)}
+                      className="w-6 h-6 rounded-lg hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               </div>
             </motion.div>
-          </motion.div>
+          )
+        })()}
+      </AnimatePresence>
 
-          {/* BARRES QUI MONTENT DE BAS EN HAUT */}
-          <div className="w-full px-3 flex-1 flex flex-col justify-end gap-2 pb-4">
-            {[
-              { name: 'LEGENDARY', min: 1001, max: 10000, color: '#ef4444' },
-              { name: 'EXTREME', min: 301, max: 1000, color: '#f97316' },
-              { name: 'STRONG', min: 101, max: 300, color: '#eab308' },
-              { name: 'MEDIUM', min: 51, max: 100, color: '#84cc16' },
-              { name: 'WEAK', min: 0, max: 50, color: '#22c55e' }
-            ].map((level) => {
-              const range = level.max - level.min
-              const currentInRange = Math.max(0, Math.min(range, totalValue - level.min))
-              const progress = (currentInRange / range) * 10
-              const filledBars = Math.floor(progress)
-              
-              return (
-                <div key={level.name} className="flex flex-col gap-0.5">
-                  <div className="flex flex-col-reverse gap-[2px]">
-                    {Array.from({ length: 10 }).map((_, barIndex) => (
-                      <div
-                        key={barIndex}
-                        className="h-[5px] w-full rounded-full"
-                        style={{
-                          backgroundColor: barIndex < filledBars ? level.color : 'rgba(255,255,255,0.1)',
-                          boxShadow: barIndex < filledBars ? `0 0 8px ${level.color}` : 'none'
-                        }}
-                      />
-                    ))}
-                  </div>
-                  
-                  <div className="text-[7px] font-black text-center" style={{
-                    color: filledBars > 0 ? level.color : 'rgba(255,255,255,0.25)'
-                  }}>
-                    {level.name}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </motion.div>
-      </div>
 
       <div className="ml-36 max-w-[1800px] mx-auto px-6 py-4 relative z-10">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">

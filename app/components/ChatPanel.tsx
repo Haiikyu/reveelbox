@@ -5,6 +5,7 @@ import { useAuth } from '@/app/components/AuthProvider'
 import { createClient } from '@/utils/supabase/client'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Send, X, Loader2, Shield, MessageCircle } from 'lucide-react'
+import PlayerHoverCard from '@/app/components/PlayerHoverCard'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
@@ -150,22 +151,24 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                         <div className="relative flex gap-3 p-3">
                           {/* Colonne gauche : Avatar + Niveau */}
                           <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                            {/* Avatar avec cadre */}
-                            <div className="relative">
-                              <div className={`h-10 w-10 rounded-lg overflow-hidden ${msg.frame_svg ? '' : 'border-2 border-gray-600'}`}>
-                                {msg.avatar_url ? (
-                                  <img src={msg.avatar_url} alt="" className="h-full w-full object-cover" />
-                                ) : (
-                                  <div className="h-full w-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center text-white text-sm font-bold">
-                                    {msg.username?.[0]?.toUpperCase() || '?'}
-                                  </div>
+                            {/* Avatar avec cadre - Wrapped with PlayerHoverCard */}
+                            <PlayerHoverCard userId={msg.user_id}>
+                              <div className="relative cursor-help">
+                                <div className={`h-10 w-10 rounded-lg overflow-hidden ${msg.frame_svg ? '' : 'border-2 border-gray-600'}`}>
+                                  {msg.avatar_url ? (
+                                    <img src={msg.avatar_url} alt="" className="h-full w-full object-cover" />
+                                  ) : (
+                                    <div className="h-full w-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center text-white text-sm font-bold">
+                                      {msg.username?.[0]?.toUpperCase() || '?'}
+                                    </div>
+                                  )}
+                                </div>
+                                {msg.frame_svg && (
+                                  <div className="absolute pointer-events-none" style={{ top: '-2px', left: '-2px', width: '44px', height: '44px' }} dangerouslySetInnerHTML={{ __html: msg.frame_svg }} />
                                 )}
                               </div>
-                              {msg.frame_svg && (
-                                <div className="absolute pointer-events-none" style={{ top: '-2px', left: '-2px', width: '44px', height: '44px' }} dangerouslySetInnerHTML={{ __html: msg.frame_svg }} />
-                              )}
-                            </div>
-                            
+                            </PlayerHoverCard>
+
                             {/* Niveau sous l'avatar */}
                             <span className="text-[9px] bg-[#4578be]/30 text-[#4578be] px-1.5 py-0.5 rounded font-bold whitespace-nowrap">
                               Niv.{msg.level || 1}
