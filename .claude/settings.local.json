@@ -24,7 +24,8 @@
       "Bash(do echo \"[$file]\")",
       "Bash(done)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(grep:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

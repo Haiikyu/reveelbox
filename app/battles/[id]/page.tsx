@@ -46,6 +46,7 @@ interface Battle {
   id: string
   name: string
   mode: string
+  player_distribution?: string  // "1v1", "2v2", "3v3", etc.
   max_players: number
   entry_cost: number
   total_prize: number
@@ -65,12 +66,13 @@ const ROULETTE_DURATION = 8000 // 8 secondes par ouverture
 // ===============================================
 // HELPERS POUR LES DIFFÉRENTS MODES DE BATTLE
 // ===============================================
-const isTeamMode = (mode: string) => {
-  return mode === '2v2' || mode === '3v3'
+const isTeamMode = (battle: Battle) => {
+  // Vérifier player_distribution pour les modes équipe
+  return battle.player_distribution === '2v2' || battle.player_distribution === '3v3'
 }
 
-const getGridColumns = (maxPlayers: number, mode: string) => {
-  if (isTeamMode(mode)) {
+const getGridColumns = (maxPlayers: number, battle: Battle) => {
+  if (isTeamMode(battle)) {
     // Mode équipe : toujours 2 colonnes (Team A | Team B)
     return 'grid-cols-2'
   } else {
@@ -85,11 +87,11 @@ const getGridColumns = (maxPlayers: number, mode: string) => {
   }
 }
 
-const getPlayersPerTeam = (maxPlayers: number, mode: string) => {
-  if (isTeamMode(mode)) {
-    return maxPlayers / 2  // 2v2 = 2, 3v3 = 3
+const getPlayersPerTeam = (battle: Battle) => {
+  if (isTeamMode(battle)) {
+    return battle.max_players / 2  // 2v2 = 2, 3v3 = 3
   }
-  return maxPlayers
+  return battle.max_players
 }
 
 export default function BattleRoomPage() {
@@ -138,12 +140,22 @@ export default function BattleRoomPage() {
       if (battleError) throw battleError
       if (!battleData) throw new Error('Battle not found')
 
+      // ========================================
+      // 🔍 DEBUG : Vérifier le mode de la battle
+      // ========================================
+      console.log('🎮 BATTLE MODE DEBUG:', {
+        battleId: battleData.id,
+        battleName: battleData.name,
+        mode: battleData.mode,
+        isCrazy: battleData.mode === 'crazy'
+      })
+
       // Récupérer les participants
       const { data: participantsData } = await supabase
         .from('battle_participants')
         .select(`
           id, user_id, is_bot, bot_name, bot_avatar_url, 
-          position, total_value
+          position, total_value, team
         `)
         .eq('battle_id', battleId)
         .order('position')
@@ -192,6 +204,7 @@ export default function BattleRoomPage() {
         bot_avatar_url: p.bot_avatar_url,
         position: p.position,
         total_value: p.total_value || 0,
+        team: p.team,
         items: []
       })) || []
 
@@ -760,7 +773,7 @@ export default function BattleRoomPage() {
     // ===============================================
     // GESTION DES MODES : TEAM vs FREE-FOR-ALL
     // ===============================================
-    const isTeam = isTeamMode(battle.mode)
+    const isTeam = isTeamMode(battle)
 
     if (isTeam) {
       // ========== MODE ÉQUIPE (2v2, 3v3) ==========
@@ -769,23 +782,51 @@ export default function BattleRoomPage() {
       // Calculer les scores par équipe
       const teamScores = new Map<number, number>()
       finalValues.forEach(fv => {
-        const team = fv.participant.team || 0
+        // CRITIQUE : Si team est NULL, ce joueur ne doit PAS être compté
+        if (fv.participant.team === null || fv.participant.team === undefined) {
+          console.warn(`Participant ${fv.participant.username} has NO team! Skipping...`)
+          return
+        }
+        const team = fv.participant.team
         teamScores.set(team, (teamScores.get(team) || 0) + fv.totalValue)
       })
 
       console.log('Team scores:', Array.from(teamScores.entries()))
 
       // Trouver l'équipe gagnante
-      let winningTeam = 0
-      let maxScore = 0
+      // MODE CRAZY : Inverser la logique - celui qui gagne le MOINS gagne
+      const isCrazyMode = battle.mode === 'crazy'
+      
+      // ========================================
+      // 🔍 DEBUG : Mode Crazy dans calcul équipe
+      // ========================================
+      console.log('🏆 TEAM MODE - Calcul gagnant:', {
+        mode: battle.mode,
+        isCrazyMode: isCrazyMode,
+        teamScores: Array.from(teamScores.entries()),
+        logique: isCrazyMode ? 'INVERSÉE (le moins gagne)' : 'NORMALE (le plus gagne)'
+      })
+      
+      let winningTeam = 1  // Par défaut Team A
+      let targetScore = isCrazyMode ? Infinity : 0
+      
       teamScores.forEach((score, team) => {
-        if (score > maxScore) {
-          maxScore = score
-          winningTeam = team
+        if (isCrazyMode) {
+          // Mode Crazy : Chercher le score le PLUS BAS
+          if (score < targetScore) {
+            targetScore = score
+            winningTeam = team
+          }
+        } else {
+          // Mode normal : Chercher le score le PLUS HAUT
+          if (score > targetScore) {
+            targetScore = score
+            winningTeam = team
+          }
         }
       })
 
-      console.log(`Winning team: Team ${winningTeam} with ${maxScore}`)
+      console.log(`${isCrazyMode ? '[CRAZY MODE]' : ''} Winning team: Team ${winningTeam} with ${targetScore}`)
 
       // Tous les items de la battle
       const allItems = finalValues.flatMap(f => f.items)
@@ -799,8 +840,13 @@ export default function BattleRoomPage() {
       if (isCreator) {
         console.log('🏆 CREATOR: Distributing rewards to winning team...')
         
+        // POOL TOTAL = somme de TOUTES les valeurs des 2 équipes
+        const totalPool = finalValues.reduce((sum, fv) => sum + fv.totalValue, 0)
+        console.log(`Total pool: ${totalPool} coins (Team A + Team B)`)
+        
         // Part de chaque joueur de l'équipe gagnante
-        const sharePerPlayer = battle.total_prize / winningTeamPlayers.length
+        const sharePerPlayer = totalPool / winningTeamPlayers.length
+        console.log(`Share per winning player: ${sharePerPlayer} coins`)
 
         for (const playerData of winningTeamPlayers) {
           if (playerData.participant.is_bot || !playerData.participant.user_id) {
@@ -810,7 +856,7 @@ export default function BattleRoomPage() {
 
           console.log(`Processing player: ${playerData.participant.username}, share: ${sharePerPlayer}`)
 
-          // Trouver l'item avec la valeur juste EN DESSOUS de la part
+          // Trouver l'item PARMI TOUS LES ITEMS DU SITE avec la valeur juste EN DESSOUS de la part
           const { data: closestItem } = await supabase
             .from('items')
             .select('id, name, image_url, market_value, rarity')
@@ -852,7 +898,7 @@ export default function BattleRoomPage() {
                   .eq('id', playerData.participant.user_id)
               }
 
-              console.log(`✅ Gave ${playerData.participant.username}: ${closestItem.name} (${closestItem.market_value}) + ${Math.floor(coinsBalance)} coins`)
+              console.log(`✅ Gave ${playerData.participant.username}: ${closestItem.name} (${closestItem.market_value}) + ${Math.floor(coinsBalance)} coins (from total pool ${totalPool})`)
             }
           } else {
             // Si aucun item trouvé, donner tout en coins
@@ -901,13 +947,38 @@ export default function BattleRoomPage() {
       // ========== MODE FREE-FOR-ALL (1v1, 1v1v1, 1v1v1v1) ==========
       console.log('🏆 FREE-FOR-ALL MODE: Finding individual winner...')
 
-      // Trouver le gagnant (celui avec la PLUS GRANDE valeur)
+      // Trouver le gagnant
+      // MODE CRAZY : Inverser - celui avec la PLUS PETITE valeur gagne
+      const isCrazyMode = battle.mode === 'crazy'
+      
+      // ========================================
+      // 🔍 DEBUG : Mode Crazy dans calcul individuel
+      // ========================================
+      console.log('🏆 FREE-FOR-ALL - Calcul gagnant:', {
+        mode: battle.mode,
+        isCrazyMode: isCrazyMode,
+        participants: finalValues.map(f => ({
+          name: f.participant.username || f.participant.bot_name,
+          value: f.totalValue
+        })),
+        logique: isCrazyMode ? 'INVERSÉE (le moins gagne)' : 'NORMALE (le plus gagne)'
+      })
+      
       let winner = finalValues[0]
       for (let i = 1; i < finalValues.length; i++) {
-        if (finalValues[i].totalValue > winner.totalValue) {
-          winner = finalValues[i]
+        if (isCrazyMode) {
+          // Mode Crazy : Chercher la valeur la PLUS BASSE
+          if (finalValues[i].totalValue < winner.totalValue) {
+            winner = finalValues[i]
+          }
+        } else {
+          // Mode normal : Chercher la valeur la PLUS HAUTE
+          if (finalValues[i].totalValue > winner.totalValue) {
+            winner = finalValues[i]
+          }
         }
       }
+      console.log(`${isCrazyMode ? '[CRAZY MODE]' : ''} Winner:`, winner.participant.username || winner.participant.bot_name, 'with', winner.totalValue)
 
       console.log('Winner:', winner.participant.username || winner.participant.bot_name, 'with', winner.totalValue)
 
@@ -1038,16 +1109,32 @@ export default function BattleRoomPage() {
         : 0
       const nextPosition = maxPosition + 1
       
+      // Pour les modes équipe (2v2, 3v3), auto-assigner à l'équipe la moins remplie
+      let assignedTeam: number | null = null
+      if (isTeamMode(battle)) {
+        const team1Count = battle.participants.filter(p => p.team === 1).length
+        const team2Count = battle.participants.filter(p => p.team === 2).length
+        assignedTeam = team1Count <= team2Count ? 1 : 2
+        console.log(`Assigning to team ${assignedTeam} (Team A: ${team1Count}, Team B: ${team2Count})`)
+      }
+      
       console.log('Current participants:', battle.participants.length, 'Max position:', maxPosition, 'Next position:', nextPosition)
+      
+      const insertData: any = {
+        battle_id: battleId,
+        user_id: currentUser.id,
+        is_bot: false,
+        position: nextPosition
+      }
+      
+      // Ajouter team seulement pour les modes équipe
+      if (assignedTeam !== null) {
+        insertData.team = assignedTeam
+      }
       
       const { error } = await supabase
         .from('battle_participants')
-        .insert({
-          battle_id: battleId,
-          user_id: currentUser.id,
-          is_bot: false,
-          position: nextPosition
-        })
+        .insert(insertData)
 
       if (error) {
         console.error('Error adding to battle:', error)
@@ -1066,7 +1153,7 @@ export default function BattleRoomPage() {
     }
   }
 
-  const handleAddBot = async () => {
+  const handleAddBot = async (targetTeam?: number) => {
     if (!battle) return
 
     try {
@@ -1084,15 +1171,38 @@ export default function BattleRoomPage() {
 
       console.log('Adding bot at position:', nextPosition, '(existing positions:', existingPositions, ')')
 
+      // Pour les modes équipe (2v2, 3v3), utiliser targetTeam OU auto-assigner
+      let assignedTeam: number | null = null
+      if (isTeamMode(battle)) {
+        if (targetTeam) {
+          // PRIORITÉ : Utiliser l'équipe demandée par le bouton cliqué
+          assignedTeam = targetTeam
+          console.log(`Bot assigned to requested team ${assignedTeam}`)
+        } else {
+          // FALLBACK : Auto-assigner à l'équipe la moins remplie
+          const team1Count = battle.participants.filter(p => p.team === 1).length
+          const team2Count = battle.participants.filter(p => p.team === 2).length
+          assignedTeam = team1Count <= team2Count ? 1 : 2
+          console.log(`Bot auto-assigned to team ${assignedTeam} (Team A: ${team1Count}, Team B: ${team2Count})`)
+        }
+      }
+
+      const insertData: any = {
+        battle_id: battleId,
+        user_id: null,
+        is_bot: true,
+        bot_name: botName,
+        position: nextPosition
+      }
+      
+      // Ajouter team seulement pour les modes équipe
+      if (assignedTeam !== null) {
+        insertData.team = assignedTeam
+      }
+
       const { error } = await supabase
         .from('battle_participants')
-        .insert({
-          battle_id: battleId,
-          user_id: null,
-          is_bot: true,
-          bot_name: botName,
-          position: nextPosition  // ← Position calculée correctement !
-        })
+        .insert(insertData)
 
       if (error) throw error
       await loadBattle()
@@ -1168,19 +1278,86 @@ export default function BattleRoomPage() {
   // Calculer le gagnant pour l'affichage de fin
   let winner: number | null = null
   let winnerIndex = 0
-  let maxValue = 0
+  
+  // MODE CRAZY : Chercher le MIN au lieu du MAX
+  const isCrazyMode = battle.mode === 'crazy'
+  let targetValue = isCrazyMode ? Infinity : 0
   
   if (battle.status === 'finished') {
     battle.participants.forEach((p: BattleParticipant, index: number) => {
       const items = itemsData[index] || []
       const totalValue = items.reduce((sum, item) => sum + item.market_value, 0)
-      if (totalValue > maxValue) {
-        maxValue = totalValue
-        winnerIndex = index
-        winner = index
+      
+      if (isCrazyMode) {
+        // Mode Crazy : Chercher la valeur la PLUS BASSE
+        if (totalValue < targetValue) {
+          targetValue = totalValue
+          winnerIndex = index
+          winner = index
+        }
+      } else {
+        // Mode normal : Chercher la valeur la PLUS HAUTE
+        if (totalValue > targetValue) {
+          targetValue = totalValue
+          winnerIndex = index
+          winner = index
+        }
       }
     })
   }
+
+  // ===============================================
+  // CALCUL ÉQUIPE GAGNANTE pour 2v2/3v3
+  // ===============================================
+  let winningTeam: number | null = null
+  let team1Score = 0
+  let team2Score = 0
+  let team1Count = 0
+  let team2Count = 0
+
+  if (battle.status === 'finished' && isTeamMode(battle)) {
+    battle.participants.forEach((p, index) => {
+      if (!p.team) return
+      
+      const items = itemsData[index] || []
+      const totalValue = items.reduce((sum, item) => sum + item.market_value, 0)
+      
+      if (p.team === 1) {
+        team1Score += totalValue
+        team1Count++
+      } else if (p.team === 2) {
+        team2Score += totalValue
+        team2Count++
+      }
+    })
+
+    // MODE CRAZY : Inverser - l'équipe avec le MOINS gagne
+    const isCrazyMode = battle.mode === 'crazy'
+    
+    // ========================================
+    // 🔍 DEBUG : Mode Crazy dans calcul affichage
+    // ========================================
+    console.log('🎨 AFFICHAGE - Calcul gagnant:', {
+      mode: battle.mode,
+      isCrazyMode: isCrazyMode,
+      team1Score: team1Score,
+      team2Score: team2Score,
+      logique: isCrazyMode ? 'INVERSÉE (le moins gagne)' : 'NORMALE (le plus gagne)'
+    })
+    
+    if (isCrazyMode) {
+      winningTeam = team1Score < team2Score ? 1 : 2
+    } else {
+      winningTeam = team1Score > team2Score ? 1 : 2
+    }
+    
+    console.log('🏆 Équipe gagnante:', winningTeam, 'avec score:', winningTeam === 1 ? team1Score : team2Score)
+  }
+
+  // Pool total et gains par joueur gagnant (pour modes équipe)
+  const totalPool = team1Score + team2Score
+  const winningTeamCount = winningTeam === 1 ? team1Count : team2Count
+  const sharePerPlayer = winningTeamCount > 0 ? totalPool / winningTeamCount : 0
 
   // Collecter tous les items pour le gagnant
   const allItems = battle.status === 'finished' 
@@ -1189,6 +1366,12 @@ export default function BattleRoomPage() {
 
   // Prix par joueur (pas le total)
   const pricePerPlayer = Math.floor(battle.total_prize / 2)
+
+  // ===============================================
+  // ===============================================
+  // PAS D'ÉCRAN SÉPARÉ POUR MODES ÉQUIPE !
+  // On reste sur la même page comme en 1v1
+  // ===============================================
 
   return (
     <div className="h-screen overflow-hidden bg-gradient-to-br from-gray-900 via-[#1a2332] to-gray-900 flex flex-col">
@@ -1209,44 +1392,55 @@ export default function BattleRoomPage() {
         {(battle.status !== 'finished' || true) && (
           <div className="flex-1 flex flex-col overflow-hidden relative">
             
-            {/* Zone centrale BOX - CENTRÉE ABSOLUMENT sur la page */}
-            <div className="absolute left-1/2 top-2 transform -translate-x-1/2 z-20 flex flex-col items-center">
-              {/* Texte BOX X OF Y ou LA BATTLE EST TERMINÉE */}
-              {battle.status === 'finished' ? (
-                <motion.h2 
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-white font-black text-3xl tracking-wider"
-                >
-                  LA BATTLE EST TERMINÉE
-                </motion.h2>
-              ) : (
-                <>
-                  <h2 className="text-white font-black text-2xl tracking-wider mb-3">
-                    BOX {currentBoxIndex + 1} OF {battle.total_boxes}
-                  </h2>
-                  
-                  {/* Indicateurs de progression - Plus petits */}
-                  <div className="flex justify-center gap-1.5 mb-2">
-                    {Array.from({ length: battle.total_boxes }).map((_, idx) => (
-                      <div
-                        key={idx}
-                        className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                          idx < currentBoxIndex 
-                            ? 'bg-emerald-500' 
-                            : idx === currentBoxIndex
-                            ? 'bg-[#4578be]'
-                            : 'bg-gray-600'
-                        }`}
-                      />
-                    ))}
-                  </div>
+            {/* Icône mode CRAZY en arrière-plan flouté */}
+            {battle.mode === 'crazy' && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="fixed left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none"
+              >
+                <Zap className="w-96 h-96 text-purple-500/10 blur-3xl" />
+              </motion.div>
+            )}
 
-                  {/* Ancien affichage du prix supprimé - maintenant sous la box */}
-                </>
-              )}
+            {/* Zone centrale BOX - Entre titre et joueurs - FIXE */}
+            <div className="fixed left-1/2 top-28 transform -translate-x-1/2 z-50 flex flex-col items-center pointer-events-none">
+              {/* Texte BOX X OF Y ou LA BATTLE EST TERMINÉE - AU-DESSUS */}
+              <div className="absolute bottom-full mb-4">
+                {battle.status === 'finished' ? (
+                  <motion.h2 
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-white font-black text-3xl tracking-wider text-center whitespace-nowrap"
+                  >
+                    LA BATTLE EST TERMINÉE
+                  </motion.h2>
+                ) : (
+                  <>
+                    <h2 className="text-white font-black text-2xl tracking-wider mb-3 text-center whitespace-nowrap">
+                      BOX {currentBoxIndex + 1} OF {battle.total_boxes}
+                    </h2>
+                    
+                    {/* Indicateurs de progression - Plus petits */}
+                    <div className="flex justify-center gap-1.5">
+                      {Array.from({ length: battle.total_boxes }).map((_, idx) => (
+                        <div
+                          key={idx}
+                          className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                            idx < currentBoxIndex 
+                              ? 'bg-emerald-500' 
+                              : idx === currentBoxIndex
+                              ? 'bg-[#4578be]'
+                              : 'bg-gray-600'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
 
-              {/* Grande BOX au centre - ÉNORMÉMENT PLUS GRANDE */}
+              {/* Grande BOX au centre */}
               {battle.battle_boxes.length > 0 && (() => {
                 let accumulatedBoxes = 0
                 let currentBox = battle.battle_boxes[0]
@@ -1301,10 +1495,14 @@ export default function BattleRoomPage() {
               })()}
             </div>
 
-            {/* Battle Classic - Gauche, aligné avec BOX */}
+            {/* Battle Name avec icône selon le mode - Gauche, aligné avec BOX */}
             <div className="absolute left-4 top-2 z-20">
               <h1 className="text-sm font-bold text-white flex items-center gap-1.5">
-                <Crown className="w-4 h-4 text-[#4578be]" />
+                {battle.mode === 'crazy' ? (
+                  <Zap className="w-4 h-4 text-purple-400" />
+                ) : (
+                  <Crown className="w-4 h-4 text-[#4578be]" />
+                )}
                 {battle.name}
               </h1>
             </div>
@@ -1325,38 +1523,124 @@ export default function BattleRoomPage() {
             </div>
 
             {/* Ligne verticale au centre - seulement en 1v1 et modes équipe */}
-            {(battle.max_players === 2 || isTeamMode(battle.mode)) && (
-              <div className="absolute left-1/2 top-0 bottom-0 transform -translate-x-1/2 w-px bg-gradient-to-b from-transparent via-gray-700/50 to-transparent z-10" />
+            {(battle.max_players === 2 || isTeamMode(battle)) && (
+              <>
+                <div className="absolute left-1/2 top-0 bottom-0 transform -translate-x-1/2 w-px bg-gradient-to-b from-transparent via-gray-700/50 to-transparent z-10" />
+                
+                {/* Épée au centre en mode équipe */}
+                {isTeamMode(battle) && battle.status !== 'finished' && (
+                  <div 
+                    className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30 transition-opacity duration-300"
+                    style={{ 
+                      opacity: battle.status === 'waiting' ? 1 : 0.6
+                    }}
+                  >
+                    <Swords className="w-16 h-16 text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]" />
+                  </div>
+                )}
+              </>
             )}
 
             {/* Zone des joueurs avec roulettes - GRID DYNAMIQUE */}
             <div className="flex-1 overflow-hidden pt-24">
-              {isTeamMode(battle.mode) ? (
-                // ========== MODE ÉQUIPE (2v2, 3v3) ==========
-                <div className="h-full grid grid-cols-2 gap-2">
+              {isTeamMode(battle) ? (
+                <>
+                  {/* GAINS TOTAUX - Côté GAUCHE (Team A) */}
+                  {battle.status === 'finished' && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.5, duration: 0.5 }}
+                      className={`fixed left-4 top-1/2 transform -translate-y-1/2 z-40 p-4 rounded-xl border-2 ${
+                        winningTeam === 1
+                          ? 'bg-emerald-500/10 border-emerald-500'
+                          : 'bg-red-500/10 border-red-500'
+                      }`}
+                    >
+                      <h3 className={`font-black text-xl mb-2 ${
+                        winningTeam === 1 ? 'text-emerald-400' : 'text-red-400'
+                      }`}>
+                        {winningTeam === 1 ? '✅ GAGNANT' : '❌ PERDANT'}
+                      </h3>
+                      {winningTeam === 1 && (
+                        <>
+                          <p className="text-emerald-400 font-bold text-lg">
+                            {totalPool.toFixed(2)}
+                          </p>
+                          <p className="text-gray-400 text-sm">
+                            {sharePerPlayer.toFixed(2)} / joueur
+                          </p>
+                        </>
+                      )}
+                    </motion.div>
+                  )}
+
+                  {/* GAINS TOTAUX - Côté DROIT (Team B) */}
+                  {battle.status === 'finished' && (
+                    <motion.div
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.5, duration: 0.5 }}
+                      className={`fixed right-4 top-1/2 transform -translate-y-1/2 z-40 p-4 rounded-xl border-2 ${
+                        winningTeam === 2
+                          ? 'bg-emerald-500/10 border-emerald-500'
+                          : 'bg-red-500/10 border-red-500'
+                      }`}
+                    >
+                      <h3 className={`font-black text-xl mb-2 text-right ${
+                        winningTeam === 2 ? 'text-emerald-400' : 'text-red-400'
+                      }`}>
+                        {winningTeam === 2 ? '✅ GAGNANT' : '❌ PERDANT'}
+                      </h3>
+                      {winningTeam === 2 && (
+                        <>
+                          <p className="text-emerald-400 font-bold text-lg text-right">
+                            {totalPool.toFixed(2)}
+                          </p>
+                          <p className="text-gray-400 text-sm text-right">
+                            {sharePerPlayer.toFixed(2)} / joueur
+                          </p>
+                        </>
+                      )}
+                    </motion.div>
+                  )}
+
+                  {/* ========== MODE ÉQUIPE (2v2, 3v3) ========== */}
+                  <div className={`h-full grid grid-cols-2 gap-2 ${battle.max_players === 6 ? 'scale-[0.75]' : 'scale-[0.85]'}`}>
                   {/* TEAM A (gauche) */}
-                  <div className="flex flex-col gap-2 px-2 pb-4">
-                    <div className="text-center mb-2">
-                      <h3 className="text-[#4578be] font-black text-lg">TEAM A</h3>
+                  <div className={`flex flex-col ${battle.status === 'finished' ? 'gap-0' : 'gap-0.5'} px-2 pb-2`}>
+                    <div className="text-center mb-1">
+                      <h3 className="text-[#4578be] font-black text-sm">TEAM A</h3>
                     </div>
+                    
+                    {/* Joueurs de Team A - empilés verticalement */}
                     {battle.participants
-                      .filter(p => p.team === 0 || p.team === null)
+                      .filter(p => p.team === 1 || p.team === null)
                       .map((participant, teamIndex) => {
                         const globalIndex = battle.participants.findIndex(p => p.id === participant.id)
+                        const is3v3 = battle.max_players === 6
+                        
                         return (
-                          <div key={participant.id || globalIndex} className="flex-1 flex flex-col">
-                            <PlayerProfileCard
-                              participant={participant}
-                              totalValue={itemsData[globalIndex]?.reduce((sum, item) => sum + item.market_value, 0) || 0}
-                              side="left"
-                              canJoin={false}
-                              onJoin={handleJoinBattle}
-                              canAddBot={false}
-                              onAddBot={handleAddBot}
-                              price={Math.floor(battle.total_prize / battle.max_players)}
-                              team={participant.team}
-                            />
-                            <div className="mt-1">
+                          <div key={participant.id || globalIndex} className="flex-shrink-0">
+                            {/* Profil du joueur */}
+                            <div className={is3v3 ? "" : ""}>
+                              <PlayerProfileCard
+                                participant={participant}
+                                totalValue={itemsData[globalIndex]?.reduce((sum, item) => sum + item.market_value, 0) || 0}
+                                side="left"
+                                canJoin={false}
+                                onJoin={handleJoinBattle}
+                                canAddBot={false}
+                                onAddBot={handleAddBot}
+                                price={Math.floor(battle.total_prize / battle.max_players)}
+                                team={participant.team}
+                                isWinner={battle.status === 'finished' ? (participant.team === winningTeam) : null}
+                                totalGains={battle.status === 'finished' && participant.team === winningTeam ? sharePerPlayer : null}
+                              />
+                            </div>
+                            
+                            {/* Roulette du joueur */}
+                            <div className={`mt-0.5 ${is3v3 ? "" : ""}`}>
                               <SingleRoulette
                                 offset={rouletteOffsets[globalIndex] || 0}
                                 isAnimating={isOpening}
@@ -1367,57 +1651,119 @@ export default function BattleRoomPage() {
                                 countdown={countdown}
                               />
                             </div>
-                            <div className="flex-shrink-0 mt-1">
-                              <p className="text-gray-400 text-xs font-semibold mb-2">Items gagnés</p>
-                              <div className="flex items-center gap-2 overflow-x-auto py-1 px-1">
-                                {(itemsData[globalIndex] || []).map((item, idx) => (
-                                  <motion.div
-                                    key={idx}
-                                    initial={{ scale: 0, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    transition={{ delay: idx * 0.05 }}
-                                    className="flex-shrink-0 w-14 h-14 bg-gray-800/60 rounded-lg p-1.5 border border-gray-700/50"
-                                  >
-                                    <img 
-                                      src={item.item_image} 
-                                      className="w-full h-full object-contain"
-                                      onError={(e) => { (e.target as HTMLImageElement).src = '/mystery-box.png' }}
-                                    />
-                                  </motion.div>
-                                ))}
-                                {(itemsData[globalIndex] || []).length === 0 && (
-                                  <span className="text-gray-500 text-sm">Aucun item</span>
-                                )}
-                              </div>
-                            </div>
                           </div>
                         )
                       })}
+                    
+                    {/* Slots vides Team A avec bouton rejoindre */}
+                    {Array.from({ 
+                      length: Math.max(0, Math.ceil(battle.max_players / 2) - battle.participants.filter(p => p.team === 1 || p.team === null).length) 
+                    }).map((_, idx) => {
+                      const is3v3 = battle.max_players === 6
+                      return (
+                        <div key={`empty-a-${idx}`} className="flex-shrink-0">
+                          <div className={is3v3 ? "" : ""}>
+                            <PlayerProfileCard
+                              participant={null}
+                              totalValue={0}
+                              side="left"
+                              canJoin={canJoin && battle.status === 'waiting'}
+                              onJoin={handleJoinBattle}
+                              canAddBot={isCreator && battle.status === 'waiting'}
+                              onAddBot={handleAddBot}
+                              price={Math.floor(battle.total_prize / battle.max_players)}
+                              team={1}
+                            />
+                          </div>
+                          
+                          {/* Roulette floue pour slot vide */}
+                          <div className={`mt-0.5 ${is3v3 ? "" : ""}`}>
+                            <SingleRoulette
+                              offset={0}
+                              isAnimating={false}
+                              winningItem={null}
+                              battleBoxes={battle.battle_boxes}
+                              currentBoxIndex={0}
+                              battleStatus={battle.status}
+                              countdown={countdown}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })}
+                    
+                    {/* Items gagnés PAR L'ÉQUIPE - Affichés EN COMMUN en bas */}
+                    <div className="mt-auto pt-1 relative">
+                      <p className="text-gray-400 text-xs font-semibold mb-1">Items de l'équipe</p>
+                      <div className="flex items-center gap-2 py-1 px-1 flex-wrap min-h-[80px] pb-20">
+                        {battle.participants
+                          .filter(p => p.team === 1 || p.team === null)
+                          .flatMap((participant) => {
+                            const globalIndex = battle.participants.findIndex(p => p.id === participant.id)
+                            return itemsData[globalIndex] || []
+                          })
+                          .map((item, idx) => (
+                            <motion.div
+                              key={idx}
+                              initial={{ scale: 0, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              transition={{ delay: idx * 0.05 }}
+                              className={`group relative flex-shrink-0 ${battle.max_players === 2 ? 'w-14 h-14' : battle.max_players <= 4 ? 'w-12 h-12' : 'w-11 h-11'} bg-gray-800/60 rounded-lg p-1 border-2 border-[#4578be]/50 hover:scale-[1.6] hover:border-[#4578be] hover:z-[999] transition-all duration-300 cursor-pointer hover:shadow-[0_0_20px_rgba(69,120,190,0.6)]`}
+                            >
+                              <img 
+                                src={item.item_image} 
+                                className="w-full h-full object-contain"
+                                onError={(e) => { (e.target as HTMLImageElement).src = '/mystery-box.png' }}
+                              />
+                              
+                              {/* Tooltip au hover - FORCÉ EN HAUT */}
+                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 px-4 py-3 bg-gray-900/95 rounded-xl border-2 border-[#4578be] shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-[1000]">
+                                <p className="text-white text-base font-bold mb-2">{item.item_name}</p>
+                                <div className="flex items-center gap-2 justify-center bg-[#4578be]/20 px-3 py-1 rounded-lg">
+                                  <img src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/profile-images/favicon.ico.png" className="w-5 h-5" />
+                                  <span className="text-[#4578be] text-base font-black">{item.market_value?.toFixed(2)}</span>
+                                </div>
+                              </div>
+                            </motion.div>
+                          ))}
+                      </div>
+                    </div>
                   </div>
 
                   {/* TEAM B (droite) */}
-                  <div className="flex flex-col gap-2 px-2 pb-4">
-                    <div className="text-center mb-2">
-                      <h3 className="text-emerald-500 font-black text-lg">TEAM B</h3>
+                  <div className="flex flex-col gap-0.5 px-2 pb-2">
+                    <div className="text-center mb-1">
+                      <h3 className="text-emerald-500 font-black text-sm">TEAM B</h3>
                     </div>
+                    
+                    {/* Joueurs de Team B - empilés verticalement */}
                     {battle.participants
-                      .filter(p => p.team === 1)
+                      .filter(p => p.team === 2)
                       .map((participant, teamIndex) => {
                         const globalIndex = battle.participants.findIndex(p => p.id === participant.id)
+                        const is3v3 = battle.max_players === 6
+                        
                         return (
-                          <div key={participant.id || globalIndex} className="flex-1 flex flex-col">
-                            <PlayerProfileCard
-                              participant={participant}
-                              totalValue={itemsData[globalIndex]?.reduce((sum, item) => sum + item.market_value, 0) || 0}
-                              side="right"
-                              canJoin={false}
-                              onJoin={handleJoinBattle}
-                              canAddBot={false}
-                              onAddBot={handleAddBot}
-                              price={Math.floor(battle.total_prize / battle.max_players)}
-                              team={participant.team}
-                            />
-                            <div className="mt-1">
+                          <div key={participant.id || globalIndex} className="flex-shrink-0">
+                            {/* Profil du joueur */}
+                            <div className={is3v3 ? "" : ""}>
+                              <PlayerProfileCard
+                                participant={participant}
+                                totalValue={itemsData[globalIndex]?.reduce((sum, item) => sum + item.market_value, 0) || 0}
+                                side="right"
+                                canJoin={false}
+                                onJoin={handleJoinBattle}
+                                canAddBot={false}
+                                onAddBot={handleAddBot}
+                                price={Math.floor(battle.total_prize / battle.max_players)}
+                                team={participant.team}
+                                isWinner={battle.status === 'finished' ? (participant.team === winningTeam) : null}
+                                totalGains={battle.status === 'finished' && participant.team === winningTeam ? sharePerPlayer : null}
+                              />
+                            </div>
+                            
+                            {/* Roulette du joueur */}
+                            <div className={`mt-0.5 ${is3v3 ? "" : ""}`}>
                               <SingleRoulette
                                 offset={rouletteOffsets[globalIndex] || 0}
                                 isAnimating={isOpening}
@@ -1428,37 +1774,89 @@ export default function BattleRoomPage() {
                                 countdown={countdown}
                               />
                             </div>
-                            <div className="flex-shrink-0 mt-1">
-                              <p className="text-gray-400 text-xs font-semibold mb-2 text-right">Items gagnés</p>
-                              <div className="flex items-center gap-2 overflow-x-auto py-1 px-1 justify-end">
-                                {(itemsData[globalIndex] || []).map((item, idx) => (
-                                  <motion.div
-                                    key={idx}
-                                    initial={{ scale: 0, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    transition={{ delay: idx * 0.05 }}
-                                    className="flex-shrink-0 w-14 h-14 bg-gray-800/60 rounded-lg p-1.5 border border-gray-700/50"
-                                  >
-                                    <img 
-                                      src={item.item_image} 
-                                      className="w-full h-full object-contain"
-                                      onError={(e) => { (e.target as HTMLImageElement).src = '/mystery-box.png' }}
-                                    />
-                                  </motion.div>
-                                ))}
-                                {(itemsData[globalIndex] || []).length === 0 && (
-                                  <span className="text-gray-500 text-sm">Aucun item</span>
-                                )}
-                              </div>
-                            </div>
                           </div>
                         )
                       })}
+                    
+                    {/* Slots vides Team B avec bouton rejoindre */}
+                    {Array.from({ 
+                      length: Math.max(0, Math.floor(battle.max_players / 2) - battle.participants.filter(p => p.team === 2).length) 
+                    }).map((_, idx) => {
+                      const is3v3 = battle.max_players === 6
+                      return (
+                        <div key={`empty-b-${idx}`} className="flex-shrink-0">
+                          <div className={is3v3 ? "" : ""}>
+                            <PlayerProfileCard
+                              participant={null}
+                              totalValue={0}
+                              side="right"
+                              canJoin={canJoin && battle.status === 'waiting'}
+                              onJoin={handleJoinBattle}
+                              canAddBot={isCreator && battle.status === 'waiting'}
+                              onAddBot={handleAddBot}
+                              price={Math.floor(battle.total_prize / battle.max_players)}
+                              team={2}
+                            />
+                          </div>
+                          
+                          {/* Roulette floue pour slot vide */}
+                          <div className={`mt-0.5 ${is3v3 ? "" : ""}`}>
+                            <SingleRoulette
+                              offset={0}
+                              isAnimating={false}
+                              winningItem={null}
+                              battleBoxes={battle.battle_boxes}
+                              currentBoxIndex={0}
+                              battleStatus={battle.status}
+                              countdown={countdown}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })}
+                    
+                    {/* Items gagnés PAR L'ÉQUIPE - Affichés EN COMMUN en bas */}
+                    <div className="mt-auto pt-1 relative">
+                      <p className="text-gray-400 text-xs font-semibold mb-1 text-right">Items de l'équipe</p>
+                      <div className="flex items-center gap-2 py-1 px-1 flex-wrap min-h-[80px] pb-20 justify-end">
+                        {battle.participants
+                          .filter(p => p.team === 2)
+                          .flatMap((participant) => {
+                            const globalIndex = battle.participants.findIndex(p => p.id === participant.id)
+                            return itemsData[globalIndex] || []
+                          })
+                          .map((item, idx) => (
+                            <motion.div
+                              key={idx}
+                              initial={{ scale: 0, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              transition={{ delay: idx * 0.05 }}
+                              className={`group relative flex-shrink-0 ${battle.max_players === 2 ? 'w-14 h-14' : battle.max_players <= 4 ? 'w-12 h-12' : 'w-11 h-11'} bg-gray-800/60 rounded-lg p-1 border-2 border-emerald-500/50 hover:scale-[1.6] hover:border-emerald-500 hover:z-[999] transition-all duration-300 cursor-pointer hover:shadow-[0_0_20px_rgba(16,185,129,0.6)]`}
+                            >
+                              <img 
+                                src={item.item_image} 
+                                className="w-full h-full object-contain"
+                                onError={(e) => { (e.target as HTMLImageElement).src = '/mystery-box.png' }}
+                              />
+                              
+                              {/* Tooltip au hover - FORCÉ EN HAUT */}
+                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 px-4 py-3 bg-gray-900/95 rounded-xl border-2 border-emerald-500 shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-[1000]">
+                                <p className="text-white text-base font-bold mb-2">{item.item_name}</p>
+                                <div className="flex items-center gap-2 justify-center bg-emerald-500/20 px-3 py-1 rounded-lg">
+                                  <img src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/profile-images/favicon.ico.png" className="w-5 h-5" />
+                                  <span className="text-emerald-500 text-base font-black">{item.market_value?.toFixed(2)}</span>
+                                </div>
+                              </div>
+                            </motion.div>
+                          ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
+                </>
               ) : (
                 // ========== MODE FREE-FOR-ALL (1v1, 1v1v1, 1v1v1v1) ==========
-                <div className={`h-full grid ${getGridColumns(battle.max_players, battle.mode)} gap-2`}>
+                <div className={`h-full grid ${getGridColumns(battle.max_players, battle)} gap-2`}>
                   {/* Boucle sur TOUS les slots (participants + slots vides) */}
                   {Array.from({ length: battle.max_players }).map((_, slotIndex) => {
                     const participant = battle.participants[slotIndex]
@@ -2585,9 +2983,9 @@ function PlayerProfileCard({
   canJoin?: boolean
   onJoin?: () => void
   canAddBot?: boolean
-  onAddBot?: () => void
+  onAddBot?: (team?: number) => void
   price: number
-  team?: number
+  team?: number | null
   isWinner?: boolean | null
   totalGains?: number | null
 }) {
@@ -2737,7 +3135,7 @@ function PlayerProfileCard({
         {!canJoin && canAddBot && onAddBot && (
           <div className="absolute bottom-2 right-2">
             <button
-              onClick={onAddBot}
+              onClick={() => onAddBot(team ?? undefined)}
               className="w-10 h-10 bg-[#4578be] rounded-lg hover:bg-[#5989d8] transition flex items-center justify-center shadow-lg"
             >
               <Bot className="w-5 h-5 text-white" />
@@ -2757,6 +3155,181 @@ function PlayerProfileCard({
           dangerouslySetInnerHTML={{ __html: bannerSvg }}
           style={{ filter: 'brightness(0.6)' }}
         />
+      ) : participant?.is_bot ? (
+        // Bannière stylée pour les BOTS avec dégradé CYAN ÉLECTRIQUE + icons répartis partout
+        <>
+          <div className="absolute inset-0 bg-gradient-to-br from-red-500/40 via-red-600/30 to-red-400/40" />
+          <div className="absolute inset-0 bg-gradient-to-tl from-red-600/25 via-red-500/15 to-red-400/25" />
+          
+          {/* Icons bots MIEUX RÉPARTIS sur toute la bannière - EN CYAN CLAIR */}
+          {/* COIN HAUT GAUCHE */}
+          <motion.div
+            className="absolute top-3 left-3 opacity-75"
+            animate={{
+              y: [0, -8, 2, -5, 0],
+              x: [0, 4, -1, 3, 0],
+            }}
+            transition={{
+              duration: 6,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+          >
+            <Bot className="w-6 h-6 text-red-200 drop-shadow-lg" />
+          </motion.div>
+          
+          {/* COIN HAUT DROIT */}
+          <motion.div
+            className="absolute top-3 right-3 opacity-75"
+            animate={{
+              y: [0, 7, -2, 5, 0],
+              x: [0, -3, 1, -2, 0],
+            }}
+            transition={{
+              duration: 7,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 1
+            }}
+          >
+            <Bot className="w-5 h-5 text-red-300 drop-shadow-lg" />
+          </motion.div>
+          
+          {/* MILIEU GAUCHE */}
+          <motion.div
+            className="absolute top-[35%] left-2 opacity-75"
+            animate={{
+              y: [-4, 6, -2, 4, -4],
+              x: [0, 3, -1, 2, 0],
+            }}
+            transition={{
+              duration: 5.5,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 0.5
+            }}
+          >
+            <Bot className="w-6 h-6 text-red-100 drop-shadow-lg" />
+          </motion.div>
+
+          {/* MILIEU DROIT */}
+          <motion.div
+            className="absolute top-[40%] right-2 opacity-75"
+            animate={{
+              y: [3, -7, 2, -5, 3],
+              x: [0, -3, 1, -2, 0],
+            }}
+            transition={{
+              duration: 6.5,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 1.5
+            }}
+          >
+            <Bot className="w-5 h-5 text-red-200 drop-shadow-lg" />
+          </motion.div>
+
+          {/* MILIEU CENTRE HAUT */}
+          <motion.div
+            className="absolute top-[20%] left-[45%] opacity-75"
+            animate={{
+              y: [0, -6, 2, -4, 0],
+              x: [-2, 4, -1, 3, -2],
+            }}
+            transition={{
+              duration: 5,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 2
+            }}
+          >
+            <Bot className="w-6 h-6 text-red-300 drop-shadow-lg" />
+          </motion.div>
+
+          {/* MILIEU CENTRE BAS */}
+          <motion.div
+            className="absolute top-[65%] left-[50%] opacity-75"
+            animate={{
+              y: [2, -5, 3, -4, 2],
+              x: [1, -3, 2, -2, 1],
+            }}
+            transition={{
+              duration: 6.2,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 0.8
+            }}
+          >
+            <Bot className="w-5 h-5 text-red-100 drop-shadow-lg" />
+          </motion.div>
+          
+          {/* COIN BAS GAUCHE */}
+          <motion.div
+            className="absolute bottom-3 left-4 opacity-75"
+            animate={{
+              y: [0, -7, 2, -5, 0],
+              x: [0, 3, -1, 2, 0],
+            }}
+            transition={{
+              duration: 5.8,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 1.2
+            }}
+          >
+            <Bot className="w-5 h-5 text-red-200 drop-shadow-lg" />
+          </motion.div>
+
+          {/* COIN BAS DROIT */}
+          <motion.div
+            className="absolute bottom-3 right-4 opacity-75"
+            animate={{
+              y: [0, 6, -2, 4, 0],
+              x: [0, -2, 1, -2, 0],
+            }}
+            transition={{
+              duration: 4.8,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 2.5
+            }}
+          >
+            <Bot className="w-6 h-6 text-red-300 drop-shadow-lg" />
+          </motion.div>
+
+          {/* PETITS BOTS REMPLISSAGE */}
+          <motion.div
+            className="absolute top-[50%] left-[25%] opacity-75"
+            animate={{
+              y: [-2, 5, -2, 4, -2],
+              x: [1, -2, 1, -2, 1],
+            }}
+            transition={{
+              duration: 7.2,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 0.3
+            }}
+          >
+            <Bot className="w-4 h-4 text-red-200 drop-shadow-lg" />
+          </motion.div>
+
+          <motion.div
+            className="absolute top-[55%] left-[70%] opacity-75"
+            animate={{
+              y: [2, -6, 2, -4, 2],
+              x: [-1, 3, -1, 2, -1],
+            }}
+            transition={{
+              duration: 6.8,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 1.8
+            }}
+          >
+            <Bot className="w-4 h-4 text-red-100 drop-shadow-lg" />
+          </motion.div>
+        </>
       ) : (
         <div className="absolute inset-0 bg-gradient-to-r from-[#4578be]/40 to-[#5989d8]/40" />
       )}
@@ -3296,7 +3869,7 @@ function EmptySlotCompact({
         
         {onAddBot && (
           <button
-            onClick={onAddBot}
+            onClick={() => onAddBot(team ?? undefined)}
             className="px-4 py-2 bg-gray-800 text-white text-sm font-bold rounded-lg hover:bg-gray-700 transition"
           >
             <Plus className="w-4 h-4 inline mr-1" />

@@ -628,7 +628,7 @@ export default function BattleCreateConnected() {
           battle_id: battle.id,
           user_id: user.id,
           position: 1,
-          team: 1,
+          team: (teamConfig === '2v2' || teamConfig === '3v3') ? 1 : null,  // Team A = 1 pour modes équipe
           is_ready: true,
           has_paid: true
         })
@@ -636,15 +636,26 @@ export default function BattleCreateConnected() {
       if (participantError) throw participantError
 
       if (withBots) {
-        const botParticipants = Array.from({ length: maxPlayers - 1 }, (_, i) => ({
-          battle_id: battle.id,
-          is_bot: true,
-          bot_name: `Bot ${i + 1}`,
-          position: i + 2,
-          team: selectedModes.includes('shared') ? (i < Math.floor(maxPlayers / 2) ? 1 : 2) : i + 2,
-          is_ready: true,
-          has_paid: true
-        }))
+        const isTeamMode = teamConfig === '2v2' || teamConfig === '3v3'
+        const botParticipants = Array.from({ length: maxPlayers - 1 }, (_, i) => {
+          const position = i + 2
+          // Pour les modes équipe : assigner team 1 ou 2 selon la position
+          // Position 1-2 → team 1, Position 3-4 → team 2 (pour 2v2)
+          // Position 1-3 → team 1, Position 4-6 → team 2 (pour 3v3)
+          const team = isTeamMode 
+            ? (position <= Math.ceil(maxPlayers / 2) ? 1 : 2)
+            : null
+          
+          return {
+            battle_id: battle.id,
+            is_bot: true,
+            bot_name: `Bot ${i + 1}`,
+            position: position,
+            team: team,
+            is_ready: true,
+            has_paid: true
+          }
+        })
 
         const { error: botsError } = await supabase
           .from('battle_participants')
@@ -731,8 +742,8 @@ export default function BattleCreateConnected() {
         ))}
       </div>
 
-      <div className="border-b border-white/10 bg-white/5 backdrop-blur-md px-6 py-3 relative z-10">
-        <div className="max-w-[1800px] mx-auto ml-40">
+      <div className="border-b border-white/10 bg-white/5 backdrop-blur-md px-3 sm:px-4 md:px-6 py-2 sm:py-3 relative z-10">
+        <div className="max-w-[1800px] mx-auto ml-0 sm:ml-20 md:ml-40">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-4">
               <button 
@@ -741,24 +752,24 @@ export default function BattleCreateConnected() {
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              <h1 className="text-2xl font-bold">Create Case Battle</h1>
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold">Create Case Battle</h1>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="text-xs">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <div className="text-[10px] sm:text-xs">
                 <span className="text-blue-200">Total Boxes:</span>
                 <span className={`ml-1.5 font-bold ${totalBoxes > MAX_BOXES ? 'text-red-400' : 'text-white'}`}>
                   {totalBoxes} / {MAX_BOXES}
                 </span>
               </div>
-              <div className="text-xs flex items-center">
+              <div className="text-[10px] sm:text-xs flex items-center">
                 <span className="text-blue-200">Total Value:</span>
                 <span className="ml-1.5 text-white font-bold flex items-center">
                   {totalValue.toFixed(2)}
                   <CoinIcon size={14} />
                 </span>
               </div>
-              <div className="h-6 w-px bg-white/20"></div>
+              <div className="hidden sm:block h-6 w-px bg-white/20"></div>
               
               <button 
                 onClick={() => createBattle(false)}
@@ -796,8 +807,8 @@ export default function BattleCreateConnected() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 ml-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+            <div className="flex flex-wrap items-center gap-2 ml-2 sm:ml-4 md:ml-8">
               {GAME_MODES.map(mode => {
                 const Icon = mode.icon
                 const isActive = selectedModes.includes(mode.id)
@@ -1009,7 +1020,7 @@ export default function BattleCreateConnected() {
               exit={{ height: 0, opacity: 0 }}
               className="overflow-hidden"
             >
-              <div className="max-w-[1800px] mx-auto px-6 py-3 relative z-10">
+              <div className="max-w-[1800px] mx-auto px-3 sm:px-4 md:px-6 py-2 sm:py-3 relative z-10">
                 <div className={`bg-gradient-to-r ${colors.bg} rounded-xl p-4 border ${colors.border} backdrop-blur-sm`}>
                   <div className="flex items-start gap-3">
                     <div className={`w-8 h-8 rounded-full ${colors.icon} flex items-center justify-center flex-shrink-0`}>
@@ -1036,18 +1047,18 @@ export default function BattleCreateConnected() {
       </AnimatePresence>
 
 
-      <div className="ml-36 max-w-[1800px] mx-auto px-6 py-4 relative z-10">
+      <div className="ml-0 sm:ml-16 md:ml-24 lg:ml-36 max-w-[1800px] mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4 relative z-10">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
           <button
             onClick={() => setShowCatalog(true)}
             className="aspect-square bg-white/5 hover:bg-white/10 border-2 border-dashed border-white/20 hover:border-blue-300 rounded-xl flex flex-col items-center justify-center transition-all group"
           >
             <Plus className="w-8 h-8 text-white/40 group-hover:text-blue-300 mb-2" />
-            <span className="text-xs text-white/40 group-hover:text-blue-300 font-bold">Add Box</span>
+            <span className="text-[10px] sm:text-xs text-white/40 group-hover:text-blue-300 font-bold">Add Box</span>
           </button>
 
           {selectedBoxes.map((box) => (
-            <div key={box.id} className="aspect-square bg-white/5 rounded-xl p-3 flex flex-col relative group border border-white/10 hover:border-blue-300 transition-colors">
+            <div key={box.id} className="aspect-square bg-white/5 rounded-xl p-2 sm:p-3 flex flex-col relative group border border-white/10 hover:border-blue-300 transition-colors">
               <button
                 onClick={() => removeBox(box.id)}
                 className="absolute top-2 right-2 w-6 h-6 bg-red-500/80 hover:bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20"
@@ -1058,9 +1069,9 @@ export default function BattleCreateConnected() {
               <img src={box.image_url} alt={box.name} className="w-full h-20 object-contain mb-2" />
               
               <div className="mt-auto">
-                <div className="text-xs text-white font-medium mb-1 text-center truncate">{box.name}</div>
+                <div className="text-[10px] sm:text-xs text-white font-medium mb-1 text-center truncate">{box.name}</div>
                 <div className="flex items-center justify-center gap-1 mb-2">
-                  <span className="text-white font-bold text-sm flex items-center">
+                  <span className="text-white font-bold text-xs sm:text-sm flex items-center">
                     {parseFloat(box.price_virtual).toFixed(2)}
                     <CoinIcon size={14} />
                   </span>
@@ -1113,11 +1124,11 @@ export default function BattleCreateConnected() {
                 background: 'linear-gradient(135deg, rgba(30, 58, 138, 0.95) 0%, rgba(17, 24, 39, 0.95) 50%, rgba(30, 58, 138, 0.95) 100%)'
               }}
             >
-              <div className="p-6 border-b border-white/10">
+              <div className="p-3 sm:p-4 md:p-6 border-b border-white/10">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold">{lootBoxes.length} Cases Available</h2>
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold">{lootBoxes.length} Cases Available</h2>
                   <button onClick={() => setShowCatalog(false)} className="p-2 hover:bg-white/10 rounded-lg">
-                    <X className="w-6 h-6" />
+                    <X className="w-5 sm:w-6 h-5 sm:h-6" />
                   </button>
                 </div>
 
@@ -1133,7 +1144,7 @@ export default function BattleCreateConnected() {
                     />
                   </div>
 
-                  <div className="flex gap-6 items-start">
+                  <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start">
                     <div className="space-y-2 flex-1">
                       <span className="text-xs text-blue-200 font-medium text-center block">PRICE RANGE</span>
                       <div className="flex gap-2">
@@ -1184,7 +1195,7 @@ export default function BattleCreateConnected() {
                       </div>
                     </div>
 
-                    <div className="h-16 w-px bg-gradient-to-b from-transparent via-white/30 to-transparent self-center mt-6"></div>
+                    <div className="hidden sm:block h-16 w-px bg-gradient-to-b from-transparent via-white/30 to-transparent self-center mt-6"></div>
 
                     <div className="space-y-2 flex-shrink-0">
                       <span className="text-xs text-blue-200 font-medium text-center block">FAVORITES</span>
@@ -1220,7 +1231,7 @@ export default function BattleCreateConnected() {
                       </div>
                     </div>
 
-                    <div className="h-16 w-px bg-gradient-to-b from-transparent via-white/30 to-transparent self-center mt-6"></div>
+                    <div className="hidden sm:block h-16 w-px bg-gradient-to-b from-transparent via-white/30 to-transparent self-center mt-6"></div>
 
                     <div className="space-y-2 flex-shrink-0">
                       <span className="text-xs text-blue-200 font-medium text-center block">SORT BY</span>
@@ -1253,8 +1264,8 @@ export default function BattleCreateConnected() {
                                 isActive={isActive}
                                 width={300}
                               />
-                              <span className="relative z-10 text-xl">{sort.icon}</span>
-                              <span className="relative z-10">{sort.label}</span>
+                              <span className="relative z-10 text-lg sm:text-xl">{sort.icon}</span>
+                              <span className="relative z-10 text-xs sm:text-sm">{sort.label}</span>
                               {isActive && (
                                 <motion.div
                                   initial={{ scale: 0 }}
@@ -1271,20 +1282,20 @@ export default function BattleCreateConnected() {
                 </div>
               </div>
 
-              <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 400px)' }}>
-                <div className="grid grid-cols-5 gap-3">
+              <div className="p-3 sm:p-4 md:p-6 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 400px)' }}>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
                   {filteredBoxes.map((box) => {
                     const addedQty = selectedBoxes.find(b => b.id === box.id)?.quantity || 0
                     const isFavorite = favorites.has(box.id)
 
                     return (
-                      <div key={box.id} className="bg-white/5 rounded-lg p-4 hover:bg-white/10 transition-all relative group border border-white/10 hover:border-blue-300">
+                      <div key={box.id} className="bg-white/5 rounded-lg p-2 sm:p-3 md:p-4 hover:bg-white/10 transition-all relative group border border-white/10 hover:border-blue-300">
                         <button onClick={() => toggleFavorite(box.id)} className="absolute top-2 right-2 p-1 hover:bg-white/20 rounded transition-colors z-10">
                           <Heart className={`w-4 h-4 ${isFavorite ? 'fill-red-400 text-red-400' : 'text-white/40'}`} />
                         </button>
 
                         <img src={box.image_url} alt={box.name} className="w-full h-24 object-contain mb-3" />
-                        <div className="text-xs text-white font-medium mb-2 text-center truncate">{box.name}</div>
+                        <div className="text-[10px] sm:text-xs text-white font-medium mb-1 sm:mb-2 text-center truncate">{box.name}</div>
                         <div className="flex items-center justify-center gap-1 mb-3">
                           <span className="text-white font-bold flex items-center">
                             {parseFloat(box.price_virtual).toFixed(2)}
@@ -1336,8 +1347,8 @@ export default function BattleCreateConnected() {
                   fullWidth={true}
                 />
                 
-                <div className="flex items-center justify-between relative z-10">
-                  <div className="text-sm flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row items-center justify-between relative z-10 gap-3 sm:gap-0">
+                  <div className="text-xs sm:text-sm flex flex-wrap items-center justify-center sm:justify-start gap-2">
                     <span className={`font-bold ${totalBoxes > MAX_BOXES ? 'text-red-400' : 'text-blue-300'}`}>
                       {totalBoxes} / {MAX_BOXES} BOXES ADDED
                     </span>
