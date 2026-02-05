@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
@@ -16,6 +16,8 @@ import { useAuth } from './AuthProvider'
 import { useTheme } from './ThemeProvider'
 import LoginModal from './LoginModal'
 import SignupModal from './SignupModal'
+import { useRealtimeBalance } from '@/app/hooks/useRealtimeBalance'
+import { BALANCE_UPDATE_EVENT, INVENTORY_UPDATE_EVENT } from '@/lib/balanceEvents'
 
 interface InventoryItem {
   id: string
@@ -51,31 +53,10 @@ interface PageWrapperProps {
 }
 
 export const PageWrapper: React.FC<PageWrapperProps> = ({ children, className = "" }) => {
-  const [isNavbarHidden, setIsNavbarHidden] = React.useState(false)
-
-  React.useEffect(() => {
-    const savedState = localStorage.getItem('navbarHidden')
-    setIsNavbarHidden(savedState === 'true')
-
-    const handleToggle = () => {
-      const newState = localStorage.getItem('navbarHidden') === 'true'
-      setIsNavbarHidden(newState)
-    }
-
-    window.addEventListener('navbarToggle', handleToggle)
-    return () => window.removeEventListener('navbarToggle', handleToggle)
-  }, [])
-
   return (
-    <motion.div
-      className={className}
-      animate={{
-        paddingTop: isNavbarHidden ? '0px' : '64px'
-      }}
-      transition={{ duration: 0.3, type: "spring", stiffness: 260, damping: 25 }}
-    >
+    <div className={className}>
       {children}
-    </motion.div>
+    </div>
   )
 }
 
@@ -87,131 +68,115 @@ export default function ReveelBoxNavbar() {
   const [leaderboardRank, setLeaderboardRank] = useState<number | null>(null)
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
   const [isSignupModalOpen, setIsSignupModalOpen] = useState(false)
+  const [balanceAnimation, setBalanceAnimation] = useState<'up' | 'down' | null>(null)
   const supabase = createClient()
 
-  // Charger les pins équipés + cadre + bannière + rang
+  // Realtime balance updates
+  const { balance: realtimeBalance, inventoryCount, refreshBalance } = useRealtimeBalance({
+    userId: user?.id || null,
+    onBalanceChange: (newBalance, change) => {
+      // Trigger animation based on change direction
+      setBalanceAnimation(change > 0 ? 'up' : 'down')
+      setTimeout(() => setBalanceAnimation(null), 1000)
+    }
+  })
+
+  // Use realtime balance if available, otherwise fallback to profile
+  const displayBalance = realtimeBalance ?? profile?.virtual_currency ?? 0
+
+  // Ref pour éviter les chargements multiples
+  const hasLoadedRef = useRef(false)
+
+  // Charger toutes les données utilisateur en UNE SEULE fois (optimisé avec Promise.all)
   useEffect(() => {
-    if (user) {
-      loadEquippedPins()
-      loadAvatarFrame()
-      loadBanner()
-      loadLeaderboardRank()
+    if (user && !hasLoadedRef.current) {
+      hasLoadedRef.current = true
+      loadAllUserData()
     }
-  }, [user, profile])
-
-  const loadEquippedPins = async () => {
-    if (!user) return
-    
-    try {
-      const { data, error } = await supabase
-        .from('user_pins')
-        .select(`
-          pin_id,
-          shop_pins (
-            id,
-            svg_code
-          )
-        `)
-        .eq('user_id', user.id)
-        .eq('is_equipped', true)
-        .limit(5)
-      
-      if (error) throw error
-      
-      const pins = (data || [])
-        .filter((item): item is typeof item & { shop_pins: { id: any; svg_code: any } } =>
-          item.shop_pins !== null && !Array.isArray(item.shop_pins)
-        )
-        .map(item => ({
-          id: item.shop_pins.id,
-          svg_code: item.shop_pins.svg_code
-        }))
-      
-      setUserPins(pins)
-    } catch (error) {
-      console.error('Erreur chargement pins:', error)
-    }
-  }
-
-  const loadAvatarFrame = async () => {
-    if (!user) return
-    
-    try {
-      const { data, error } = await supabase
-        .from('user_frames')
-        .select(`
-          frame_id,
-          shop_frames (
-            svg_code
-          )
-        `)
-        .eq('user_id', user.id)
-        .eq('is_equipped', true)
-        .single()
-      
-      if (error) {
-        setAvatarFrame(null)
-        return
-      }
-
-      const shopFrames = data?.shop_frames as unknown as { svg_code: string } | null | undefined
-      if (shopFrames && !Array.isArray(shopFrames) && shopFrames.svg_code) {
-        setAvatarFrame(shopFrames.svg_code)
-      }
-    } catch (error) {
+    // Reset si l'utilisateur change
+    if (!user) {
+      hasLoadedRef.current = false
+      setUserPins([])
       setAvatarFrame(null)
-    }
-  }
-
-  const loadBanner = async () => {
-    if (!user) return
-    
-    try {
-      const { data, error } = await supabase
-        .from('user_banners')
-        .select(`
-          banner_id,
-          shop_banners (
-            svg_code
-          )
-        `)
-        .eq('user_id', user.id)
-        .eq('is_equipped', true)
-        .single()
-      
-      if (error) {
-        setBannerSvg(null)
-        return
-      }
-
-      const shopBanners = data?.shop_banners as unknown as { svg_code: string } | null | undefined
-      if (shopBanners && !Array.isArray(shopBanners) && shopBanners.svg_code) {
-        setBannerSvg(shopBanners.svg_code)
-      }
-    } catch (error) {
       setBannerSvg(null)
-    }
-  }
-
-  const loadLeaderboardRank = async () => {
-    if (!user || !profile) return
-    
-    try {
-      // Calculer le rang en temps réel en comptant combien de joueurs ont plus de coins dépensés
-      const userCoins = (profile as any).total_coins_spent || 0
-
-      const { count, error } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
-        .gt('total_coins_spent', userCoins)
-      
-      if (error) throw error
-      
-      // Rang = nombre de joueurs avec plus de coins + 1
-      setLeaderboardRank(count !== null ? count + 1 : null)
-    } catch (error) {
-      console.error('Erreur chargement rang:', error)
       setLeaderboardRank(null)
+    }
+  }, [user?.id])
+
+  // Fonction optimisée qui charge tout en parallèle
+  const loadAllUserData = async () => {
+    if (!user) return
+
+    try {
+      // Exécuter toutes les requêtes EN PARALLÈLE au lieu de séquentiellement
+      const [pinsResult, frameResult, bannerResult, rankResult] = await Promise.all([
+        // 1. Pins équipés
+        supabase
+          .from('user_pins')
+          .select('pin_id, shop_pins (id, svg_code)')
+          .eq('user_id', user.id)
+          .eq('is_equipped', true)
+          .limit(5),
+
+        // 2. Cadre équipé
+        supabase
+          .from('user_frames')
+          .select('frame_id, shop_frames (svg_code)')
+          .eq('user_id', user.id)
+          .eq('is_equipped', true)
+          .maybeSingle(),
+
+        // 3. Bannière équipée
+        supabase
+          .from('user_banners')
+          .select('banner_id, shop_banners (svg_code)')
+          .eq('user_id', user.id)
+          .eq('is_equipped', true)
+          .maybeSingle(),
+
+        // 4. Rang leaderboard
+        supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .gt('total_coins_spent', (profile as any)?.total_coins_spent || 0)
+      ])
+
+      // Traiter les pins
+      if (!pinsResult.error && pinsResult.data) {
+        const pins = pinsResult.data
+          .filter((item): item is typeof item & { shop_pins: { id: any; svg_code: any } } =>
+            item.shop_pins !== null && !Array.isArray(item.shop_pins)
+          )
+          .map(item => ({
+            id: item.shop_pins.id,
+            svg_code: item.shop_pins.svg_code
+          }))
+        setUserPins(pins)
+      }
+
+      // Traiter le cadre
+      if (!frameResult.error && frameResult.data) {
+        const shopFrames = frameResult.data.shop_frames as any
+        if (shopFrames?.svg_code) {
+          setAvatarFrame(shopFrames.svg_code)
+        }
+      }
+
+      // Traiter la bannière
+      if (!bannerResult.error && bannerResult.data) {
+        const shopBanners = bannerResult.data.shop_banners as any
+        if (shopBanners?.svg_code) {
+          setBannerSvg(shopBanners.svg_code)
+        }
+      }
+
+      // Traiter le rang
+      if (!rankResult.error && rankResult.count !== null) {
+        setLeaderboardRank(rankResult.count + 1)
+      }
+
+    } catch (error) {
+      console.error('Erreur chargement données utilisateur:', error)
     }
   }
   const { theme, setTheme, resolvedTheme } = useTheme()
@@ -249,7 +214,8 @@ export default function ReveelBoxNavbar() {
 
   const isAdmin = profile?.role === 'admin' || user?.email === 'admin@reveelbox.com'
 
-  const navItems = [
+  // Mémoiser les items de menu (constants - ne changent jamais)
+  const navItems = useMemo(() => [
     { href: '/boxes', label: 'Unboxing', icon: Package },
     { href: '/battles', label: 'Battles', icon: Sword },
     { href: '/games', label: 'Games', icon: Gamepad2, hasDropdown: true },
@@ -257,23 +223,102 @@ export default function ReveelBoxNavbar() {
     { href: '/freedrop', label: 'Free Drop', icon: Gift },
     { href: '/shop', label: 'Shop', icon: ShoppingCart, gradient: 'from-purple-500 to-pink-500' },
     { href: '/leaderboard', label: 'Leaderboard', icon: Crown, gradient: 'from-yellow-500 to-orange-500' },
-  ]
+  ], [])
 
-  const gamesDropdownItems = [
+  const gamesDropdownItems = useMemo(() => [
     { href: '/games/crash', label: 'Crash', icon: TrendingUp, gradient: 'from-red-500 to-orange-500' },
     { href: '/games/mines', label: 'Mines', icon: Flame, gradient: 'from-purple-500 to-pink-500' },
     { href: '/games/roulette', label: 'Roulette', icon: Crown, gradient: 'from-yellow-500 to-amber-500', comingSoon: true },
     { href: '/games/coinflip', label: 'Coinflip', icon: Zap, gradient: 'from-[#4578be] to-cyan-500' },
     { href: '/upgrade', label: 'Upgrade', icon: Sparkles, gradient: 'from-[#4578be] to-[#5989d8]' },
-  ]
+  ], [])
 
+  // Détecter prefers-reduced-motion pour désactiver les animations
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+    setPrefersReducedMotion(mediaQuery.matches)
+    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches)
+    mediaQuery.addEventListener('change', handler)
+    return () => mediaQuery.removeEventListener('change', handler)
+  }, [])
+
+  // Scroll handler avec throttle pour optimiser les performances
+  useEffect(() => {
+    let ticking = false
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20)
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          setIsScrolled(window.scrollY > 20)
+          ticking = false
+        })
+        ticking = true
+      }
     }
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  // Fonction pour charger les items du panier (extraite pour réutilisation)
+  const loadCartItems = useCallback(async () => {
+    if (!user) return
+
+    try {
+      const { data: inventory, error } = await supabase
+        .from('user_inventory')
+        .select(`
+          id,
+          quantity,
+          obtained_at,
+          items (
+            id,
+            name,
+            image_url,
+            rarity,
+            market_value
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('is_sold', false)
+        .order('obtained_at', { ascending: false })
+        .limit(15)
+
+      if (!error && inventory) {
+        setCartItems(inventory.map((item: any) => ({
+          id: item.id,
+          quantity: item.quantity,
+          obtained_at: item.obtained_at,
+          items: item.items || null
+        })))
+      }
+    } catch (error) {
+      console.error('Erreur:', error)
+    }
+  }, [user, supabase])
+
+  // Écouter les événements de mise à jour de balance (temps réel immédiat)
+  useEffect(() => {
+    if (!user) return
+
+    const handleBalanceUpdate = () => {
+      console.log('💰 Balance update event received - refreshing')
+      refreshBalance()
+    }
+
+    const handleInventoryUpdate = () => {
+      console.log('📦 Inventory update event received - reloading cart')
+      loadCartItems()
+    }
+
+    // Écouter les événements custom de mise à jour
+    window.addEventListener(BALANCE_UPDATE_EVENT, handleBalanceUpdate)
+    window.addEventListener(INVENTORY_UPDATE_EVENT, handleInventoryUpdate)
+
+    return () => {
+      window.removeEventListener(BALANCE_UPDATE_EVENT, handleBalanceUpdate)
+      window.removeEventListener(INVENTORY_UPDATE_EVENT, handleInventoryUpdate)
+    }
+  }, [user, refreshBalance, loadCartItems])
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -294,42 +339,6 @@ export default function ReveelBoxNavbar() {
       return
     }
 
-    let isSubscribed = true
-
-    const loadCartItems = async () => {
-      try {
-        const { data: inventory, error } = await supabase
-          .from('user_inventory')
-          .select(`
-            id,
-            quantity,
-            obtained_at,
-            items (
-              id,
-              name,
-              image_url,
-              rarity,
-              market_value
-            )
-          `)
-          .eq('user_id', user.id)
-          .eq('is_sold', false)
-          .order('obtained_at', { ascending: false })
-          .limit(15)
-
-        if (!error && inventory && isSubscribed) {
-          setCartItems(inventory.map((item: any) => ({
-            id: item.id,
-            quantity: item.quantity,
-            obtained_at: item.obtained_at,
-            items: item.items || null
-          })))
-        }
-      } catch (error) {
-        console.error('Erreur:', error)
-      }
-    }
-
     loadCartItems()
 
     const channel = supabase
@@ -340,17 +349,14 @@ export default function ReveelBoxNavbar() {
         table: 'user_inventory',
         filter: `user_id=eq.${user.id}`
       }, () => {
-        if (isSubscribed) {
-          loadCartItems()
-        }
+        loadCartItems()
       })
       .subscribe()
 
     return () => {
-      isSubscribed = false
       supabase.removeChannel(channel)
     }
-  }, [isAuthenticated, user?.id])
+  }, [isAuthenticated, user?.id, loadCartItems])
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
@@ -384,10 +390,10 @@ export default function ReveelBoxNavbar() {
                   background: `linear-gradient(90deg, transparent 0%, rgba(69, 120, 190, 0.6) 20%, rgba(69, 120, 190, 0.9) 50%, rgba(69, 120, 190, 0.6) 80%, transparent 100%)`,
                   filter: 'drop-shadow(0 0 8px rgba(69, 120, 190, 0.6))'
                 }}
-                animate={{
+                animate={prefersReducedMotion ? {} : {
                   x: ['-200%', '200%'],
                 }}
-                transition={{
+                transition={prefersReducedMotion ? {} : {
                   duration: 4,
                   repeat: Infinity,
                   ease: "easeInOut",
@@ -565,18 +571,27 @@ export default function ReveelBoxNavbar() {
                     }}
                   >
                     <motion.img
-                      animate={{ rotate: [0, 12, -12, 0] }}
-                      transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                      animate={prefersReducedMotion ? {} : { rotate: [0, 12, -12, 0] }}
+                      transition={prefersReducedMotion ? {} : { duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
                       src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
                       alt="Coins"
                       className="h-7 w-7"
+                      loading="lazy"
                       style={{
                         filter: 'drop-shadow(0 0 8px rgba(69, 120, 190, 0.4))'
                       }}
                     />
-                    <span className="font-bold text-sm text-gray-900 dark:text-white">
-                      {profile?.virtual_currency?.toLocaleString() || '0'}
-                    </span>
+                    <motion.span
+                      className="font-bold text-sm"
+                      animate={{
+                        color: balanceAnimation === 'up' ? '#10b981' : balanceAnimation === 'down' ? '#ef4444' : undefined,
+                        scale: balanceAnimation ? [1, 1.1, 1] : 1
+                      }}
+                      transition={{ duration: 0.3 }}
+                      style={{ color: !balanceAnimation ? (resolvedTheme === 'dark' ? 'white' : '#111827') : undefined }}
+                    >
+                      {displayBalance.toLocaleString()}
+                    </motion.span>
                     <motion.button
                       ref={paymentButtonRef}
                       whileHover={{ scale: 1.15, rotate: 90 }}
@@ -973,16 +988,25 @@ export default function ReveelBoxNavbar() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <motion.img
-                          animate={{ rotate: [0, 12, -12, 0] }}
-                          transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                          animate={prefersReducedMotion ? {} : { rotate: [0, 12, -12, 0] }}
+                          transition={prefersReducedMotion ? {} : { duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
                           src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
                           alt="Coins"
                           className="h-9 w-9"
+                          loading="lazy"
                           style={{
                             filter: 'drop-shadow(0 0 8px rgba(69, 120, 190, 0.5))'
                           }}
                         />
-                        <span className="font-bold text-gray-900 dark:text-white text-base drop-shadow-sm">{profile?.virtual_currency?.toLocaleString() || '0'}</span>
+                        <motion.span
+                          className="font-bold text-base drop-shadow-sm"
+                          animate={{
+                            color: balanceAnimation === 'up' ? '#10b981' : balanceAnimation === 'down' ? '#ef4444' : undefined,
+                            scale: balanceAnimation ? [1, 1.15, 1] : 1
+                          }}
+                          transition={{ duration: 0.3 }}
+                          style={{ color: !balanceAnimation ? (resolvedTheme === 'dark' ? 'white' : '#111827') : undefined }}
+                        >{displayBalance.toLocaleString()}</motion.span>
                       </div>
                       <motion.button
                         whileHover={{ scale: 1.05 }}
@@ -1084,7 +1108,14 @@ export default function ReveelBoxNavbar() {
 
             if (updateError) throw updateError
 
+            // Rafraîchir le profil et la balance en temps réel
             await refreshProfile()
+            await refreshBalance()
+
+            // Dispatcher les événements pour les autres composants
+            const { dispatchBalanceUpdate, dispatchInventoryUpdate } = await import('@/lib/balanceEvents')
+            dispatchBalanceUpdate()
+            dispatchInventoryUpdate()
 
             setCartItems(prevItems => prevItems.filter(item => !selectedCartItems.includes(item.id)))
 

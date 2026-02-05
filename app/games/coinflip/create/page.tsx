@@ -7,6 +7,7 @@ import { useAuth } from '@/app/components/AuthProvider'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Sparkles } from 'lucide-react'
 import Link from 'next/link'
+import { dispatchBalanceUpdate } from '@/lib/balanceEvents'
 
 const PRESET_AMOUNTS = [50, 100, 250, 500, 1000, 2500]
 
@@ -48,6 +49,7 @@ export default function CreateCoinflipPage() {
 
       if (rpcError) throw rpcError
 
+      dispatchBalanceUpdate()
       router.push(`/games/coinflip/${data}`)
     } catch (err: any) {
       console.error('Erreur création battle:', err)

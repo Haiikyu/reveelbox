@@ -1,6 +1,8 @@
 // lib/boxOpening.ts - Fonctions pour l'ouverture de boîtes
+// Utilise le système Provably Fair pour des résultats vérifiables
 
 import { SupabaseClient } from '@supabase/supabase-js'
+import { selectItemByProbability, generateSeed, hashServerSeed } from './provablyFair'
 
 // Types pour la sécurité TypeScript
 interface Profile {
@@ -45,12 +47,22 @@ interface LootBoxItemData {
   cumulativeProbability?: number
 }
 
+interface ProvablyFairData {
+  serverSeedHash: string
+  serverSeed: string
+  clientSeed: string
+  nonce: number
+  roll: number
+  hash: string
+}
+
 interface OpeningResult {
   success: boolean
   item?: Item
   coinsSpent?: number
   newBalance?: number
   error?: string
+  provablyFair?: ProvablyFairData
 }
 
 export async function openLootBox(
@@ -105,9 +117,11 @@ export async function openLootBox(
       throw new Error('Coins insuffisants')
     }
 
-    // 4. Calculer l'objet gagné selon les probabilités
-    const wonItem = calculateWonItem(lootBoxData.loot_box_items)
-    if (!wonItem) throw new Error('Erreur lors du calcul des probabilités')
+    // 4. Calculer l'objet gagné avec Provably Fair
+    const wonItemResult = calculateWonItem(lootBoxData.loot_box_items)
+    if (!wonItemResult) throw new Error('Erreur lors du calcul des probabilités')
+
+    const { item: wonItem, roll, hash, serverSeed, clientSeed } = wonItemResult
 
     // 5. Transaction atomique : déduire les coins, ajouter l'objet, enregistrer la transaction
     const { error: transactionError } = await supabase.rpc('process_box_opening', {
@@ -119,11 +133,23 @@ export async function openLootBox(
 
     if (transactionError) throw transactionError
 
+    // Stocker les données provably fair pour vérification ultérieure
+    const serverSeedHash = hashServerSeed(serverSeed)
+
     return {
       success: true,
       item: wonItem.items,
       coinsSpent: lootBoxData.price_virtual,
-      newBalance: userProfile.virtual_currency - lootBoxData.price_virtual
+      newBalance: userProfile.virtual_currency - lootBoxData.price_virtual,
+      // Données Provably Fair pour vérification
+      provablyFair: {
+        serverSeedHash, // Hash public (montré avant)
+        serverSeed,     // Seed révélé après (pour vérification)
+        clientSeed,
+        nonce: 0,
+        roll,
+        hash
+      }
     }
 
   } catch (error) {
@@ -135,24 +161,43 @@ export async function openLootBox(
   }
 }
 
-function calculateWonItem(lootBoxItems: any[]): any {
+/**
+ * Calcule l'item gagné en utilisant le système Provably Fair
+ * @param lootBoxItems - Items avec leurs probabilités
+ * @param serverSeed - Seed du serveur (optionnel, généré si absent)
+ * @param clientSeed - Seed du client (optionnel, généré si absent)
+ * @param nonce - Numéro du tour
+ * @returns L'item gagné avec les données de vérification
+ */
+function calculateWonItem(
+  lootBoxItems: any[],
+  serverSeed?: string,
+  clientSeed?: string,
+  nonce: number = 0
+): { item: any; roll: number; hash: string; serverSeed: string; clientSeed: string } | null {
   if (!lootBoxItems || lootBoxItems.length === 0) return null
-  
-  // Créer un tableau avec les probabilités cumulées
-  let cumulativeProbability = 0
-  const items = lootBoxItems.map(item => {
-    cumulativeProbability += item.probability
-    return {
-      ...item,
-      cumulativeProbability
-    }
-  })
 
-  // Générer un nombre aléatoire entre 0 et 100
-  const random = Math.random() * 100
-  
-  // Trouver l'objet correspondant
-  return items.find(item => random <= (item.cumulativeProbability || 0))
+  // Générer les seeds si non fournis
+  const finalServerSeed = serverSeed || generateSeed()
+  const finalClientSeed = clientSeed || generateSeed()
+
+  // Utiliser le système Provably Fair
+  const result = selectItemByProbability(
+    lootBoxItems,
+    finalServerSeed,
+    finalClientSeed,
+    nonce
+  )
+
+  if (!result) return null
+
+  return {
+    item: result.item,
+    roll: result.roll,
+    hash: result.hash,
+    serverSeed: finalServerSeed,
+    clientSeed: finalClientSeed
+  }
 }
 
 // Fonction de simulation pour les tests (sans déduire les coins)
@@ -186,7 +231,7 @@ export async function simulateLootBoxOpening(
     const lootBoxData = lootBox as any
     const wonItem = calculateWonItem(lootBoxData.loot_box_items)
     
-    return wonItem?.items || null
+    return wonItem?.item || null
   } catch (error) {
     console.error('❌ Error simulating loot box:', error)
     return null

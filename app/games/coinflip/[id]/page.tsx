@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Sparkles, Trophy } from 'lucide-react'
 import Link from 'next/link'
 import { use } from 'react'
+import { dispatchBalanceUpdate } from '@/lib/balanceEvents'
 
 interface BattlePageProps {
   params: Promise<{ id: string }>
@@ -138,6 +139,7 @@ export default function CoinflipBattlePage({ params }: BattlePageProps) {
       setShowResult(true)
       await refreshProfile()
       await loadBattle()
+      dispatchBalanceUpdate()
     } catch (err: any) {
       alert(err.message || 'Erreur')
       setAnimating(false)
@@ -166,6 +168,7 @@ export default function CoinflipBattlePage({ params }: BattlePageProps) {
       setShowResult(true)
       await refreshProfile()
       await loadBattle()
+      dispatchBalanceUpdate()
     } catch (err: any) {
       alert(err.message || 'Erreur')
       setAnimating(false)
@@ -180,6 +183,7 @@ export default function CoinflipBattlePage({ params }: BattlePageProps) {
     try {
       await supabase.rpc('cancel_coinflip_battle', { p_battle_id: id })
       await refreshProfile()
+      dispatchBalanceUpdate()
       router.push('/games/coinflip')
     } catch (err: any) {
       alert(err.message)

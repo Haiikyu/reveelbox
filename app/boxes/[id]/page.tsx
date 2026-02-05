@@ -9,6 +9,7 @@ import { LoadingState } from '@/app/components/ui/LoadingState'
 import { Package } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ParticlesBackground from '@/app/components/affiliate/ParticlesBackground'
+import { dispatchBalanceUpdate, dispatchInventoryUpdate } from '@/lib/balanceEvents'
 
 // Import des composants optimisés
 import { BoxPresentation } from '@/app/components/BoxPresentation/BoxPresentation'
@@ -250,6 +251,9 @@ export default function BoxOpeningPage() {
       setTimeout(async () => {
         try {
           await refreshProfile?.()
+          // Notifier la Navbar de mettre à jour la balance et l'inventaire
+          dispatchBalanceUpdate()
+          dispatchInventoryUpdate()
         } catch (error) {
           console.error('Erreur refresh:', error)
         }
@@ -313,8 +317,10 @@ export default function BoxOpeningPage() {
 
       if (updateError) throw updateError
 
-      // 3. Rafraîchir le profil
+      // 3. Rafraîchir le profil et notifier la Navbar
       await refreshProfile()
+      dispatchBalanceUpdate()
+      dispatchInventoryUpdate()
 
       // 4. NE PAS fermer le résultat - garder l'affichage de l'item gagné
       // L'utilisateur peut fermer manuellement ou ouvrir une autre boîte

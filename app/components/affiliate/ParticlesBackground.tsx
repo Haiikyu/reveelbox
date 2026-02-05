@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTheme } from '../ThemeProvider'
 
 interface Star {
@@ -27,11 +27,33 @@ interface Nebula {
   driftY: number
 }
 
+// Détection mobile pour réduire la charge
+const isMobile = () => {
+  if (typeof window === 'undefined') return false
+  return window.innerWidth < 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+}
+
 export default function ParticlesBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const { resolvedTheme } = useTheme()
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
+  const [isOnMobile, setIsOnMobile] = useState(false)
+
+  // Détecter les préférences de mouvement réduit et mobile
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+    setPrefersReducedMotion(mediaQuery.matches)
+    setIsOnMobile(isMobile())
+
+    const handleChange = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches)
+    mediaQuery.addEventListener('change', handleChange)
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [])
 
   useEffect(() => {
+    // Si mouvement réduit ou mobile, ne pas animer
+    if (prefersReducedMotion) return
+
     const canvas = canvasRef.current
     if (!canvas) return
 
@@ -45,8 +67,9 @@ export default function ParticlesBackground() {
     const nebulas: Nebula[] = []
 
     const isDark = resolvedTheme === 'dark'
-    const starCount = isDark ? 100 : 40 // Version épurée pour thème clair
-    const nebulaCount = isDark ? 4 : 2 // Moins de nébuleuses en clair
+    // Réduire le nombre de particules sur mobile
+    const starCount = isOnMobile ? (isDark ? 30 : 15) : (isDark ? 100 : 40)
+    const nebulaCount = isOnMobile ? 1 : (isDark ? 4 : 2)
 
     // Obtenir les couleurs hybrid CSS
     const getHybridColor = (varName: string) => {
@@ -105,21 +128,39 @@ export default function ParticlesBackground() {
     let frame = 0
     let mouseX = 0
     let mouseY = 0
+    let lastFrameTime = 0
+    const TARGET_FPS = isOnMobile ? 20 : 30 // 20fps mobile, 30fps desktop (au lieu de 60)
+    const FRAME_INTERVAL = 1000 / TARGET_FPS
 
+    // Throttle mousemove avec requestAnimationFrame
+    let mouseMoveScheduled = false
     const handleMouseMove = (e: MouseEvent) => {
-      mouseX = e.clientX
-      mouseY = e.clientY
+      if (mouseMoveScheduled) return
+      mouseMoveScheduled = true
+      requestAnimationFrame(() => {
+        mouseX = e.clientX
+        mouseY = e.clientY
+        mouseMoveScheduled = false
+      })
     }
 
-    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mousemove', handleMouseMove, { passive: true })
 
     let animationFrameId: number
 
-    const animate = () => {
+    const animate = (currentTime: number) => {
+      animationFrameId = requestAnimationFrame(animate)
+
+      // Frame limiting - skip si pas assez de temps écoulé
+      const deltaTime = currentTime - lastFrameTime
+      if (deltaTime < FRAME_INTERVAL) return
+      lastFrameTime = currentTime - (deltaTime % FRAME_INTERVAL)
+
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       frame++
 
       const isDark = resolvedTheme === 'dark'
+      const useBlur = !isOnMobile // Désactiver blur sur mobile pour performance
 
       // Dessiner les nébuleuses (nuages cosmiques)
       nebulas.forEach((nebula) => {
@@ -156,8 +197,10 @@ export default function ParticlesBackground() {
           gradient.addColorStop(0.6, `hsla(${nebula.hue}, 85%, 65%, ${currentOpacity * 0.3})`)
           gradient.addColorStop(1, `hsla(${nebula.hue}, 80%, 62%, 0)`)
 
-          // Appliquer blur pour nébuleuses en clair
-          ctx.filter = 'blur(20px)'
+          // Appliquer blur pour nébuleuses en clair (désactivé sur mobile)
+          if (useBlur) {
+            ctx.filter = 'blur(20px)'
+          }
         }
 
         ctx.fillStyle = gradient
@@ -165,8 +208,10 @@ export default function ParticlesBackground() {
         ctx.arc(nebula.x, nebula.y, nebula.radius, 0, Math.PI * 2)
         ctx.fill()
 
-        // Réinitialiser filtre
-        ctx.filter = 'none'
+        // Réinitialiser filtre seulement si utilisé
+        if (useBlur && !isDark) {
+          ctx.filter = 'none'
+        }
       })
 
       // Dessiner les étoiles scintillantes
@@ -200,8 +245,8 @@ export default function ParticlesBackground() {
           ctx.fillStyle = `hsla(6, 93%, 71%, ${opacity * 0.8})`
         }
 
-        // Appliquer blur pour thème clair
-        if (!isDark) {
+        // Appliquer blur pour thème clair (désactivé sur mobile)
+        if (!isDark && useBlur) {
           ctx.filter = `blur(${star.size * 0.3}px)`
         }
 
@@ -209,8 +254,10 @@ export default function ParticlesBackground() {
         ctx.arc(x, y, star.size, 0, Math.PI * 2)
         ctx.fill()
 
-        // Réinitialiser le filtre
-        ctx.filter = 'none'
+        // Réinitialiser le filtre seulement si utilisé
+        if (!isDark && useBlur) {
+          ctx.filter = 'none'
+        }
 
         // Effet de lueur pour les grandes étoiles
         if (star.size > 1.5 && opacity > 0.6) { // Seuil ajusté pour moins de glows
@@ -220,12 +267,14 @@ export default function ParticlesBackground() {
             glowGradient.addColorStop(0.5, `rgba(200, 220, 255, ${opacity * 0.15})`)
             glowGradient.addColorStop(1, 'rgba(150, 180, 255, 0)')
           } else {
-            // Glow saumon intense avec blur
+            // Glow saumon intense avec blur (désactivé sur mobile)
             glowGradient.addColorStop(0, `hsla(6, 93%, 71%, ${opacity * 0.5})`)
             glowGradient.addColorStop(0.5, `hsla(6, 90%, 68%, ${opacity * 0.25})`)
             glowGradient.addColorStop(1, `hsla(6, 85%, 65%, 0)`)
 
-            ctx.filter = `blur(${star.size * 0.5}px)`
+            if (useBlur) {
+              ctx.filter = `blur(${star.size * 0.5}px)`
+            }
           }
 
           ctx.fillStyle = glowGradient
@@ -233,28 +282,52 @@ export default function ParticlesBackground() {
           ctx.arc(x, y, star.size * 6, 0, Math.PI * 2)
           ctx.fill()
 
-          ctx.filter = 'none'
+          // Réinitialiser seulement si blur utilisé
+          if (useBlur && !isDark) {
+            ctx.filter = 'none'
+          }
         }
       })
 
-      animationFrameId = requestAnimationFrame(animate)
     }
 
-    animate()
+    // Démarrer l'animation avec le timestamp initial
+    animationFrameId = requestAnimationFrame(animate)
 
+    // Throttle resize handler
+    let resizeTimeout: NodeJS.Timeout
     const handleResize = () => {
-      canvas.width = window.innerWidth
-      canvas.height = window.innerHeight
+      clearTimeout(resizeTimeout)
+      resizeTimeout = setTimeout(() => {
+        canvas.width = window.innerWidth
+        canvas.height = window.innerHeight
+      }, 150) // Debounce de 150ms
     }
 
-    window.addEventListener('resize', handleResize)
+    window.addEventListener('resize', handleResize, { passive: true })
 
     return () => {
+      clearTimeout(resizeTimeout)
       window.removeEventListener('resize', handleResize)
       window.removeEventListener('mousemove', handleMouseMove)
       cancelAnimationFrame(animationFrameId)
     }
-  }, [resolvedTheme])
+  }, [resolvedTheme, prefersReducedMotion, isOnMobile])
+
+  // Version statique pour mouvement réduit
+  if (prefersReducedMotion) {
+    return (
+      <div
+        className="fixed inset-0 pointer-events-none opacity-20 dark:opacity-10"
+        style={{
+          zIndex: 0,
+          background: resolvedTheme === 'dark'
+            ? 'radial-gradient(ellipse at 30% 20%, rgba(100, 100, 255, 0.1) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(255, 100, 150, 0.1) 0%, transparent 50%)'
+            : 'radial-gradient(ellipse at 30% 20%, hsla(6, 93%, 71%, 0.1) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, hsla(6, 90%, 68%, 0.1) 0%, transparent 50%)'
+        }}
+      />
+    )
+  }
 
   return (
     <canvas

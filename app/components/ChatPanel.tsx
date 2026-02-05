@@ -156,7 +156,7 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                               <div className="relative cursor-help">
                                 <div className={`h-10 w-10 rounded-lg overflow-hidden ${msg.frame_svg ? '' : 'border-2 border-gray-600'}`}>
                                   {msg.avatar_url ? (
-                                    <img src={msg.avatar_url} alt="" className="h-full w-full object-cover" />
+                                    <img src={msg.avatar_url} alt="" loading="lazy" className="h-full w-full object-cover" />
                                   ) : (
                                     <div className="h-full w-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center text-white text-sm font-bold">
                                       {msg.username?.[0]?.toUpperCase() || '?'}

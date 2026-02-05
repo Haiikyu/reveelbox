@@ -7,6 +7,7 @@ import {
   Target, Star, AlertCircle
 } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
+import { useTheme } from '@/app/components/ThemeProvider'
 
 const supabase = createClient()
 
@@ -24,7 +25,7 @@ interface User {
   id: string
   email?: string
   username?: string
-  virtual_currency: string
+  virtual_currency: number
   level?: number
 }
 
@@ -279,6 +280,7 @@ function DecorativeHexagons() {
 }
 
 export default function BattleCreateConnected() {
+  const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [user, setUser] = useState<User | null>(null)
   const [lootBoxes, setLootBoxes] = useState<LootBox[]>([])
@@ -466,7 +468,7 @@ export default function BattleCreateConnected() {
     })
   }, [])
 
-  const canCreate = selectedBoxes.length > 0 && user && totalValue <= parseFloat(user?.virtual_currency || '0')
+  const canCreate = selectedBoxes.length > 0 && user && totalValue <= (user?.virtual_currency || 0)
 
   const addBox = useCallback((box: LootBox) => {
     const existing = selectedBoxes.find(b => b.id === box.id)
@@ -667,7 +669,7 @@ export default function BattleCreateConnected() {
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
-          virtual_currency: (parseFloat(user.virtual_currency) - totalValue).toString()
+          virtual_currency: (user.virtual_currency || 0) - totalValue
         })
         .eq('id', user.id)
 
@@ -695,14 +697,22 @@ export default function BattleCreateConnected() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-700 to-blue-500 flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+      <div className={`min-h-screen flex items-center justify-center ${
+        resolvedTheme === 'dark'
+          ? 'bg-gradient-to-br from-blue-900 via-blue-700 to-blue-500'
+          : 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50'
+      }`}>
+        <div className={`text-xl ${resolvedTheme === 'dark' ? 'text-white' : 'text-slate-700'}`}>Loading...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-700 to-blue-500 text-white pt-20 relative overflow-hidden">
+    <div className={`min-h-screen relative overflow-hidden ${
+      resolvedTheme === 'dark'
+        ? 'bg-gradient-to-br from-blue-900 via-blue-700 to-blue-500 text-white'
+        : 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-slate-800'
+    }`}>
       <DecorativeHexagons />
       <div className="fixed inset-0 bg-gradient-radial from-transparent via-blue-400/5 to-transparent pointer-events-none" />
       
@@ -742,13 +752,19 @@ export default function BattleCreateConnected() {
         ))}
       </div>
 
-      <div className="border-b border-white/10 bg-white/5 backdrop-blur-md px-3 sm:px-4 md:px-6 py-2 sm:py-3 relative z-10">
+      <div className={`border-b backdrop-blur-md px-3 sm:px-4 md:px-6 py-2 sm:py-3 relative z-10 ${
+        resolvedTheme === 'dark'
+          ? 'border-white/10 bg-white/5'
+          : 'border-slate-200/80 bg-white/70'
+      }`}>
         <div className="max-w-[1800px] mx-auto ml-0 sm:ml-20 md:ml-40">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-4">
-              <button 
+              <button
                 onClick={() => window.history.back()}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                className={`p-2 rounded-lg transition-colors ${
+                  resolvedTheme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-slate-200/60'
+                }`}
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
@@ -757,27 +773,31 @@ export default function BattleCreateConnected() {
 
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <div className="text-[10px] sm:text-xs">
-                <span className="text-blue-200">Total Boxes:</span>
-                <span className={`ml-1.5 font-bold ${totalBoxes > MAX_BOXES ? 'text-red-400' : 'text-white'}`}>
+                <span className={resolvedTheme === 'dark' ? 'text-blue-200' : 'text-slate-500'}>Total Boxes:</span>
+                <span className={`ml-1.5 font-bold ${totalBoxes > MAX_BOXES ? 'text-red-500' : ''}`}>
                   {totalBoxes} / {MAX_BOXES}
                 </span>
               </div>
               <div className="text-[10px] sm:text-xs flex items-center">
-                <span className="text-blue-200">Total Value:</span>
-                <span className="ml-1.5 text-white font-bold flex items-center">
+                <span className={resolvedTheme === 'dark' ? 'text-blue-200' : 'text-slate-500'}>Total Value:</span>
+                <span className="ml-1.5 font-bold flex items-center">
                   {totalValue.toFixed(2)}
                   <CoinIcon size={14} />
                 </span>
               </div>
-              <div className="hidden sm:block h-6 w-px bg-white/20"></div>
-              
-              <button 
+              <div className={`hidden sm:block h-6 w-px ${resolvedTheme === 'dark' ? 'bg-white/20' : 'bg-slate-300'}`}></div>
+
+              <button
                 onClick={() => createBattle(false)}
                 disabled={!canCreate || creating || totalBoxes > MAX_BOXES}
                 className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1 ${
                   canCreate && !creating && totalBoxes <= MAX_BOXES
-                    ? 'bg-white/20 hover:bg-white/30 text-white shadow-lg backdrop-blur-sm border border-white/30'
-                    : 'bg-white/5 text-white/30 cursor-not-allowed border border-white/10'
+                    ? resolvedTheme === 'dark'
+                      ? 'bg-white/20 hover:bg-white/30 text-white shadow-lg backdrop-blur-sm border border-white/30'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg border border-blue-700'
+                    : resolvedTheme === 'dark'
+                      ? 'bg-white/5 text-white/30 cursor-not-allowed border border-white/10'
+                      : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
                 }`}
               >
                 {creating ? 'CREATING...' : (
@@ -788,13 +808,15 @@ export default function BattleCreateConnected() {
                 )}
               </button>
               
-              <button 
+              <button
                 onClick={() => createBattle(true)}
                 disabled={!canCreate || creating || totalBoxes > MAX_BOXES}
                 className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1 ${
                   canCreate && !creating && totalBoxes <= MAX_BOXES
-                    ? 'bg-gradient-to-r from-green-500/80 to-green-600/80 hover:from-green-600/90 hover:to-green-700/90 text-white shadow-lg backdrop-blur-sm border border-white/20'
-                    : 'bg-white/5 text-white/30 cursor-not-allowed border border-white/10'
+                    ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg border border-green-400/30'
+                    : resolvedTheme === 'dark'
+                      ? 'bg-white/5 text-white/30 cursor-not-allowed border border-white/10'
+                      : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
                 }`}
               >
                 {creating ? 'CREATING...' : (
@@ -823,23 +845,27 @@ export default function BattleCreateConnected() {
                     onMouseLeave={() => setHoveredMode(null)}
                     disabled={isDisabled}
                     className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-xs group ${
-                      isDisabled 
+                      isDisabled
                         ? 'opacity-30 cursor-not-allowed'
                         : isActive
-                        ? 'bg-white/20 border border-white/40'
-                        : 'hover:bg-white/10 border border-transparent'
+                        ? resolvedTheme === 'dark'
+                          ? 'bg-white/20 border border-white/40'
+                          : 'bg-blue-100 border border-blue-300'
+                        : resolvedTheme === 'dark'
+                          ? 'hover:bg-white/10 border border-transparent'
+                          : 'hover:bg-slate-100 border border-transparent'
                     }`}
                   >
                     <Icon className={`w-3.5 h-3.5 ${
-                      mode.id === 'classic' ? 'text-blue-300' :
-                      mode.id === 'crazy' ? 'text-purple-300' :
-                      mode.id === 'shared' ? 'text-green-300' :
-                      mode.id === 'fast' ? 'text-orange-300' :
-                      mode.id === 'jackpot' ? 'text-yellow-300' :
-                      mode.id === 'terminal' ? 'text-red-300' :
-                      'text-pink-300'
+                      mode.id === 'classic' ? 'text-blue-500' :
+                      mode.id === 'crazy' ? 'text-purple-500' :
+                      mode.id === 'shared' ? 'text-green-500' :
+                      mode.id === 'fast' ? 'text-orange-500' :
+                      mode.id === 'jackpot' ? 'text-yellow-500' :
+                      mode.id === 'terminal' ? 'text-red-500' :
+                      'text-pink-500'
                     }`} />
-                    <span className={`font-medium ${isActive ? 'text-white' : 'text-white/70'}`}>
+                    <span className={`font-medium ${isActive ? '' : resolvedTheme === 'dark' ? 'text-white/70' : 'text-slate-500'}`}>
                       {mode.name}
                     </span>
                     
@@ -881,7 +907,7 @@ export default function BattleCreateConnected() {
               {selectedModes.includes('shared') ? (
                 // Pour SHARED : simple sélecteur de joueurs
                 <>
-                  <span className="text-[10px] text-blue-200 font-medium">PLAYERS</span>
+                  <span className={`text-[10px] font-medium ${resolvedTheme === 'dark' ? 'text-blue-200' : 'text-slate-500'}`}>PLAYERS</span>
                   {teamOptions.map(option => {
                     const isSelected = teamConfig === option
                     const displayText = `${option} joueurs`
@@ -892,18 +918,24 @@ export default function BattleCreateConnected() {
                         onClick={() => setTeamConfig(option)}
                         className={`relative px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${
                           isSelected
-                            ? 'bg-white/25 text-white border-2 border-white/40 shadow-lg scale-105'
-                            : 'bg-white/10 text-white/70 border-2 border-white/20 hover:bg-white/15 hover:border-white/30'
+                            ? resolvedTheme === 'dark'
+                              ? 'bg-white/25 text-white border-2 border-white/40 shadow-lg scale-105'
+                              : 'bg-blue-100 text-blue-700 border-2 border-blue-300 shadow-lg scale-105'
+                            : resolvedTheme === 'dark'
+                              ? 'bg-white/10 text-white/70 border-2 border-white/20 hover:bg-white/15 hover:border-white/30'
+                              : 'bg-slate-100 text-slate-600 border-2 border-slate-200 hover:bg-slate-200 hover:border-slate-300'
                         }`}
                       >
                         <div className={`absolute inset-0 rounded-lg transition-opacity ${
                           isSelected ? 'opacity-100' : 'opacity-0'
                         }`} style={{
-                          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 50%, rgba(255, 255, 255, 0.1) 100%)'
+                          background: resolvedTheme === 'dark'
+                            ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 50%, rgba(255, 255, 255, 0.1) 100%)'
+                            : 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, transparent 50%, rgba(59, 130, 246, 0.05) 100%)'
                         }} />
-                        
+
                         <span className="relative z-10">{displayText}</span>
-                        
+
                         {isSelected && (
                           <motion.div
                             initial={{ scale: 0 }}
@@ -920,7 +952,7 @@ export default function BattleCreateConnected() {
                 <>
                   {/* Section PLAYER */}
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-blue-200 font-medium">PLAYER</span>
+                    <span className={`text-[10px] font-medium ${resolvedTheme === 'dark' ? 'text-blue-200' : 'text-slate-500'}`}>PLAYER</span>
                     {['1v1', '1v1v1', '1v1v1v1'].map(option => {
                       const isSelected = teamConfig === option
                       return (
@@ -929,14 +961,20 @@ export default function BattleCreateConnected() {
                           onClick={() => setTeamConfig(option)}
                           className={`relative px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${
                             isSelected
-                              ? 'bg-white/25 text-white border-2 border-white/40 shadow-lg scale-105'
-                              : 'bg-white/10 text-white/70 border-2 border-white/20 hover:bg-white/15 hover:border-white/30'
+                              ? resolvedTheme === 'dark'
+                                ? 'bg-white/25 text-white border-2 border-white/40 shadow-lg scale-105'
+                                : 'bg-blue-100 text-blue-700 border-2 border-blue-300 shadow-lg scale-105'
+                              : resolvedTheme === 'dark'
+                                ? 'bg-white/10 text-white/70 border-2 border-white/20 hover:bg-white/15 hover:border-white/30'
+                                : 'bg-slate-100 text-slate-600 border-2 border-slate-200 hover:bg-slate-200 hover:border-slate-300'
                           }`}
                         >
                           <div className={`absolute inset-0 rounded-lg transition-opacity ${
                             isSelected ? 'opacity-100' : 'opacity-0'
                           }`} style={{
-                            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 50%, rgba(255, 255, 255, 0.1) 100%)'
+                            background: resolvedTheme === 'dark'
+                              ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 50%, rgba(255, 255, 255, 0.1) 100%)'
+                              : 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, transparent 50%, rgba(59, 130, 246, 0.05) 100%)'
                           }} />
                           
                           <span className="relative z-10">{option}</span>
@@ -954,8 +992,8 @@ export default function BattleCreateConnected() {
                   </div>
 
                   {/* Section ÉQUIPE */}
-                  <div className="flex items-center gap-2 ml-4">
-                    <span className="text-[10px] text-blue-200 font-medium">ÉQUIPE</span>
+                  <div className={`flex items-center gap-2 ml-4 pl-4 ${resolvedTheme === 'dark' ? 'border-l border-white/20' : 'border-l border-slate-300'}`}>
+                    <span className={`text-[10px] font-medium ${resolvedTheme === 'dark' ? 'text-blue-200' : 'text-slate-500'}`}>ÉQUIPE</span>
                     {['2v2', '3v3'].map(option => {
                       const isSelected = teamConfig === option
                       return (
@@ -964,18 +1002,24 @@ export default function BattleCreateConnected() {
                           onClick={() => setTeamConfig(option)}
                           className={`relative px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${
                             isSelected
-                              ? 'bg-white/25 text-white border-2 border-white/40 shadow-lg scale-105'
-                              : 'bg-white/10 text-white/70 border-2 border-white/20 hover:bg-white/15 hover:border-white/30'
+                              ? resolvedTheme === 'dark'
+                                ? 'bg-white/25 text-white border-2 border-white/40 shadow-lg scale-105'
+                                : 'bg-blue-100 text-blue-700 border-2 border-blue-300 shadow-lg scale-105'
+                              : resolvedTheme === 'dark'
+                                ? 'bg-white/10 text-white/70 border-2 border-white/20 hover:bg-white/15 hover:border-white/30'
+                                : 'bg-slate-100 text-slate-600 border-2 border-slate-200 hover:bg-slate-200 hover:border-slate-300'
                           }`}
                         >
                           <div className={`absolute inset-0 rounded-lg transition-opacity ${
                             isSelected ? 'opacity-100' : 'opacity-0'
                           }`} style={{
-                            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 50%, rgba(255, 255, 255, 0.1) 100%)'
+                            background: resolvedTheme === 'dark'
+                              ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 50%, rgba(255, 255, 255, 0.1) 100%)'
+                              : 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, transparent 50%, rgba(59, 130, 246, 0.05) 100%)'
                           }} />
-                          
+
                           <span className="relative z-10">{option}</span>
-                          
+
                           {isSelected && (
                             <motion.div
                               initial={{ scale: 0 }}
@@ -1051,36 +1095,48 @@ export default function BattleCreateConnected() {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
           <button
             onClick={() => setShowCatalog(true)}
-            className="aspect-square bg-white/5 hover:bg-white/10 border-2 border-dashed border-white/20 hover:border-blue-300 rounded-xl flex flex-col items-center justify-center transition-all group"
+            className={`aspect-square border-2 border-dashed rounded-xl flex flex-col items-center justify-center transition-all group ${
+              resolvedTheme === 'dark'
+                ? 'bg-white/5 hover:bg-white/10 border-white/20 hover:border-blue-300'
+                : 'bg-slate-100/80 hover:bg-slate-200/80 border-slate-300 hover:border-blue-400'
+            }`}
           >
-            <Plus className="w-8 h-8 text-white/40 group-hover:text-blue-300 mb-2" />
-            <span className="text-[10px] sm:text-xs text-white/40 group-hover:text-blue-300 font-bold">Add Box</span>
+            <Plus className={`w-8 h-8 mb-2 ${resolvedTheme === 'dark' ? 'text-white/40 group-hover:text-blue-300' : 'text-slate-400 group-hover:text-blue-500'}`} />
+            <span className={`text-[10px] sm:text-xs font-bold ${resolvedTheme === 'dark' ? 'text-white/40 group-hover:text-blue-300' : 'text-slate-400 group-hover:text-blue-500'}`}>Add Box</span>
           </button>
 
           {selectedBoxes.map((box) => (
-            <div key={box.id} className="aspect-square bg-white/5 rounded-xl p-2 sm:p-3 flex flex-col relative group border border-white/10 hover:border-blue-300 transition-colors">
+            <div key={box.id} className={`aspect-square rounded-xl p-2 sm:p-3 flex flex-col relative group transition-colors ${
+              resolvedTheme === 'dark'
+                ? 'bg-white/5 border border-white/10 hover:border-blue-300'
+                : 'bg-white/80 border border-slate-200 hover:border-blue-400 shadow-sm'
+            }`}>
               <button
                 onClick={() => removeBox(box.id)}
                 className="absolute top-2 right-2 w-6 h-6 bg-red-500/80 hover:bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20"
               >
                 <X className="w-4 h-4 text-white" />
               </button>
-              
+
               <img src={box.image_url} alt={box.name} className="w-full h-20 object-contain mb-2" />
-              
+
               <div className="mt-auto">
-                <div className="text-[10px] sm:text-xs text-white font-medium mb-1 text-center truncate">{box.name}</div>
+                <div className={`text-[10px] sm:text-xs font-medium mb-1 text-center truncate ${resolvedTheme === 'dark' ? 'text-white' : 'text-slate-700'}`}>{box.name}</div>
                 <div className="flex items-center justify-center gap-1 mb-2">
-                  <span className="text-white font-bold text-xs sm:text-sm flex items-center">
+                  <span className={`font-bold text-xs sm:text-sm flex items-center ${resolvedTheme === 'dark' ? 'text-white' : 'text-slate-700'}`}>
                     {parseFloat(box.price_virtual).toFixed(2)}
                     <CoinIcon size={14} />
                   </span>
                 </div>
-                
-                <div className="flex items-center justify-between bg-white/10 rounded px-2 py-1">
+
+                <div className={`flex items-center justify-between rounded px-2 py-1 ${
+                  resolvedTheme === 'dark' ? 'bg-white/10' : 'bg-slate-100'
+                }`}>
                   <button
                     onClick={() => updateQuantity(box.id, -1)}
-                    className="w-6 h-6 flex items-center justify-center hover:bg-white/20 rounded text-white"
+                    className={`w-6 h-6 flex items-center justify-center rounded ${
+                      resolvedTheme === 'dark' ? 'hover:bg-white/20 text-white' : 'hover:bg-slate-200 text-slate-700'
+                    }`}
                   >
                     −
                   </button>
@@ -1090,11 +1146,15 @@ export default function BattleCreateConnected() {
                     max={MAX_BOXES}
                     value={box.quantity || 1}
                     onChange={(e) => setBoxQuantity(box.id, parseInt(e.target.value) || 1)}
-                    className="w-12 text-center bg-transparent text-white font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className={`w-12 text-center bg-transparent font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                      resolvedTheme === 'dark' ? 'text-white' : 'text-slate-700'
+                    }`}
                   />
                   <button
                     onClick={() => updateQuantity(box.id, 1)}
-                    className="w-6 h-6 flex items-center justify-center hover:bg-white/20 rounded text-white"
+                    className={`w-6 h-6 flex items-center justify-center rounded ${
+                      resolvedTheme === 'dark' ? 'hover:bg-white/20 text-white' : 'hover:bg-slate-200 text-slate-700'
+                    }`}
                   >
                     +
                   </button>

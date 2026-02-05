@@ -1,14 +1,54 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion'
 import { createClient } from '@/utils/supabase/client'
 import { useTheme } from '@/app/components/ThemeProvider'
 import PlayerHoverCard, { getAvatarFrameClasses } from '@/app/components/PlayerHoverCard'
+// ParticlesBackground removed - using pure CSS background for better performance
+import Footer from '@/app/components/Footer'
 import {
   Users, Eye, Bot, Crown, Zap, Target, Star, Trophy,
-  RefreshCw, Shield, Plus, ChevronDown, Check, LayoutGrid, LayoutList, TrendingUp, X
+  RefreshCw, Shield, Plus, ChevronDown, Check, LayoutGrid, LayoutList, X,
+  Package, Swords, Play
 } from 'lucide-react'
+import { useBattleListSubscription } from '@/app/hooks/useBattleSubscription'
+
+// Animated Counter Component - smooth count-up effect
+function AnimatedCounter({ value, duration = 2, decimals = 0, prefix = '', suffix = '' }: {
+  value: number
+  duration?: number
+  decimals?: number
+  prefix?: string
+  suffix?: string
+}) {
+  const count = useMotionValue(0)
+  const rounded = useTransform(count, (latest) => {
+    if (decimals > 0) {
+      return latest.toFixed(decimals)
+    }
+    return Math.floor(latest).toLocaleString()
+  })
+  const [displayValue, setDisplayValue] = useState('0')
+
+  useEffect(() => {
+    const controls = animate(count, value, {
+      duration,
+      ease: [0.16, 1, 0.3, 1]
+    })
+
+    const unsubscribe = rounded.on('change', (v) => {
+      setDisplayValue(v)
+    })
+
+    return () => {
+      controls.stop()
+      unsubscribe()
+    }
+  }, [value, duration, count, rounded])
+
+  return <span className="tabular-nums">{prefix}{displayValue}{suffix}</span>
+}
 
 const supabase = createClient()
 
@@ -87,7 +127,7 @@ function CustomDropdown({ value, onChange, options }: {
   const selectedOption = options.find(opt => opt.value === value)
 
   return (
-    <div ref={dropdownRef} className="relative">
+    <div ref={dropdownRef} className="relative z-[60]">
       <motion.button
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
@@ -117,13 +157,12 @@ function CustomDropdown({ value, onChange, options }: {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="absolute top-full mt-2 left-0 right-0 rounded-xl overflow-hidden z-50"
+            className="absolute top-full mt-2 left-0 right-0 rounded-xl overflow-hidden z-[100]"
             style={{
-              background: resolvedTheme === 'dark' ? 'rgba(30, 41, 59, 0.95)' : 'rgba(248, 250, 252, 0.98)',
+              background: resolvedTheme === 'dark' ? '#1e293b' : '#f8fafc',
               boxShadow: resolvedTheme === 'dark'
-                ? '0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)'
-                : '0 20px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)',
-              backdropFilter: 'blur(20px)'
+                ? '0 20px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+                : '0 20px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.08)'
             }}
           >
             {options.map((option) => (
@@ -289,72 +328,173 @@ function BoxPreviewModal({ lootBoxId, boxName, boxImage, onClose }: {
     return order.filter(r => groups[r]).map(r => ({ rarity: r, items: groups[r] }))
   }, [items])
 
+  // Get top 3 rarest items for burst effect
+  const burstItems = useMemo(() => {
+    const sorted = [...items].sort((a, b) => {
+      const rarityOrder = ['mythic', 'legendary', 'epic', 'rare', 'uncommon', 'common']
+      return rarityOrder.indexOf(a.item_rarity?.toLowerCase() || 'common') -
+             rarityOrder.indexOf(b.item_rarity?.toLowerCase() || 'common')
+    })
+    return sorted.slice(0, 3)
+  }, [items])
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(12px)' }}
+      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(16px)' }}
       onClick={(e) => e.stopPropagation()}
     >
       <motion.div
         ref={modalRef}
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        initial={{ opacity: 0, scale: 0.9, y: 30 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-        className="relative w-full max-w-xl rounded-2xl overflow-hidden"
+        exit={{ opacity: 0, scale: 0.9, y: 30 }}
+        transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+        className="relative w-full max-w-2xl rounded-3xl overflow-visible"
         style={{
           background: resolvedTheme === 'dark'
-            ? 'rgba(30, 41, 59, 0.98)'
-            : 'rgba(255, 255, 255, 0.98)',
-          border: resolvedTheme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)',
+            ? 'linear-gradient(180deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.99) 100%)'
+            : 'linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(248, 250, 252, 0.99) 100%)',
+          border: resolvedTheme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
           boxShadow: resolvedTheme === 'dark'
-            ? '0 24px 48px -12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)'
-            : '0 24px 48px -12px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05)'
+            ? '0 32px 64px -16px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05), 0 0 100px rgba(59, 130, 246, 0.1)'
+            : '0 32px 64px -16px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,0,0,0.05)'
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* 3D Box Hero Section with bursting items */}
+        <div className="relative h-64 overflow-visible flex items-center justify-center"
+          style={{
+            background: resolvedTheme === 'dark'
+              ? 'linear-gradient(180deg, rgba(59, 130, 246, 0.08) 0%, transparent 100%)'
+              : 'linear-gradient(180deg, rgba(59, 130, 246, 0.05) 0%, transparent 100%)'
+          }}
+        >
+          {/* Background glow */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <motion.div
+              animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.5, 0.3] }}
+              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+              className="w-56 h-56 rounded-full"
+              style={{
+                background: `radial-gradient(circle, rgba(59, 130, 246, 0.3) 0%, transparent 70%)`,
+                filter: 'blur(30px)'
+              }}
+            />
+          </div>
 
-        {/* Header */}
-        <div className="relative px-5 py-4 border-b" style={{
+          {/* Main box image - BIGGER */}
+          <motion.div
+            initial={{ y: 20, rotateX: 15 }}
+            animate={{ y: 0, rotateX: 0 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+            className="relative z-10"
+            style={{ perspective: '1000px', transformStyle: 'preserve-3d' }}
+          >
+            <motion.img
+              src={boxImage || '/mystery-box.png'}
+              alt={boxName}
+              className="w-48 h-48 object-contain"
+              style={{
+                filter: 'drop-shadow(0 25px 50px rgba(0, 0, 0, 0.5))',
+                transform: 'translateZ(20px)'
+              }}
+              animate={{ y: [0, -10, 0] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+              onError={(e) => { (e.target as HTMLImageElement).src = '/mystery-box.png' }}
+            />
+          </motion.div>
+
+          {/* Bursting items - NO BORDERS, positioned around the box */}
+          {!loading && burstItems.map((item, idx) => {
+            const positions = [
+              { x: -110, y: -15, rotate: -12, delay: 0 },
+              { x: 110, y: -5, rotate: 12, delay: 0.1 },
+              { x: 0, y: -85, rotate: 3, delay: 0.2 }
+            ]
+            const pos = positions[idx]
+            const rarityColor = getRarityColor(item.item_rarity)
+
+            return (
+              <motion.div
+                key={item.item_id}
+                initial={{ opacity: 0, scale: 0, x: 0, y: 0 }}
+                animate={{
+                  opacity: 1,
+                  scale: 1,
+                  x: pos.x,
+                  y: pos.y,
+                  rotate: pos.rotate
+                }}
+                transition={{
+                  type: 'spring',
+                  stiffness: 300,
+                  damping: 20,
+                  delay: 0.3 + pos.delay
+                }}
+                className="absolute z-20 w-16 h-16 rounded-xl flex items-center justify-center"
+                style={{
+                  background: resolvedTheme === 'dark'
+                    ? `linear-gradient(135deg, ${rarityColor}25, ${rarityColor}15)`
+                    : `linear-gradient(135deg, ${rarityColor}20, ${rarityColor}10)`,
+                  boxShadow: `0 12px 32px ${rarityColor}40, 0 0 30px ${rarityColor}20`,
+                  left: '50%',
+                  top: '50%',
+                  marginLeft: '-32px',
+                  marginTop: '-32px'
+                }}
+              >
+                <img
+                  src={item.item_image_url || '/mystery-box.png'}
+                  alt={item.item_name}
+                  loading="lazy"
+                  className="w-11 h-11 object-contain"
+                  style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))' }}
+                  onError={(e) => { (e.target as HTMLImageElement).src = '/mystery-box.png' }}
+                />
+              </motion.div>
+            )
+          })}
+
+          {/* Close button */}
+          <motion.button
+            whileHover={{ scale: 1.1, rotate: 90 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={onClose}
+            className="absolute top-4 right-4 z-30 w-10 h-10 rounded-full flex items-center justify-center transition-colors"
+            style={{
+              background: resolvedTheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+              backdropFilter: 'blur(8px)'
+            }}
+          >
+            <X className="w-5 h-5 text-secondary" />
+          </motion.button>
+        </div>
+
+        {/* Header with title */}
+        <div className="px-6 py-4 border-b" style={{
           borderColor: resolvedTheme === 'dark' ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)'
         }}>
-          <div className="flex items-center gap-4">
-            <div
-              className="relative w-14 h-14 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0"
-              style={{
-                background: resolvedTheme === 'dark'
-                  ? 'rgba(59, 130, 246, 0.1)'
-                  : 'rgba(59, 130, 246, 0.08)',
-                border: resolvedTheme === 'dark'
-                  ? '1px solid rgba(59, 130, 246, 0.2)'
-                  : '1px solid rgba(59, 130, 246, 0.15)'
-              }}
-            >
-              <img
-                src={boxImage || '/mystery-box.png'}
-                alt={boxName}
-                className="w-10 h-10 object-contain"
-                onError={(e) => { (e.target as HTMLImageElement).src = '/mystery-box.png' }}
-              />
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-primary">{boxName}</h3>
+              <p className="text-sm text-secondary">{items.length} items disponibles</p>
             </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-base font-bold text-primary truncate">{boxName}</h3>
-              <p className="text-xs text-secondary">{items.length} items disponibles</p>
+            <div className="flex items-center gap-2">
+              {burstItems.slice(0, 3).map((item, idx) => (
+                <div
+                  key={`badge-${item.item_id}`}
+                  className="w-2 h-2 rounded-full"
+                  style={{
+                    background: getRarityColor(item.item_rarity),
+                    boxShadow: `0 0 6px ${getRarityColor(item.item_rarity)}`
+                  }}
+                />
+              ))}
             </div>
-            <motion.button
-              whileHover={{ scale: 1.1, rotate: 90 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={onClose}
-              className="w-9 h-9 rounded-lg flex items-center justify-center transition-colors"
-              style={{
-                background: resolvedTheme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'
-              }}
-            >
-              <X className="w-4 h-4 text-secondary" />
-            </motion.button>
           </div>
         </div>
 
@@ -446,6 +586,7 @@ function BoxPreviewModal({ lootBoxId, boxName, boxImage, onClose }: {
                           <img
                             src={item.item_image_url || '/mystery-box.png'}
                             alt={item.item_name}
+                            loading="lazy"
                             className="w-8 h-8 object-contain"
                             onError={(e) => { (e.target as HTMLImageElement).src = '/mystery-box.png' }}
                           />
@@ -457,8 +598,15 @@ function BoxPreviewModal({ lootBoxId, boxName, boxImage, onClose }: {
                             <span
                               className="text-[10px] font-bold"
                               style={{ color: rarityColor }}
+                              title={`${item.probability}%`}
                             >
-                              {item.probability < 1 ? item.probability.toFixed(2) : item.probability.toFixed(1)}%
+                              {item.probability >= 1
+                                ? `${item.probability.toFixed(1)}%`
+                                : item.probability >= 0.01
+                                  ? `${item.probability.toFixed(2)}%`
+                                  : item.probability >= 0.0001
+                                    ? `${item.probability.toFixed(4)}%`
+                                    : `<0.0001%`}
                             </span>
                           </div>
                         </div>
@@ -499,7 +647,7 @@ const ParticipantAvatar = React.memo(function ParticipantAvatar({
 
   const avatarContent = (
     <div
-      className={`w-10 h-10 md:w-14 md:h-14 rounded-lg md:rounded-xl overflow-hidden hover:scale-105 md:hover:scale-110 transition-transform ${
+      className={`w-9 h-9 md:w-12 md:h-12 rounded-lg md:rounded-xl overflow-hidden hover:scale-105 md:hover:scale-110 transition-transform duration-100 ${
         !participant.is_bot ? getAvatarFrameClasses(participant.avatar_frame || 'default') : ''
       }`}
       style={participant.is_bot ? {
@@ -510,13 +658,14 @@ const ParticipantAvatar = React.memo(function ParticipantAvatar({
     >
       {participant.is_bot ? (
         <div className="w-full h-full flex items-center justify-center bg-accent rounded-lg">
-          <Bot className="w-5 h-5 md:w-7 md:h-7 text-white" />
+          <Bot className="w-4 h-4 md:w-6 md:h-6 text-white" />
         </div>
       ) : (
         <div className="w-full h-full rounded-lg overflow-hidden">
           <img
             src={participant.avatar_url || '/default-avatar.png'}
             alt={participant.username || 'Player'}
+            loading="lazy"
             className="w-full h-full object-cover"
             onError={(e) => {
               const target = e.target as HTMLImageElement
@@ -661,14 +810,210 @@ export default function BattlesPage() {
   const [showReadyOnly, setShowReadyOnly] = useState(false)
   const [viewMode, setViewMode] = useState<'extended' | 'compact'>('extended')
 
-  // Live stats
+  // Ref pour éviter les appels multiples
+  const isLoadingRef = useRef(false)
+  const hasInitialLoadRef = useRef(false)
+
+  // Live stats - only the 3 requested metrics
   const [liveStats, setLiveStats] = useState({
-    activeBattles: 0,
-    totalPlayers: 0,
-    totalValue: 0
+    boxesOpenedTotal: 0,      // Total cumulé des caisses ouvertes en battles
+    battlesCreatedTotal: 0,   // Nombre total de battles générées depuis le début
+    coinsDistributed24h: 0    // Somme totale gagnée par les joueurs sur les dernières 24h
   })
+  const [statsLoaded, setStatsLoaded] = useState(false)
+
+  // Ref pour accéder à loadBattles sans le mettre dans les dépendances
+  const loadBattlesRef = useRef<() => Promise<void>>()
+
+  // Realtime subscription for battle updates (boxes opening, new participants, etc.)
+  const { isConnected: realtimeConnected } = useBattleListSubscription(
+    useCallback((payload: any) => {
+      const data = payload.new || payload.old
+      if (!data) return
+
+      // Détecter le type par les propriétés du payload
+      const isBattle = 'max_players' in data || 'total_boxes' in data || 'entry_cost' in data
+      const isParticipant = 'battle_id' in data && 'position' in data
+
+      console.log('🔄 Realtime update:', { isBattle, isParticipant, eventType: payload.eventType, data })
+
+      // Battle updated (status, current_box, etc.)
+      if (isBattle) {
+        if (payload.eventType === 'UPDATE') {
+          setBattles(prev => prev.map(battle =>
+            battle.id === payload.new.id
+              ? {
+                  ...battle,
+                  status: payload.new.status,
+                  current_box: payload.new.current_box,
+                  total_prize: payload.new.total_prize
+                }
+              : battle
+          ))
+          // Incrémenter le compteur de boxes si une box a été ouverte
+          if (payload.new.current_box > (payload.old?.current_box || 0)) {
+            setLiveStats(prev => ({
+              ...prev,
+              boxesOpenedTotal: prev.boxesOpenedTotal + 1
+            }))
+          }
+        } else if (payload.eventType === 'INSERT') {
+          // Nouvelle battle créée - charger uniquement cette battle
+          console.log('✨ Nouvelle battle détectée:', payload.new.id)
+
+          // Charger la battle complète et l'ajouter en douceur
+          loadSingleBattleRef.current?.(payload.new.id).then(newBattle => {
+            if (newBattle) {
+              setBattles(prev => {
+                // Éviter les doublons
+                if (prev.some(b => b.id === newBattle.id)) return prev
+                // Ajouter en haut de la liste
+                return [newBattle, ...prev]
+              })
+              console.log('✅ Nouvelle battle ajoutée en douceur')
+            }
+          })
+
+          setLiveStats(prev => ({
+            ...prev,
+            battlesCreatedTotal: prev.battlesCreatedTotal + 1
+          }))
+        } else if (payload.eventType === 'DELETE') {
+          setBattles(prev => prev.filter(b => b.id !== payload.old?.id))
+        }
+      }
+
+      // Participant joined/left
+      if (isParticipant) {
+        if (payload.eventType === 'INSERT') {
+          console.log('👤 Nouveau participant:', payload.new)
+          setBattles(prev => prev.map(battle => {
+            if (battle.id === payload.new.battle_id) {
+              return {
+                ...battle,
+                participant_count: battle.participant_count + 1,
+                participants: [...battle.participants, payload.new]
+              }
+            }
+            return battle
+          }))
+        } else if (payload.eventType === 'DELETE') {
+          setBattles(prev => prev.map(battle => {
+            if (battle.id === payload.old?.battle_id) {
+              return {
+                ...battle,
+                participant_count: Math.max(0, battle.participant_count - 1),
+                participants: battle.participants.filter(p => p.id !== payload.old?.id)
+              }
+            }
+            return battle
+          }))
+        }
+      }
+    }, []),
+    useCallback((battleId: string) => {
+      // Battle finished - remove after delay (7 secondes pour laisser le temps de voir le résultat)
+      console.log('🏁 Battle terminée:', battleId)
+      setTimeout(() => {
+        setBattles(prev => prev.filter(b => b.id !== battleId))
+      }, 7000)
+    }, [])
+  )
+
+  // Charger une seule battle (pour les nouvelles battles en temps réel)
+  const loadSingleBattle = useCallback(async (battleId: string) => {
+    try {
+      // 1. Fetch la battle
+      const { data: battleData, error: battleError } = await supabase
+        .from('battles')
+        .select(`
+          id, name, mode, max_players, entry_cost, total_prize,
+          status, is_private, total_boxes, current_box,
+          created_at, expires_at, created_by
+        `)
+        .eq('id', battleId)
+        .single()
+
+      if (battleError || !battleData) return null
+
+      // 2. Fetch les participants
+      const { data: participants } = await supabase
+        .from('battle_participants')
+        .select('id, battle_id, user_id, is_bot, bot_name, bot_avatar_url, position, team, total_value')
+        .eq('battle_id', battleId)
+        .order('position')
+
+      // 3. Fetch les profils des participants
+      const userIds = (participants || []).filter(p => !p.is_bot && p.user_id).map(p => p.user_id as string)
+      if (battleData.created_by) userIds.push(battleData.created_by)
+
+      const profilesMap = new Map<string, any>()
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url, theme, level')
+          .in('id', [...new Set(userIds)])
+        profiles?.forEach(p => profilesMap.set(p.id, p))
+      }
+
+      // 4. Fetch les boxes
+      const { data: boxes } = await supabase
+        .from('battle_boxes')
+        .select('battle_id, loot_box_id, quantity, order_position, cost_per_box, loot_boxes(name, image_url, price_virtual)')
+        .eq('battle_id', battleId)
+        .order('order_position')
+
+      // 5. Assembler la battle
+      const enrichedParticipants = (participants || []).map(p => {
+        if (!p.is_bot && p.user_id) {
+          const profile = profilesMap.get(p.user_id)
+          return {
+            ...p,
+            username: profile?.username,
+            avatar_url: profile?.avatar_url,
+            avatar_frame: (profile?.theme as any)?.avatar_frame || 'default',
+            level: profile?.level
+          }
+        }
+        return p
+      })
+
+      const formattedBoxes = (boxes || []).map((box: any) => {
+        const lootBox = Array.isArray(box.loot_boxes) ? box.loot_boxes[0] : box.loot_boxes
+        return {
+          battle_id: box.battle_id,
+          loot_box_id: box.loot_box_id,
+          quantity: box.quantity,
+          order_position: box.order_position,
+          cost_per_box: box.cost_per_box,
+          box_name: lootBox?.name || '',
+          box_image: lootBox?.image_url || '',
+          price_virtual: parseFloat(lootBox?.price_virtual || '0')
+        }
+      })
+
+      return {
+        ...battleData,
+        participant_count: enrichedParticipants.length,
+        participants: enrichedParticipants,
+        battle_boxes: formattedBoxes,
+        creator_banner: null
+      } as Battle
+    } catch (err) {
+      console.error('Error loading single battle:', err)
+      return null
+    }
+  }, [])
+
+  // Ref pour loadSingleBattle
+  const loadSingleBattleRef = useRef<(id: string) => Promise<Battle | null>>()
+  loadSingleBattleRef.current = loadSingleBattle
 
   const loadBattles = useCallback(async () => {
+    // Éviter les appels multiples simultanés
+    if (isLoadingRef.current) return
+    isLoadingRef.current = true
+
     try {
       setLoading(true)
       setError('')
@@ -688,7 +1033,12 @@ export default function BattlesPage() {
 
       if (!battlesData || battlesData.length === 0) {
         setBattles([])
-        setLiveStats({ activeBattles: 0, totalPlayers: 0, totalValue: 0 })
+        setLiveStats({
+          boxesOpenedTotal: 0,
+          battlesCreatedTotal: 0,
+          coinsDistributed24h: 0
+        })
+        setStatsLoaded(true)
         return
       }
 
@@ -820,22 +1170,52 @@ export default function BattlesPage() {
 
       setBattles(battlesWithData)
 
-      // Calculer les stats live
-      const totalPlayers = battlesWithData.reduce((sum, b) => sum + b.participant_count, 0)
-      const totalValue = battlesWithData.reduce((sum, b) => sum + b.entry_cost, 0)
-      setLiveStats({
-        activeBattles: battlesWithData.length,
-        totalPlayers,
-        totalValue
-      })
+      // Fetch the 3 requested live stats in parallel
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
-    } catch (err) {
+      const [boxesResult, battlesResult, coinsResult] = await Promise.all([
+        // Boxes ouvertes: Total cumulé (ALL TIME)
+        supabase
+          .from('battle_openings')
+          .select('id', { count: 'exact', head: true }),
+        // Battles créées: Total depuis le début (ALL TIME)
+        supabase
+          .from('battles')
+          .select('id', { count: 'exact', head: true }),
+        // Coins distribués: Somme des dernières 24h (status = 'finished', utilise updated_at)
+        supabase
+          .from('battles')
+          .select('total_prize')
+          .eq('status', 'finished')
+          .gte('updated_at', oneDayAgo)
+      ])
+
+      const boxesOpenedTotal = boxesResult.count || 0
+      const battlesCreatedTotal = battlesResult.count || 0
+      const coinsDistributed24h = coinsResult.data?.reduce((sum, b) => sum + (b.total_prize || 0), 0) || 0
+
+      setLiveStats({
+        boxesOpenedTotal,
+        battlesCreatedTotal,
+        coinsDistributed24h
+      })
+      setStatsLoaded(true)
+
+    } catch (err: any) {
+      // Ignorer les erreurs AbortError (causées par navigation rapide ou démontage du composant)
+      if (err?.message?.includes('AbortError') || err?.name === 'AbortError') {
+        return
+      }
       console.error('Erreur chargement battles:', err)
       setError('Impossible de charger les battles')
     } finally {
       setLoading(false)
+      isLoadingRef.current = false
     }
   }, [])
+
+  // Stocker la référence à loadBattles pour l'utiliser dans les callbacks
+  loadBattlesRef.current = loadBattles
 
   const filteredAndSortedBattles = useMemo(() => {
     let filtered = battles.filter(battle => !hiddenModes.has(battle.mode))
@@ -888,13 +1268,51 @@ export default function BattlesPage() {
   ]
 
   useEffect(() => {
-    loadBattles()
+    if (!hasInitialLoadRef.current) {
+      hasInitialLoadRef.current = true
+      loadBattles()
+    }
   }, [loadBattles])
 
-  return (
-    <div className="min-h-screen bg-primary pt-20 pb-24 lg:pb-8">
+ return (
+  <div className="min-h-screen -mt-[80px] pt-[100px] pb-24 lg:pb-8 bg-gray-50 dark:bg-gray-950 transition-colors duration-300 relative overflow-hidden">
+      {/* Immersive background - Pure CSS, no GPU shaders */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {/* Base gradient - dark blue to purple tint */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: resolvedTheme === 'dark'
+              ? 'radial-gradient(ellipse 120% 80% at 50% -20%, rgba(99, 102, 241, 0.08) 0%, transparent 60%), radial-gradient(ellipse 100% 60% at 80% 50%, rgba(168, 85, 247, 0.05) 0%, transparent 50%), radial-gradient(ellipse 80% 50% at 20% 80%, rgba(59, 130, 246, 0.04) 0%, transparent 50%)'
+              : 'radial-gradient(ellipse 100% 60% at 50% 0%, rgba(99, 102, 241, 0.04) 0%, transparent 50%)'
+          }}
+        />
+        {/* Subtle noise texture overlay */}
+        <div
+          className="absolute inset-0 opacity-[0.02] dark:opacity-[0.015]"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`
+          }}
+        />
+        {/* Grid pattern - battle arena feel */}
+        <div
+          className="absolute inset-0 opacity-[0.02] dark:opacity-[0.03]"
+          style={{
+            backgroundImage: `linear-gradient(rgba(148, 163, 184, 0.3) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(148, 163, 184, 0.3) 1px, transparent 1px)`,
+            backgroundSize: '60px 60px'
+          }}
+        />
+        {/* Vignette effect */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'radial-gradient(ellipse 70% 60% at 50% 50%, transparent 40%, rgba(0,0,0,0.15) 100%)'
+          }}
+        />
+      </div>
 
-      <div className="w-full max-w-full mx-auto px-4 lg:px-5 mb-7">
+      <div className="relative z-[50] w-full max-w-full mx-auto px-4 lg:px-5 mb-7">
         {/* Header - Title + Live Stats */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-5">
           <div className="flex items-center gap-4">
@@ -903,83 +1321,82 @@ export default function BattlesPage() {
             </h1>
           </div>
 
-          {/* Live Stats - Professional compact design */}
-          <div className="hidden lg:flex items-center gap-1 p-1.5 rounded-2xl" style={{
-            background: resolvedTheme === 'dark'
-              ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.9))'
-              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95))',
-            border: resolvedTheme === 'dark' ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.06)',
-            boxShadow: resolvedTheme === 'dark'
-              ? '0 4px 20px rgba(0, 0, 0, 0.4)'
-              : '0 4px 20px rgba(0, 0, 0, 0.08)'
-          }}>
-            {/* Battles actives */}
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl cursor-default"
+          {/* Live Stats - Glass Pills Style (V3 + V7 mix) - Enlarged */}
+          <div className="hidden lg:flex items-center gap-2.5">
+            {/* Live indicator pill */}
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-full"
               style={{
-                background: resolvedTheme === 'dark' ? 'rgba(234, 179, 8, 0.1)' : 'rgba(234, 179, 8, 0.08)'
-              }}
-            >
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{
-                background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.2), rgba(234, 179, 8, 0.1))',
-                border: '1px solid rgba(234, 179, 8, 0.3)'
+                background: resolvedTheme === 'dark' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.2)'
               }}>
-                <Trophy className="w-4 h-4 text-yellow-500" />
+              <motion.div
+                animate={{ opacity: [1, 0.5, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="w-2 h-2 rounded-full bg-red-500"
+              />
+              <span className="text-xs font-semibold text-red-500 uppercase">Live</span>
+            </div>
+
+            {/* Boxes ouvertes pill */}
+            <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-full"
+              style={{
+                background: resolvedTheme === 'dark' ? 'rgba(168, 85, 247, 0.08)' : 'rgba(168, 85, 247, 0.06)',
+                border: '1px solid rgba(168, 85, 247, 0.15)'
+              }}>
+              <Package className="w-4 h-4 text-purple-400" />
+              <span className="text-base font-bold text-purple-400 tabular-nums">
+                {statsLoaded ? <AnimatedCounter value={liveStats.boxesOpenedTotal} duration={2} /> : '—'}
+              </span>
+            </div>
+
+            {/* Battles créées pill */}
+            <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-full"
+              style={{
+                background: resolvedTheme === 'dark' ? 'rgba(234, 179, 8, 0.08)' : 'rgba(234, 179, 8, 0.06)',
+                border: '1px solid rgba(234, 179, 8, 0.15)'
+              }}>
+              <Swords className="w-4 h-4 text-amber-400" />
+              <span className="text-base font-bold text-amber-400 tabular-nums">
+                {statsLoaded ? <AnimatedCounter value={liveStats.battlesCreatedTotal} duration={1.5} /> : '—'}
+              </span>
+            </div>
+
+            {/* Coins distribués pill avec jauge circulaire */}
+            <div className="flex items-center gap-3 px-4 py-2 rounded-full"
+              style={{
+                background: resolvedTheme === 'dark' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.08)',
+                border: '1px solid rgba(16, 185, 129, 0.2)'
+              }}>
+              {/* Circular gauge avec icône coins */}
+              <div className="relative w-9 h-9">
+                <svg className="w-9 h-9 -rotate-90">
+                  <circle cx="18" cy="18" r="14" stroke="rgba(16, 185, 129, 0.2)" strokeWidth="2.5" fill="none" />
+                  <motion.circle
+                    cx="18" cy="18" r="14"
+                    stroke="#10b981"
+                    strokeWidth="2.5"
+                    fill="none"
+                    strokeLinecap="round"
+                    initial={{ strokeDasharray: '0 88' }}
+                    animate={{ strokeDasharray: '66 88' }}
+                    transition={{ duration: 2, ease: 'easeOut' }}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <img
+                    src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/loot-boxes/ChatGPT_Image_6_sept._2025_19_31_10.png"
+                    alt="Coins"
+                    className="w-4.5 h-4.5"
+                  />
+                </div>
               </div>
               <div className="flex flex-col">
-                <span className="text-[10px] uppercase tracking-wider text-secondary font-semibold">Actives</span>
-                <span className="text-lg font-black text-primary leading-none">{liveStats.activeBattles}</span>
+                <span className="text-base font-bold text-emerald-400 tabular-nums leading-none">
+                  {statsLoaded ? <AnimatedCounter value={Math.floor(liveStats.coinsDistributed24h)} duration={2.5} /> : '—'}
+                </span>
+                <span className="text-[9px] text-emerald-500/60 uppercase">24h</span>
               </div>
-            </motion.div>
-
-            <div className="w-px h-8 bg-border" />
-
-            {/* Joueurs */}
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl cursor-default"
-              style={{
-                background: resolvedTheme === 'dark' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.08)'
-              }}
-            >
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{
-                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.1))',
-                border: '1px solid rgba(59, 130, 246, 0.3)'
-              }}>
-                <Users className="w-4 h-4 text-blue-500" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] uppercase tracking-wider text-secondary font-semibold">Joueurs</span>
-                <span className="text-lg font-black text-primary leading-none">{liveStats.totalPlayers}</span>
-              </div>
-            </motion.div>
-
-            <div className="w-px h-8 bg-border" />
-
-            {/* Valeur totale */}
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl cursor-default"
-              style={{
-                background: resolvedTheme === 'dark' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.08)'
-              }}
-            >
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{
-                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1))',
-                border: '1px solid rgba(16, 185, 129, 0.3)'
-              }}>
-                <img
-                  src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
-                  alt="Coins"
-                  className="w-4 h-4"
-                />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] uppercase tracking-wider text-secondary font-semibold">En jeu</span>
-                <span className="text-lg font-black text-emerald-500 leading-none">{Math.floor(liveStats.totalValue).toLocaleString()}</span>
-              </div>
-            </motion.div>
+            </div>
           </div>
         </div>
 
@@ -1085,15 +1502,25 @@ export default function BattlesPage() {
                     {config.label}
                   </span>
 
-                  <div className={`relative w-7 lg:w-9 h-4 lg:h-5 rounded-full transition-all ${
-                    isActive ? 'bg-success' : 'bg-muted'
-                  }`}>
+                  <div className={`relative w-9 lg:w-11 h-5 lg:h-6 rounded-full transition-all ${
+                    isActive ? 'bg-emerald-500' : 'bg-slate-600'
+                  }`}
+                    style={{
+                      boxShadow: isActive
+                        ? '0 0 8px rgba(16, 185, 129, 0.4), inset 0 1px 2px rgba(0, 0, 0, 0.1)'
+                        : 'inset 0 1px 2px rgba(0, 0, 0, 0.2)'
+                    }}
+                  >
                     <motion.div
-                      animate={{ x: isActive ? 12 : 2 }}
+                      animate={{ x: isActive ? 20 : 2 }}
                       transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                      className={`absolute top-0.5 w-3 h-3 lg:w-4 lg:h-4 rounded-full shadow-md ${
-                        isActive ? 'bg-white' : 'bg-muted-dark'
-                      }`}
+                      className="absolute top-[3px] lg:top-1 w-3.5 h-3.5 lg:w-4 lg:h-4 rounded-full shadow-lg"
+                      style={{
+                        background: isActive
+                          ? 'linear-gradient(135deg, #ffffff, #f0f0f0)'
+                          : 'linear-gradient(135deg, #94a3b8, #64748b)',
+                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
+                      }}
                     />
                   </div>
                 </button>
@@ -1198,7 +1625,7 @@ export default function BattlesPage() {
         </div>
       </div>
 
-      <div className="w-full max-w-full mx-auto px-4 lg:px-6">
+      <div className="relative z-[10] w-full max-w-full mx-auto px-4 lg:px-6">
         {loading && (
           <div className={viewMode === 'compact' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4 pb-8' : 'space-y-4 pb-8'}>
             {[1, 2, 3].map((i) => (
@@ -1243,9 +1670,218 @@ export default function BattlesPage() {
         )}
       </div>
 
+      {/* Footer */}
+      <Footer />
+
     </div>
   )
 }
+
+// Component for displaying participants with VS indicators based on battle mode
+const ParticipantsWithVS = React.memo(function ParticipantsWithVS({
+  participants,
+  emptySlots,
+  mode,
+  maxPlayers,
+  creatorBanner,
+  resolvedTheme
+}: {
+  participants: BattleParticipant[]
+  emptySlots: number
+  mode: string
+  maxPlayers: number
+  creatorBanner?: string | null
+  resolvedTheme: string | undefined
+}) {
+  const modeConfig = MODE_CONFIGS[mode as keyof typeof MODE_CONFIGS] || MODE_CONFIGS.classic
+  const ModeIcon = modeConfig.icon
+  const battleFormat = getBattleFormat(participants, maxPlayers)
+
+  // Create array of all slots (participants + empty)
+  const allSlots = [
+    ...participants,
+    ...Array.from({ length: emptySlots }).map((_, idx) => ({
+      id: `empty-${idx}`,
+      isEmpty: true
+    }))
+  ]
+
+  // For team battles, properly distribute players and empty slots across teams
+  const renderTeamBattle = () => {
+    // Determine number of teams (2 for 2v2/4 players, etc.)
+    const numTeams = 2 // Team battles are always 2 teams
+    const playersPerTeam = Math.floor(maxPlayers / numTeams)
+
+    // Group existing participants by team
+    const teams: Record<number, BattleParticipant[]> = { 0: [], 1: [] }
+    participants.forEach(p => {
+      const team = p.team ?? 0
+      if (teams[team]) teams[team].push(p)
+    })
+
+    // Calculate empty slots per team
+    const team0Empty = playersPerTeam - teams[0].length
+    const team1Empty = playersPerTeam - teams[1].length
+
+    return (
+      <div className="relative px-2 py-2 rounded-lg overflow-visible">
+        {creatorBanner && (
+          <div className="absolute inset-0 pointer-events-none rounded-lg overflow-hidden opacity-40" dangerouslySetInnerHTML={{ __html: creatorBanner }} />
+        )}
+        <div className="relative flex items-center gap-2 overflow-visible" style={{ zIndex: 1 }}>
+          {/* Team 0 */}
+          <div className="flex items-center gap-1.5">
+            {teams[0].map(p => (
+              <ParticipantAvatar key={p.id} participant={p} resolvedTheme={resolvedTheme} />
+            ))}
+            {Array.from({ length: team0Empty }).map((_, idx) => (
+              <div
+                key={`empty-t0-${idx}`}
+                className="w-9 h-9 md:w-12 md:h-12 rounded-lg md:rounded-xl flex items-center justify-center border-2 border-dashed"
+                style={{
+                  background: resolvedTheme === 'dark' ? 'rgba(51, 65, 85, 0.3)' : 'rgba(226, 232, 240, 0.5)',
+                  borderColor: resolvedTheme === 'dark' ? 'rgba(148, 163, 184, 0.3)' : 'rgba(100, 116, 139, 0.3)'
+                }}
+              >
+                <span className="text-base font-light text-muted">+</span>
+              </div>
+            ))}
+          </div>
+
+          {/* VS indicator between teams */}
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0"
+            style={{
+              background: resolvedTheme === 'dark'
+                ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.1))'
+                : 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.08))',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              boxShadow: '0 0 12px rgba(239, 68, 68, 0.2)'
+            }}
+          >
+            <Swords className="w-3.5 h-3.5 text-red-500" />
+          </motion.div>
+
+          {/* Team 1 */}
+          <div className="flex items-center gap-1.5">
+            {teams[1].map(p => (
+              <ParticipantAvatar key={p.id} participant={p} resolvedTheme={resolvedTheme} />
+            ))}
+            {Array.from({ length: team1Empty }).map((_, idx) => (
+              <div
+                key={`empty-t1-${idx}`}
+                className="w-9 h-9 md:w-12 md:h-12 rounded-lg md:rounded-xl flex items-center justify-center border-2 border-dashed"
+                style={{
+                  background: resolvedTheme === 'dark' ? 'rgba(51, 65, 85, 0.3)' : 'rgba(226, 232, 240, 0.5)',
+                  borderColor: resolvedTheme === 'dark' ? 'rgba(148, 163, 184, 0.3)' : 'rgba(100, 116, 139, 0.3)'
+                }}
+              >
+                <span className="text-base font-light text-muted">+</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // For shared mode, show mode icon between players
+  const renderSharedMode = () => (
+    <div className="relative px-2 py-2 rounded-lg overflow-visible">
+      {creatorBanner && (
+        <div className="absolute inset-0 pointer-events-none rounded-lg overflow-hidden opacity-40" dangerouslySetInnerHTML={{ __html: creatorBanner }} />
+      )}
+      <div className="relative flex items-center gap-1.5 overflow-visible" style={{ zIndex: 1 }}>
+        {allSlots.map((slot, idx) => (
+          <React.Fragment key={'isEmpty' in slot ? slot.id : slot.id}>
+            {'isEmpty' in slot ? (
+              <div
+                className="w-9 h-9 md:w-12 md:h-12 rounded-lg md:rounded-xl flex items-center justify-center border-2 border-dashed"
+                style={{
+                  background: resolvedTheme === 'dark' ? 'rgba(51, 65, 85, 0.3)' : 'rgba(226, 232, 240, 0.5)',
+                  borderColor: resolvedTheme === 'dark' ? 'rgba(148, 163, 184, 0.3)' : 'rgba(100, 116, 139, 0.3)'
+                }}
+              >
+                <span className="text-base font-light text-muted">+</span>
+              </div>
+            ) : (
+              <ParticipantAvatar participant={slot as BattleParticipant} resolvedTheme={resolvedTheme} />
+            )}
+            {/* Mode icon between players for shared mode */}
+            {idx < allSlots.length - 1 && (
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0"
+                style={{
+                  background: `linear-gradient(135deg, ${modeConfig.hexColor}25, ${modeConfig.hexColor}10)`,
+                  border: `1px solid ${modeConfig.hexColor}40`
+                }}
+              >
+                <ModeIcon className="w-3.5 h-3.5" style={{ color: modeConfig.hexColor }} />
+              </motion.div>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  )
+
+  // For FFA (free-for-all), show swords between each player
+  const renderFFAMode = () => (
+    <div className="relative px-2 py-2 rounded-lg overflow-visible">
+      {creatorBanner && (
+        <div className="absolute inset-0 pointer-events-none rounded-lg overflow-hidden opacity-40" dangerouslySetInnerHTML={{ __html: creatorBanner }} />
+      )}
+      <div className="relative flex items-center gap-1.5 overflow-visible" style={{ zIndex: 1 }}>
+        {allSlots.map((slot, idx) => (
+          <React.Fragment key={'isEmpty' in slot ? slot.id : slot.id}>
+            {'isEmpty' in slot ? (
+              <div
+                className="w-9 h-9 md:w-12 md:h-12 rounded-lg md:rounded-xl flex items-center justify-center border-2 border-dashed"
+                style={{
+                  background: resolvedTheme === 'dark' ? 'rgba(51, 65, 85, 0.3)' : 'rgba(226, 232, 240, 0.5)',
+                  borderColor: resolvedTheme === 'dark' ? 'rgba(148, 163, 184, 0.3)' : 'rgba(100, 116, 139, 0.3)'
+                }}
+              >
+                <span className="text-base font-light text-muted">+</span>
+              </div>
+            ) : (
+              <ParticipantAvatar participant={slot as BattleParticipant} resolvedTheme={resolvedTheme} />
+            )}
+            {/* Swords between players for FFA */}
+            {idx < allSlots.length - 1 && (
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0"
+                style={{
+                  background: resolvedTheme === 'dark'
+                    ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.08))'
+                    : 'linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(239, 68, 68, 0.06))',
+                  border: '1px solid rgba(239, 68, 68, 0.25)'
+                }}
+              >
+                <Swords className="w-3.5 h-3.5 text-red-400" />
+              </motion.div>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  )
+
+  // Decide which render mode to use
+  if (mode.toLowerCase() === 'shared') {
+    return renderSharedMode()
+  } else if (battleFormat.isTeamBattle) {
+    return renderTeamBattle()
+  } else {
+    return renderFFAMode()
+  }
+})
 
 const MinimalBattleCard = React.memo(function MinimalBattleCard({ battle, index, viewMode = 'extended' }: {
   battle: Battle
@@ -1376,7 +2012,7 @@ const MinimalBattleCard = React.memo(function MinimalBattleCard({ battle, index,
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
+      transition={{ delay: index * 0.05, type: 'tween', duration: 0.3 }}
       whileHover={{ y: viewMode === 'extended' ? -6 : -3 }}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
@@ -1409,7 +2045,7 @@ const MinimalBattleCard = React.memo(function MinimalBattleCard({ battle, index,
         animate={{
           opacity: isHovering ? 0.15 : 0,
         }}
-        transition={{ duration: 0.3 }}
+        transition={{ duration: 0.08 }}
         style={{
           background: `radial-gradient(600px circle at ${mousePos.x}px ${mousePos.y}px, ${modeConfig.hexColor}40, transparent 40%)`,
         }}
@@ -1425,81 +2061,57 @@ const MinimalBattleCard = React.memo(function MinimalBattleCard({ battle, index,
         }}
       />
 
-      <div className="relative z-10 p-3 md:p-6">
-        {/* Layout Desktop - Horizontal */}
-        <div className="hidden md:flex items-center gap-6">
-          <div className="flex flex-col items-center gap-2 w-28 flex-shrink-0">
+      <div className="relative z-10 p-3 md:p-4">
+        {/* Layout Desktop - Horizontal (compact) */}
+        <div className="hidden md:flex items-center gap-4">
+          <div className="flex flex-col items-center gap-1.5 w-20 flex-shrink-0">
             <ModeIcon
-              className={`w-12 h-12 ${modeConfig.color} ${modeConfig.darkColor}`}
-              style={{ filter: `drop-shadow(0 4px 12px ${modeConfig.hexColor}60)` }}
+              className={`w-10 h-10 ${modeConfig.color} ${modeConfig.darkColor}`}
+              style={{ filter: `drop-shadow(0 4px 10px ${modeConfig.hexColor}50)` }}
             />
             <div
-              className="relative px-4 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase text-center w-full flex items-center justify-center"
+              className="relative px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase text-center w-full flex items-center justify-center"
               style={{
                 color: modeConfig.hexColor,
-                border: `2px solid ${modeConfig.hexColor}`,
-                boxShadow: `0 0 20px ${modeConfig.hexColor}80, inset 0 0 20px ${modeConfig.hexColor}20`,
-                textShadow: `0 0 10px ${modeConfig.hexColor}`,
+                border: `1.5px solid ${modeConfig.hexColor}`,
+                boxShadow: `0 0 12px ${modeConfig.hexColor}60`,
+                textShadow: `0 0 8px ${modeConfig.hexColor}`,
               }}
             >
               {modeConfig.label}
             </div>
-            {/* Battle Format Badge */}
-            <div
-              className="px-3 py-1 rounded-lg text-[10px] font-bold tracking-wide"
-              style={{
-                background: resolvedTheme === 'dark' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.1)',
-                color: resolvedTheme === 'dark' ? '#93c5fd' : '#3b82f6',
-                border: resolvedTheme === 'dark' ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(59, 130, 246, 0.2)'
-              }}
-            >
-              {getBattleFormat(battle.participants, battle.max_players).format}
-            </div>
           </div>
 
-          <div className="flex flex-col gap-1 min-w-[140px]">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-0.5 min-w-[110px]">
+            <div className="flex items-center gap-1.5">
               <img
                 src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
                 alt="Coins"
-                className="w-8 h-8 object-contain"
-                style={{ filter: 'drop-shadow(0 4px 8px rgba(234, 179, 8, 0.4))' }}
+                className="w-7 h-7 object-contain"
+                style={{ filter: 'drop-shadow(0 3px 6px rgba(234, 179, 8, 0.4))' }}
               />
-              <span className="text-2xl font-bold text-success">{Math.floor(totalPrice)}</span>
+              <span className="text-xl font-bold text-success">{Math.floor(totalPrice)}</span>
             </div>
-            <div className="text-xs text-secondary font-medium">{battle.total_boxes} boxes à ouvrir</div>
+            <div className="text-[10px] text-secondary font-medium">{battle.total_boxes} boxes</div>
           </div>
 
-          <div className="w-px h-16 rounded-full" style={{
+          <div className="w-px h-12 rounded-full" style={{
             background: resolvedTheme === 'dark'
               ? 'linear-gradient(to bottom, transparent, rgba(148, 163, 184, 0.2), transparent)'
               : 'linear-gradient(to bottom, transparent, rgba(100, 116, 139, 0.2), transparent)'
           }} />
 
-          <div className="relative px-2 py-3 rounded-lg overflow-visible">
-            {battle.creator_banner && (
-              <div className="absolute inset-0 pointer-events-none rounded-lg overflow-hidden opacity-50" dangerouslySetInnerHTML={{ __html: battle.creator_banner }} />
-            )}
-            <div className="relative flex items-center gap-3 px-1 py-1 overflow-visible" style={{ zIndex: 1 }}>
-              {battle.participants.map((p) => (
-                <ParticipantAvatar key={p.id} participant={p} resolvedTheme={resolvedTheme} />
-              ))}
-              {Array.from({ length: emptySlots }).map((_, idx) => (
-                <div
-                  key={`empty-${idx}`}
-                  className="w-14 h-14 rounded-xl flex items-center justify-center border-2 border-dashed"
-                  style={{
-                    background: resolvedTheme === 'dark' ? 'rgba(51, 65, 85, 0.3)' : 'rgba(226, 232, 240, 0.5)',
-                    borderColor: resolvedTheme === 'dark' ? 'rgba(148, 163, 184, 0.3)' : 'rgba(100, 116, 139, 0.3)'
-                  }}
-                >
-                  <span className="text-2xl font-light text-muted">+</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* Participant avatars with VS logic */}
+          <ParticipantsWithVS
+            participants={battle.participants}
+            emptySlots={emptySlots}
+            mode={battle.mode}
+            maxPlayers={battle.max_players}
+            creatorBanner={battle.creator_banner}
+            resolvedTheme={resolvedTheme}
+          />
 
-          <div className="w-px h-16 rounded-full" style={{
+          <div className="w-px h-12 rounded-full" style={{
             background: resolvedTheme === 'dark'
               ? 'linear-gradient(to bottom, transparent, rgba(148, 163, 184, 0.2), transparent)'
               : 'linear-gradient(to bottom, transparent, rgba(100, 116, 139, 0.2), transparent)'
@@ -1514,25 +2126,55 @@ const MinimalBattleCard = React.memo(function MinimalBattleCard({ battle, index,
             onMouseMove={handleDragMove}
             style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
           >
-            <div className="flex items-center gap-3 pb-2">
-              {expandedBoxes.map((box, idx) => (
-                <div
-                  key={box.uniqueKey}
-                  className="relative group/box flex-shrink-0 cursor-pointer"
-                  onClick={(e) => handleBoxClick(e, box)}
-                >
-                  <img
-                    src={box.box_image || '/mystery-box.png'}
-                    alt={box.box_name}
-                    className={`w-20 h-20 object-contain transition-all pointer-events-none ${
-                      idx < (battle.current_box || 0) ? 'opacity-30 grayscale' : 'opacity-100 group-hover/box:scale-110'
-                    }`}
-                    style={{ filter: idx < (battle.current_box || 0) ? undefined : 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15))' }}
-                    onError={(e) => { (e.target as HTMLImageElement).src = '/mystery-box.png' }}
-                    draggable={false}
-                  />
-                </div>
-              ))}
+            <div className="flex items-center gap-2 py-2 px-1">
+              {expandedBoxes.map((box, idx) => {
+                // current_box est 1-indexed: round 1 = current_box = 1
+                // Donc box index 0 correspond à round 1, index 1 à round 2, etc.
+                const currentBoxIndex = (battle.current_box || 1) - 1
+                // Si la battle est terminée, TOUTES les boxes sont ouvertes
+                const isOpened = battle.status === 'finished' || idx < currentBoxIndex
+                const isCurrentlyOpening = idx === currentBoxIndex && battle.status === 'active'
+                return (
+                  <div
+                    key={box.uniqueKey}
+                    className="relative group/box flex-shrink-0 cursor-pointer"
+                    onClick={(e) => handleBoxClick(e, box)}
+                  >
+                    {/* Flèche animée sur la box en cours d'ouverture */}
+                    {isCurrentlyOpening && (
+                      <motion.div
+                        initial={{ y: -8, opacity: 0 }}
+                        animate={{ y: [-8, -4, -8], opacity: 1 }}
+                        transition={{ duration: 0.8, repeat: Infinity, ease: 'easeInOut' }}
+                        className="absolute -top-4 left-0 right-0 flex justify-center z-10"
+                      >
+                        <Play className="w-5 h-5 text-emerald-400 fill-emerald-400 rotate-90" />
+                      </motion.div>
+                    )}
+                    <img
+                      src={box.box_image || '/mystery-box.png'}
+                      alt={box.box_name}
+                      loading="lazy"
+                      className={`w-24 h-24 object-contain transition-all duration-300 pointer-events-none ${
+                        isOpened ? 'opacity-30 grayscale scale-90' : isCurrentlyOpening ? 'opacity-100 scale-105' : 'opacity-100 group-hover/box:scale-110'
+                      }`}
+                      style={{
+                        filter: isOpened ? undefined : isCurrentlyOpening
+                          ? 'drop-shadow(0 0 6px rgba(16, 185, 129, 0.3))'
+                          : undefined
+                      }}
+                      onError={(e) => { (e.target as HTMLImageElement).src = '/mystery-box.png' }}
+                      draggable={false}
+                    />
+                    {/* Indicateur visuel sur box ouverte */}
+                    {isOpened && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Check className="w-6 h-6 text-emerald-500/60" />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
 
@@ -1543,19 +2185,19 @@ const MinimalBattleCard = React.memo(function MinimalBattleCard({ battle, index,
               e.stopPropagation()
               window.location.href = battle.participant_count < battle.max_players ? `/battles/${battle.id}` : `/battles/${battle.id}?spectate=true`
             }}
-            className="px-6 py-4 rounded-xl font-bold text-white min-w-[120px]"
+            className="px-5 py-3 rounded-xl font-bold text-white min-w-[100px]"
             style={{
               background: battle.participant_count < battle.max_players ? 'linear-gradient(135deg, #10b981, #059669)' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
               boxShadow: battle.participant_count < battle.max_players
-                ? '0 12px 28px rgba(16, 185, 129, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
-                : '0 12px 28px rgba(59, 130, 246, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
+                ? '0 8px 20px rgba(16, 185, 129, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
+                : '0 8px 20px rgba(59, 130, 246, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
             }}
           >
-            <div className="flex flex-col items-center justify-center gap-2">
+            <div className="flex flex-col items-center justify-center gap-1">
               {battle.participant_count < battle.max_players ? (
-                <><Users className="w-5 h-5" /><span>Rejoindre</span></>
+                <><Users className="w-4 h-4" /><span className="text-sm">Rejoindre</span></>
               ) : (
-                <><Eye className="w-5 h-5" /><span>Regarder</span></>
+                <><Eye className="w-4 h-4" /><span className="text-sm">Regarder</span></>
               )}
             </div>
           </motion.button>
@@ -1563,7 +2205,7 @@ const MinimalBattleCard = React.memo(function MinimalBattleCard({ battle, index,
 
         {/* Layout Mobile - Compact */}
         <div className="md:hidden">
-          {/* Ligne 1: Mode + Format + Prix */}
+          {/* Ligne 1: Mode + Prix */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1.5 flex-shrink-0">
               <ModeIcon
@@ -1580,16 +2222,6 @@ const MinimalBattleCard = React.memo(function MinimalBattleCard({ battle, index,
                 }}
               >
                 {modeConfig.label}
-              </div>
-              {/* Battle Format Badge Mobile */}
-              <div
-                className="px-2 py-0.5 rounded text-[9px] font-bold"
-                style={{
-                  background: resolvedTheme === 'dark' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.1)',
-                  color: resolvedTheme === 'dark' ? '#93c5fd' : '#3b82f6',
-                }}
-              >
-                {getBattleFormat(battle.participants, battle.max_players).format}
               </div>
             </div>
             <div className="flex items-center gap-1.5">
@@ -1617,13 +2249,13 @@ const MinimalBattleCard = React.memo(function MinimalBattleCard({ battle, index,
                 {Array.from({ length: emptySlots }).map((_, idx) => (
                   <div
                     key={`empty-${idx}`}
-                    className="w-10 h-10 rounded-lg flex items-center justify-center border border-dashed"
+                    className="w-9 h-9 rounded-lg flex items-center justify-center border border-dashed"
                     style={{
                       background: resolvedTheme === 'dark' ? 'rgba(51, 65, 85, 0.3)' : 'rgba(226, 232, 240, 0.5)',
                       borderColor: resolvedTheme === 'dark' ? 'rgba(148, 163, 184, 0.3)' : 'rgba(100, 116, 139, 0.3)'
                     }}
                   >
-                    <span className="text-lg font-light text-muted">+</span>
+                    <span className="text-base font-light text-muted">+</span>
                   </div>
                 ))}
               </div>
@@ -1631,22 +2263,46 @@ const MinimalBattleCard = React.memo(function MinimalBattleCard({ battle, index,
 
             {/* Boxes - scrollable */}
             <div ref={mobileScrollRef} className="flex-1 overflow-x-auto scrollbar-hide">
-              <div className="flex items-center gap-1.5">
-                {expandedBoxes.map((box, idx) => (
-                  <div
-                    key={box.uniqueKey}
-                    className="flex-shrink-0 cursor-pointer"
-                    onClick={(e) => handleBoxClick(e, box)}
-                  >
-                    <img
-                      src={box.box_image || '/mystery-box.png'}
-                      alt={box.box_name}
-                      className={`w-12 h-12 object-contain ${idx < (battle.current_box || 0) ? 'opacity-30 grayscale' : ''}`}
-                      onError={(e) => { (e.target as HTMLImageElement).src = '/mystery-box.png' }}
-                      draggable={false}
-                    />
-                  </div>
-                ))}
+              <div className="flex items-center gap-1.5 py-2 px-1">
+                {expandedBoxes.map((box, idx) => {
+                  // current_box est 1-indexed: round 1 = current_box = 1
+                  const currentBoxIndex = (battle.current_box || 1) - 1
+                  // Si la battle est terminée, TOUTES les boxes sont ouvertes
+                  const isOpened = battle.status === 'finished' || idx < currentBoxIndex
+                  const isCurrentlyOpening = idx === currentBoxIndex && battle.status === 'active'
+                  return (
+                    <div
+                      key={box.uniqueKey}
+                      className="relative flex-shrink-0 cursor-pointer"
+                      onClick={(e) => handleBoxClick(e, box)}
+                    >
+                      {isCurrentlyOpening && (
+                        <motion.div
+                          animate={{ y: [-4, 0, -4] }}
+                          transition={{ duration: 0.6, repeat: Infinity }}
+                          className="absolute -top-3 left-0 right-0 flex justify-center z-10"
+                        >
+                          <Play className="w-4 h-4 text-emerald-400 fill-emerald-400 rotate-90" />
+                        </motion.div>
+                      )}
+                      <img
+                        src={box.box_image || '/mystery-box.png'}
+                        alt={box.box_name}
+                        loading="lazy"
+                        className={`w-[72px] h-[72px] object-contain transition-all duration-300 ${
+                          isOpened ? 'opacity-30 grayscale scale-90' : isCurrentlyOpening ? 'scale-105' : ''
+                        }`}
+                        style={{
+                          filter: isOpened ? undefined : isCurrentlyOpening
+                            ? 'drop-shadow(0 0 6px rgba(16, 185, 129, 0.3))'
+                            : undefined
+                        }}
+                        onError={(e) => { (e.target as HTMLImageElement).src = '/mystery-box.png' }}
+                        draggable={false}
+                      />
+                    </div>
+                  )
+                })}
               </div>
             </div>
           </div>

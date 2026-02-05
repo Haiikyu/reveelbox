@@ -1,7 +1,7 @@
 // app/components/Battles/BattleCard.tsx - Carte pour afficher une battle dans la liste
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, memo } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { 
@@ -74,13 +74,13 @@ const MODE_CONFIGS = {
   clutch: { icon: Sword, color: '#EC4899', name: 'Clutch', description: 'Plus gros item gagne' }
 } as const
 
-export function BattleCard({ 
-  battle, 
-  currentUserId, 
-  onJoin, 
-  onSpectate, 
+export const BattleCard = memo(function BattleCard({
+  battle,
+  currentUserId,
+  onJoin,
+  onSpectate,
   index = 0,
-  className = '' 
+  className = ''
 }: BattleCardProps) {
   const [joining, setJoining] = useState(false)
   const router = useRouter()
@@ -345,15 +345,16 @@ export function BattleCard({
                   <div key={participant.id} className="relative group/avatar">
                     <img
                       src={
-                        participant.is_bot 
+                        participant.is_bot
                           ? participant.bot_avatar_url || '/bot-avatar.png'
                           : participant.profiles?.avatar_url || '/default-avatar.png'
                       }
                       alt={
-                        participant.is_bot 
+                        participant.is_bot
                           ? participant.bot_name || 'Bot'
                           : participant.profiles?.username || 'Joueur'
                       }
+                      loading="lazy"
                       className="w-8 h-8 rounded-full border-2 border-slate-800 group-hover/avatar:border-blue-500 transition-colors"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement
@@ -386,6 +387,7 @@ export function BattleCard({
                       <img
                         src={box.loot_boxes?.image_url || '/mystery-box.png'}
                         alt={box.loot_boxes?.name || 'Mystery Box'}
+                        loading="lazy"
                         className="w-10 h-10 object-contain rounded border border-slate-600 group-hover/box:border-blue-500 transition-colors"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement
@@ -446,6 +448,12 @@ export function BattleCard({
               </div>
             )}
 
+            {battle.status === 'countdown' && (
+              <div className="mt-3 text-xs text-yellow-400 animate-pulse">
+                Démarrage imminent...
+              </div>
+            )}
+
             {battle.status === 'finished' && (
               <div className="mt-3 text-xs text-gray-400">
                 Battle terminée
@@ -468,6 +476,6 @@ export function BattleCard({
       )}
     </motion.div>
   )
-}
+})
 
 export default BattleCard

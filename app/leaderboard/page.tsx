@@ -141,10 +141,11 @@ export default function LeaderboardPage() {
                       } : {}}
                     >
                       {player.avatar_url ? (
-                        <img 
-                          src={player.avatar_url} 
-                          alt={player.username} 
-                          className="h-full w-full object-cover" 
+                        <img
+                          src={player.avatar_url}
+                          alt={player.username}
+                          loading="lazy"
+                          className="h-full w-full object-cover"
                         />
                       ) : (
                         <div className="h-full w-full bg-gradient-to-br from-[#4578be] to-[#5989d8] flex items-center justify-center">

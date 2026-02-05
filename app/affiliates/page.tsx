@@ -433,7 +433,7 @@ export default function AffiliatePage(): JSX.Element | null {
   // Auth check
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900 pt-20 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900 flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -472,7 +472,7 @@ export default function AffiliatePage(): JSX.Element | null {
   const nextTier = affiliateTiers.find(tier => tier.level === (currentTier.level + 1))
 
   return (
-    <div className="min-h-screen pt-16 bg-gray-50 dark:bg-gray-950 transition-colors duration-300 relative">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300 relative">
       {/* Particles Background */}
       <ParticlesBackground />
 

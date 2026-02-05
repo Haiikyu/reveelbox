@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, memo, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Gift, 
@@ -55,53 +55,54 @@ interface BoxCardProps {
   showStats?: boolean
 }
 
-const BoxCard = ({ 
-  box, 
-  index, 
-  onClick, 
-  className = '', 
+// Configuration des tailles (hors composant pour éviter recréation)
+const SIZE_CONFIG = {
+  sm: {
+    container: 'w-24 h-24',
+    cards: { width: 'w-4', height: 'h-6' },
+    icons: { size: 12 }
+  },
+  md: {
+    container: 'w-32 h-32',
+    cards: { width: 'w-6', height: 'h-9' },
+    icons: { size: 16 }
+  },
+  lg: {
+    container: 'w-40 h-40',
+    cards: { width: 'w-8', height: 'h-12' },
+    icons: { size: 20 }
+  }
+} as const
+
+const BoxCard = memo(function BoxCard({
+  box,
+  index,
+  onClick,
+  className = '',
   size = 'md',
   showStats = false
-}: BoxCardProps) => {
+}: BoxCardProps) {
   const [isHovered, setIsHovered] = useState(false)
-  
-  // Configuration des tailles
-  const sizeConfig = {
-    sm: {
-      container: 'w-24 h-24',
-      cards: { width: 'w-4', height: 'h-6' },
-      icons: { size: 12 }
-    },
-    md: {
-      container: 'w-32 h-32',
-      cards: { width: 'w-6', height: 'h-9' },
-      icons: { size: 16 }
-    },
-    lg: {
-      container: 'w-40 h-40',
-      cards: { width: 'w-8', height: 'h-12' },
-      icons: { size: 20 }
-    }
-  }
 
-  const config = sizeConfig[size]
-  
-  const getBadgeInfo = (box: LootBox) => {
+  const config = SIZE_CONFIG[size]
+
+  // Mémoiser les calculs dérivés
+  const badgeInfo = useMemo(() => {
     if (box.is_daily_free) return { badge: 'FREE', color: 'bg-green-500' }
     if (box.price_virtual >= 400) return { badge: 'LIMITED', color: 'bg-purple-500' }
     if (box.price_virtual >= 300) return { badge: 'HOT', color: 'bg-orange-500' }
     return { badge: 'NEW', color: 'bg-blue-500' }
-  }
+  }, [box.is_daily_free, box.price_virtual])
 
-const getRarityColor = (rarity: string) => {
-  const colors: Record<string, string> = {
-    legendary: 'bg-gradient-to-br from-yellow-400 to-yellow-600 border-yellow-500',
-    epic: 'bg-gradient-to-br from-purple-400 to-purple-600 border-purple-500',
-    rare: 'bg-gradient-to-br from-blue-400 to-blue-600 border-blue-500',
-    common: 'bg-gradient-to-br from-gray-400 to-gray-600 border-gray-500'
+  const getRarityColor = (rarity: string) => {
+    const colors: Record<string, string> = {
+      legendary: 'bg-gradient-to-br from-yellow-400 to-yellow-600 border-yellow-500',
+      epic: 'bg-gradient-to-br from-purple-400 to-purple-600 border-purple-500',
+      rare: 'bg-gradient-to-br from-blue-400 to-blue-600 border-blue-500',
+      common: 'bg-gradient-to-br from-gray-400 to-gray-600 border-gray-500'
+    }
+    return colors[rarity] || colors.common
   }
-  return colors[rarity] || colors.common
-}
 
   const getRarityIcon = (rarity: string) => {
     const iconSize = config.icons.size
@@ -113,11 +114,13 @@ const getRarityColor = (rarity: string) => {
     }
   }
 
-  const badgeInfo = getBadgeInfo(box)
-  const items = box.loot_box_items?.map(item => ({
-    ...item.items,
-    probability: item.probability
-  })) || box.items || []
+  // Mémoiser les items pour éviter recréation à chaque render
+  const items = useMemo(() =>
+    box.loot_box_items?.map(item => ({
+      ...item.items,
+      probability: item.probability
+    })) || box.items || []
+  , [box.loot_box_items, box.items])
 
   const handleClick = () => {
     if (onClick) {
@@ -410,6 +413,6 @@ const getRarityColor = (rarity: string) => {
       </div>
     </motion.div>
   )
-}
+})
 
 export default BoxCard

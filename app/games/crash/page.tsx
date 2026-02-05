@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/app/components/AuthProvider';
 import { useTheme } from '@/app/components/ThemeProvider';
 import { createClient } from '@/utils/supabase/client';
+import { dispatchBalanceUpdate } from '@/lib/balanceEvents';
 
 // Types
 interface GameRound {
@@ -318,6 +319,7 @@ const CrashGameMultiplayer: React.FC = () => {
       if (data?.success && mountedRef.current) {
         setUserBalance(data.new_balance);
         loadCurrentRound();
+        dispatchBalanceUpdate();
       }
     } catch (error) {
       console.error('Erreur placement mise:', error);
@@ -347,6 +349,7 @@ const CrashGameMultiplayer: React.FC = () => {
           cashout_multiplier: data.multiplier,
           cashout_amount: data.cashout_amount
         } : null);
+        dispatchBalanceUpdate();
       }
     } catch (error) {
       console.error('Erreur encaissement:', error);
