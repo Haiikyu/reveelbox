@@ -6,13 +6,16 @@ import { createClient } from '@/utils/supabase/client'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Send, X, Loader2, Shield, MessageCircle } from 'lucide-react'
 import PlayerHoverCard from '@/app/components/PlayerHoverCard'
+import { sanitizeSvg } from '@/utils/sanitizeSvg'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { getUsernameStyle } from '@/utils/usernameStyle'
 
 interface ChatMessage {
   id: string
   user_id: string
   message: string
+  message_type: string | null
   created_at: string
   username: string
   avatar_url: string | null
@@ -21,6 +24,8 @@ interface ChatMessage {
   pins: Array<{ svg_code: string }> | null
   banner_svg: string | null
   frame_svg: string | null
+  name_color_value: string | null
+  name_color_is_gradient: boolean | null
 }
 
 interface ChatPanelProps {
@@ -143,7 +148,11 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                       <div className="relative rounded-xl overflow-hidden">
                         {/* Bannière TRÈS VISIBLE */}
                         {msg.banner_svg && (
-                          <div className="absolute inset-0 opacity-75" dangerouslySetInnerHTML={{ __html: msg.banner_svg }} />
+                          msg.banner_svg.startsWith('<') ? (
+                            <div className="absolute inset-0 opacity-75" dangerouslySetInnerHTML={{ __html: sanitizeSvg(msg.banner_svg) }} />
+                          ) : (
+                            <img src={msg.banner_svg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-75" />
+                          )
                         )}
                         <div className="absolute inset-0 bg-gradient-to-r from-gray-800/80 to-gray-800/70" />
 
@@ -164,7 +173,11 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                                   )}
                                 </div>
                                 {msg.frame_svg && (
-                                  <div className="absolute pointer-events-none" style={{ top: '-2px', left: '-2px', width: '44px', height: '44px' }} dangerouslySetInnerHTML={{ __html: msg.frame_svg }} />
+                                  msg.frame_svg.startsWith('<') ? (
+                                    <div className="absolute pointer-events-none" style={{ top: '-2px', left: '-2px', width: '44px', height: '44px' }} dangerouslySetInnerHTML={{ __html: sanitizeSvg(msg.frame_svg) }} />
+                                  ) : (
+                                    <img src={msg.frame_svg} alt="" className="absolute pointer-events-none" style={{ top: '-2px', left: '-2px', width: '44px', height: '44px', objectFit: 'contain' }} />
+                                  )
                                 )}
                               </div>
                             </PlayerHoverCard>
@@ -180,7 +193,10 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                             {/* Ligne 1 : Pseudo + Badges + Time */}
                             <div className="flex items-center gap-2 mb-1 flex-wrap">
                               {/* Pseudo */}
-                              <span className={`font-bold text-sm ${msg.is_admin ? 'text-red-400' : 'text-white'}`}>
+                              <span
+                                className={`font-bold text-sm ${msg.is_admin ? 'text-red-400' : 'text-white'}`}
+                                style={!msg.is_admin ? getUsernameStyle(msg.name_color_value, msg.name_color_is_gradient) : {}}
+                              >
                                 {msg.username || 'Anonyme'}
                               </span>
                               
@@ -209,10 +225,10 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                             {(msg.pins || []).length > 0 && (
                               <div className="flex items-center gap-1 mb-2">
                                 {(msg.pins || []).slice(0, 4).map((pin, i) => (
-                                  <div 
+                                  <div
                                     key={i}
                                     className="bg-gray-900/70 rounded border border-gray-700"
-                                    style={{ 
+                                    style={{
                                       width: '22px',
                                       height: '22px',
                                       padding: '2px',
@@ -222,27 +238,49 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                                       justifyContent: 'center'
                                     }}
                                   >
-                                    <div 
-                                      style={{
-                                        width: '18px',
-                                        height: '18px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        transform: 'scale(0.9)',
-                                        transformOrigin: 'center'
-                                      }}
-                                      dangerouslySetInnerHTML={{ __html: pin.svg_code }}
-                                    />
+                                    {pin.svg_code && pin.svg_code.startsWith('<') ? (
+                                      <div
+                                        style={{
+                                          width: '18px',
+                                          height: '18px',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          transform: 'scale(0.9)',
+                                          transformOrigin: 'center'
+                                        }}
+                                        dangerouslySetInnerHTML={{ __html: sanitizeSvg(pin.svg_code) }}
+                                      />
+                                    ) : pin.svg_code ? (
+                                      <img src={pin.svg_code} alt="Pin" style={{ width: '18px', height: '18px', objectFit: 'contain' }} />
+                                    ) : null}
                                   </div>
                                 ))}
                               </div>
                             )}
                             
                             {/* Ligne 3 : Message */}
-                            <p className="text-gray-200 text-sm break-words leading-relaxed">
-                              {msg.message}
-                            </p>
+                            {msg.message_type === 'win_share' ? (
+                              <div className="relative mt-1 px-3 py-2 rounded-lg overflow-hidden" style={{
+                                background: 'linear-gradient(135deg, rgba(245,158,11,0.1), rgba(168,85,247,0.08))',
+                                border: '1px solid rgba(245,158,11,0.2)',
+                              }}>
+                                <div className="absolute top-0 right-0 px-1.5 py-0.5 text-[8px] font-bold uppercase rounded-bl" style={{
+                                  background: 'rgba(245,158,11,0.2)',
+                                  color: '#f59e0b',
+                                  letterSpacing: '0.05em',
+                                }}>
+                                  WIN
+                                </div>
+                                <p className="text-sm break-words leading-relaxed" style={{ color: '#fbbf24' }}>
+                                  {msg.message.replace(/\*\*(.*?)\*\*/g, '$1')}
+                                </p>
+                              </div>
+                            ) : (
+                              <p className="text-gray-200 text-sm break-words leading-relaxed">
+                                {msg.message}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>

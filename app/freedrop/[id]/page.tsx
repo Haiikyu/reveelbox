@@ -1,7 +1,7 @@
 // app/freedrop/[id]/page.tsx - POUR 1911x840 STRICT
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/app/components/AuthProvider'
 import { useRouter, useParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -26,6 +26,16 @@ const LoadingState = ({ message }: { message?: string }) => (
 
 type PageState = 'loading' | 'access_denied' | 'already_claimed' | 'ready' | 'error'
 
+const centerVariants = {
+  animate: { x: 0, scale: 1 as number, opacity: 1, filter: 'blur(0px)' },
+  exit: (dir: number) => ({
+    x: dir * -240,
+    scale: 0.8,
+    opacity: 0.5,
+    filter: 'blur(12px)'
+  })
+}
+
 export default function FreedropOpeningPage() {
   const { user, profile, loading: authLoading, isAuthenticated, refreshProfile } = useAuth()
   const router = useRouter()
@@ -44,6 +54,7 @@ export default function FreedropOpeningPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [claimStatus, setClaimStatus] = useState<ClaimStatus | null>(null)
+  const directionRef = useRef(1) // 1 = droite, -1 = gauche
 
   const boxId = params?.id as string
 
@@ -162,6 +173,7 @@ export default function FreedropOpeningPage() {
 
   const handlePreviousBox = async () => {
     if (isSpinning || isTransitioning) return
+    directionRef.current = -1
     setIsTransitioning(true)
     const newIndex = currentBoxIndex === 0 ? allBoxes.length - 1 : currentBoxIndex - 1
     setCurrentBoxIndex(newIndex)
@@ -183,6 +195,7 @@ export default function FreedropOpeningPage() {
 
   const handleNextBox = async () => {
     if (isSpinning || isTransitioning) return
+    directionRef.current = 1
     setIsTransitioning(true)
     const newIndex = currentBoxIndex === allBoxes.length - 1 ? 0 : currentBoxIndex + 1
     setCurrentBoxIndex(newIndex)
@@ -202,11 +215,32 @@ export default function FreedropOpeningPage() {
     }, 400) // Réduit à 400ms
   }
 
+  // Sélection pondérée par probabilité
+  const selectWeightedItem = (items: FreedropItem[]): FreedropItem => {
+    const total = items.reduce((sum, item) => sum + item.probability, 0)
+    let rand = Math.random() * total
+    for (const item of items) {
+      rand -= item.probability
+      if (rand <= 0) return item
+    }
+    return items[items.length - 1]
+  }
+
   const handleSecureClaim = async () => {
-    if (!user?.id || !box || isSpinning || !winningItem) return
+    if (!user?.id || !box || isSpinning) return
+
+    // Si pas encore de winningItem (pas fait de démo), en picker un maintenant
+    let itemToWin = winningItem
+    if (!itemToWin) {
+      itemToWin = selectWeightedItem(box.items)
+      setWinningItem(itemToWin)
+    }
+
+    if (!itemToWin) return
+
     try {
       setIsSpinning(true)
-      const result = await freedropService.claimFreedrop(user.id, box.id, winningItem.id)
+      const result = await freedropService.claimFreedrop(user.id, box.id, itemToWin.id)
       if (result.success) {
         setTimeout(() => {
           setIsSpinning(false)
@@ -225,7 +259,7 @@ export default function FreedropOpeningPage() {
   const handleTryFree = async () => {
     if (!box || isSpinning) return
     setIsSpinning(true)
-    const randomItem = box.items[Math.floor(Math.random() * box.items.length)]
+    const randomItem = selectWeightedItem(box.items)
     setWinningItem(randomItem)
     setTimeout(() => setIsSpinning(false), fastMode ? 2000 : 5000)
   }
@@ -285,101 +319,74 @@ export default function FreedropOpeningPage() {
   }
 
   return (
-    <div style={{ height: '840px', width: '1911px' }} className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-hidden mx-auto mt-16">
-      <div className="h-full pt-12 px-3 pb-2">
+    <div style={{ height: '840px', width: '1911px' }} className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-hidden mx-auto mt-2">
+      <div className="h-full pt-3 px-3 pb-2">
         <div className="h-full flex gap-3">
           
-          {/* GAUCHE 220PX - IN THIS CASE STYLE LOUIS VUITTON */}
-          <div style={{ width: '220px', minWidth: '220px', maxWidth: '220px' }} className="bg-gradient-to-br from-[#1a1d2e] to-[#161929] rounded-3xl p-4 flex flex-col">
-            <h2 className="text-base font-black text-white mb-3 flex-shrink-0 tracking-wide text-center">IN THIS CASE</h2>
-            
-            <div className="flex-1 overflow-y-auto overflow-x-visible custom-scrollbar">
-              <div className="flex flex-col gap-3 p-1">
-                {sortedItems.slice(0, 8).map((item, index) => {
-                  const rarityColors = {
-                    common: {
-                      border: 'border-gray-400',
-                      shadow: '0 0 10px rgba(156,163,175,0.3)',
-                      hoverShadow: '0 0 15px rgba(156,163,175,0.5)',
-                      badgeGradient: 'from-gray-500 to-gray-600'
-                    },
-                    uncommon: {
-                      border: 'border-green-400',
-                      shadow: '0 0 10px rgba(34,197,94,0.4)',
-                      hoverShadow: '0 0 15px rgba(34,197,94,0.6)',
-                      badgeGradient: 'from-green-500 to-green-600'
-                    },
-                    rare: {
-                      border: 'border-blue-400',
-                      shadow: '0 0 10px rgba(59,130,246,0.4)',
-                      hoverShadow: '0 0 15px rgba(59,130,246,0.6)',
-                      badgeGradient: 'from-blue-500 to-blue-600'
-                    },
-                    epic: {
-                      border: 'border-purple-400',
-                      shadow: '0 0 10px rgba(168,85,247,0.4)',
-                      hoverShadow: '0 0 15px rgba(168,85,247,0.6)',
-                      badgeGradient: 'from-purple-500 to-purple-600'
-                    },
-                    legendary: {
-                      border: 'border-yellow-400',
-                      shadow: '0 0 12px rgba(251,191,36,0.5)',
-                      hoverShadow: '0 0 18px rgba(251,191,36,0.7)',
-                      badgeGradient: 'from-yellow-400 to-orange-500'
-                    }
+          {/* GAUCHE - IN THIS CASE */}
+          <div style={{ width: '220px', minWidth: '220px', maxWidth: '220px' }} className="flex flex-col">
+            {/* Header */}
+            <div className="flex-shrink-0 mb-2 px-1">
+              <h2 className="text-xs font-black text-white/50 tracking-[0.2em] uppercase">In This Case</h2>
+              <div className="mt-1 h-px bg-gradient-to-r from-white/10 to-transparent" />
+            </div>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-1" style={{ scrollbarGutter: 'stable' }}>
+              <div className="flex flex-col gap-1">
+                {sortedItems.map((item, index) => {
+                  const rarityConfig: Record<string, { color: string; glow: string; bg: string }> = {
+                    common:    { color: '#9ca3af', glow: 'rgba(156,163,175,0.15)', bg: 'rgba(156,163,175,0.05)' },
+                    uncommon:  { color: '#4ade80', glow: 'rgba(74,222,128,0.15)',  bg: 'rgba(74,222,128,0.05)'  },
+                    rare:      { color: '#60a5fa', glow: 'rgba(96,165,250,0.15)',  bg: 'rgba(96,165,250,0.05)'  },
+                    epic:      { color: '#c084fc', glow: 'rgba(192,132,252,0.15)', bg: 'rgba(192,132,252,0.05)' },
+                    legendary: { color: '#fbbf24', glow: 'rgba(251,191,36,0.2)',   bg: 'rgba(251,191,36,0.06)'  },
                   }
-                  const colors = rarityColors[item.rarity as keyof typeof rarityColors] || rarityColors.common
+                  const cfg = rarityConfig[item.rarity] || rarityConfig.common
 
                   return (
                     <motion.div
                       key={item.id}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: index * 0.05, duration: 0.3 }}
-                      whileHover={{ scale: 1.03, y: -2 }}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.03, duration: 0.2 }}
                       onClick={() => setSelectedItem(item)}
-                      className={`relative bg-gradient-to-br from-[#0d0f1a] via-[#1a1d2e] to-[#0d0f1a] rounded-2xl p-3 flex items-center gap-3 cursor-pointer border-2 ${colors.border} transition-all duration-300`}
+                      className="relative flex items-center gap-2.5 cursor-pointer rounded-lg overflow-hidden"
                       style={{ 
-                        height: '85px',
-                        boxShadow: colors.shadow
+                        background: cfg.bg,
+                        borderLeft: `3px solid ${cfg.color}`,
+                        padding: '8px 10px 8px 8px',
                       }}
+                      whileHover={{ backgroundColor: cfg.glow, x: 2 }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.boxShadow = colors.hoverShadow
+                        e.currentTarget.style.boxShadow = `inset 0 0 20px ${cfg.glow}`
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.boxShadow = colors.shadow
+                        e.currentTarget.style.boxShadow = 'none'
                       }}
                     >
-                      {/* Image à GAUCHE - PLUS GRANDE */}
-                      <div className="w-16 h-16 flex items-center justify-center flex-shrink-0">
-                        <img 
-                          src={item.image_url || '/placeholder.png'} 
-                          alt={item.name} 
-                          className="w-full h-full object-contain drop-shadow-2xl"
+                      {/* Image */}
+                      <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center">
+                        <img
+                          src={item.image_url || '/placeholder.png'}
+                          alt={item.name}
+                          className="w-full h-full object-contain"
+                          style={{ filter: `drop-shadow(0 0 6px ${cfg.color}60)` }}
                         />
                       </div>
-                      
-                      {/* Infos au CENTRE/DROITE */}
-                      <div className="flex-1 flex flex-col justify-center gap-1.5 min-w-0">
-                        {/* Nom de l'item */}
-                        <p className="text-white text-[11px] font-bold leading-tight truncate">
-                          {item.name}
-                        </p>
-                        
-                        {/* Badge probabilité avec formatage intelligent */}
-                        <div className={`bg-gradient-to-r ${colors.badgeGradient} text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg self-start`}>
-                          {formatProbability(item.probability)}%
-                        </div>
-                        
-                        {/* Prix avec icône coins */}
-                        <div className="flex items-center gap-1.5">
-                          <img 
-                            src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
-                            alt="coins"
-                            className="w-4 h-4 object-contain drop-shadow-lg"
-                          />
-                          <div className="text-blue-400 text-[11px] font-black drop-shadow-lg">
-                            {item.market_value}
+
+                      {/* Infos */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-[11px] font-semibold truncate leading-tight">{item.name}</p>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-[10px] font-bold" style={{ color: cfg.color }}>
+                            {formatProbability(item.probability)}%
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <img
+                              src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
+                              alt="coins" className="w-3 h-3 object-contain"
+                            />
+                            <span className="text-[10px] font-bold text-blue-400">{item.market_value}</span>
                           </div>
                         </div>
                       </div>
@@ -457,15 +464,16 @@ export default function FreedropOpeningPage() {
 
                     {/* CONTAINER 3 BOXES */}
                     <div className="relative w-full h-full flex items-center justify-center overflow-visible">
+                      <AnimatePresence mode="sync" initial={false} custom={directionRef.current}>
                       
                       {/* BOX GAUCHE */}
                       {prevBox && (
                         <motion.div
                           key={`left-${prevBox.id}`}
-                          initial={{ x: -400, scale: 0.7, opacity: 0, filter: 'blur(15px)' }}
+                          initial={{ opacity: 0, scale: 0.7, filter: 'blur(15px)' }}
                           animate={{ x: -240, scale: 0.8, opacity: 0.5, filter: 'blur(12px)' }}
-                          exit={{ x: 400, scale: 1, opacity: 1, filter: 'blur(0px)' }}
-                          transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+                          exit={{ opacity: 0, scale: 0.7, filter: 'blur(15px)' }}
+                          transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
                           className="absolute z-0 pointer-events-none"
                           style={{ willChange: 'transform, opacity, filter' }}
                         >
@@ -481,48 +489,47 @@ export default function FreedropOpeningPage() {
                         </motion.div>
                       )}
 
-                      {/* BOX CENTRE - EFFET WOW */}
-                      <motion.div
-                        key={`center-${box.id}`}
-                        initial={{ x: 240, scale: 0.8, opacity: 0.5, filter: 'blur(12px)' }}
-                        animate={{ x: 0, scale: 1, opacity: 1, filter: 'blur(0px)' }}
-                        exit={{ x: -240, scale: 0.8, opacity: 0.5, filter: 'blur(12px)' }}
-                        transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-                        className="absolute z-20"
-                        style={{ willChange: 'transform, opacity, filter' }}
-                      >
-                        <div className="relative">
-                          <img 
-                            src={box.image_url || '/placeholder.png'} 
-                            alt={box.name}
-                            style={{ width: '320px', height: '320px' }}
-                            className="object-contain drop-shadow-2xl relative z-10"
-                          />
-                          {/* GLOW COLORÉ ÉTENDU */}
-                          <motion.div 
-                            className="absolute inset-0 bg-gradient-to-br from-purple-500/30 via-blue-500/30 to-pink-500/30 blur-[60px] rounded-full"
-                            style={{ transform: 'scale(1.8)' }}
-                            animate={{ 
-                              scale: [1.6, 2, 1.6],
-                              opacity: [0.3, 0.5, 0.3]
-                            }}
-                            transition={{ 
-                              duration: 3, 
-                              repeat: Infinity,
-                              ease: "easeInOut"
-                            }}
-                          />
-                        </div>
-                      </motion.div>
+                      {/* BOX CENTRE */}
+                      {(() => {
+                        const capturedDir = directionRef.current
+                        return (
+                          <motion.div
+                            key={`center-${box.id}`}
+                            custom={directionRef.current}
+                            variants={centerVariants}
+                            initial={{ x: capturedDir * 240, scale: 0.8, opacity: 0.5, filter: 'blur(12px)' }}
+                            animate="animate"
+                            exit="exit"
+                            transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+                            className="absolute z-20"
+                            style={{ willChange: 'transform, opacity, filter' }}
+                          >
+                            <div className="relative">
+                              <img 
+                                src={box.image_url || '/placeholder.png'} 
+                                alt={box.name}
+                                style={{ width: '320px', height: '320px' }}
+                                className="object-contain drop-shadow-2xl relative z-10"
+                              />
+                              <motion.div 
+                                className="absolute inset-0 bg-gradient-to-br from-purple-500/30 via-blue-500/30 to-pink-500/30 blur-[60px] rounded-full"
+                                style={{ transform: 'scale(1.8)' }}
+                                animate={{ scale: [1.6, 2, 1.6], opacity: [0.3, 0.5, 0.3] }}
+                                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                              />
+                            </div>
+                          </motion.div>
+                        )
+                      })()}
 
                       {/* BOX DROITE */}
                       {nextBox && (
                         <motion.div
                           key={`right-${nextBox.id}`}
-                          initial={{ x: -400, scale: 1, opacity: 1, filter: 'blur(0px)' }}
+                          initial={{ opacity: 0, scale: 0.7, filter: 'blur(15px)' }}
                           animate={{ x: 240, scale: 0.8, opacity: 0.5, filter: 'blur(12px)' }}
-                          exit={{ x: 400, scale: 0.7, opacity: 0, filter: 'blur(15px)' }}
-                          transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+                          exit={{ opacity: 0, scale: 0.7, filter: 'blur(15px)' }}
+                          transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
                           className="absolute z-10 pointer-events-none"
                           style={{ willChange: 'transform, opacity, filter' }}
                         >
@@ -537,6 +544,8 @@ export default function FreedropOpeningPage() {
                           </div>
                         </motion.div>
                       )}
+
+                      </AnimatePresence>
                     </div>
 
                     {/* Flèche droite - COLLÉE */}
@@ -750,12 +759,12 @@ export default function FreedropOpeningPage() {
 
       <AnimatePresence>
         {success && (
-          <motion.div initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -50 }} className="fixed top-20 right-6 bg-green-500 text-white px-4 py-2 rounded-xl z-50 text-sm">
+          <motion.div key="success-toast" initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -50 }} className="fixed top-20 right-6 bg-green-500 text-white px-4 py-2 rounded-xl z-50 text-sm">
             {success}
           </motion.div>
         )}
         {error && (
-          <motion.div initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -50 }} className="fixed top-20 right-6 bg-red-500 text-white px-4 py-2 rounded-xl z-50 text-sm">
+          <motion.div key="error-toast" initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -50 }} className="fixed top-20 right-6 bg-red-500 text-white px-4 py-2 rounded-xl z-50 text-sm">
             {error}
           </motion.div>
         )}

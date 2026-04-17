@@ -187,7 +187,7 @@ export default function BattlePassPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-[#1a2332] to-gray-900 py-8">
+    <div className="min-h-screen -mt-[80px] pt-[100px] bg-gradient-to-br from-gray-900 via-[#1a2332] to-gray-900 pb-8">
       {/* Header */}
       <div className="max-w-7xl mx-auto px-4 mb-8">
         <div className="text-center mb-6">

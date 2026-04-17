@@ -255,9 +255,11 @@ export function FreedropWheel({
       className="relative w-full overflow-x-hidden overflow-y-visible"
       style={{ height: 650, paddingTop: 80, paddingBottom: 80 }}
     >
-      {/* ✨ TRAIT INDICATEUR VERTICAL - CENTRÉ */}
-      <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 pointer-events-none z-30 flex items-center justify-center">
-        {/* Trait vertical lumineux */}
+      {/* ✨ TRAIT INDICATEUR VERTICAL - hauteur fixe centrée */}
+      <div 
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-30 flex items-center justify-center"
+        style={{ height: `${WHEEL_CONFIG.ITEM_HEIGHT}px` }}
+      >
         <div 
           className="w-1 h-full bg-gradient-to-b from-transparent via-yellow-400 to-transparent rounded-full"
           style={{ 
@@ -265,13 +267,9 @@ export function FreedropWheel({
             filter: 'blur(0.5px)'
           }} 
         />
-        
-        {/* Ligne centrale plus épaisse pour plus de visibilité */}
         <div 
-          className="absolute w-1.5 h-32 bg-yellow-400 rounded-full"
-          style={{ 
-            boxShadow: '0 0 25px rgba(251, 191, 36, 1), 0 0 50px rgba(251, 191, 36, 0.6)',
-          }} 
+          className="absolute w-1.5 h-8 bg-yellow-400 rounded-full"
+          style={{ boxShadow: '0 0 25px rgba(251, 191, 36, 1), 0 0 50px rgba(251, 191, 36, 0.6)' }} 
         />
       </div>
 

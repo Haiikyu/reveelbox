@@ -14,16 +14,28 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   // Pages où on ne veut pas afficher la navbar et le chat
   const hideNavAndChat = pathname === '/login' || pathname === '/signup'
 
+  // Pages fullscreen sans navbar (garde le chat)
+  const isFullscreen = pathname === '/battles/create' || pathname === '/battles/demo'
+
   // Page d'accueil sans padding (fullscreen hero)
   const isHomePage = pathname === '/'
 
+  // Pages sans footer (chat, upgrade car plein écran)
+  const hideFooter = pathname === '/chat' || pathname === '/upgrade' || hideNavAndChat || isFullscreen
+
+  const hideNav = hideNavAndChat || isFullscreen
+  const noPadding = hideNavAndChat || isHomePage || isFullscreen
+
   return (
     <div className="flex flex-col min-h-screen">
-      {!hideNavAndChat && <Navbar />}
+      {!hideNav && <Navbar />}
 
-      <main className="flex-1" style={{ paddingTop: hideNavAndChat || isHomePage ? '0' : '80px' }}>
+      <main className="flex-1" style={{ paddingTop: noPadding ? '0' : '80px' }}>
         {children}
       </main>
+
+      {/* Footer global */}
+      {!hideFooter && <Footer />}
 
       {/* Bouton + Panel Chat */}
       {!hideNavAndChat && <ChatButton />}

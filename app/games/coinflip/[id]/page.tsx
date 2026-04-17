@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Sparkles, Trophy } from 'lucide-react'
 import Link from 'next/link'
 import { use } from 'react'
-import { dispatchBalanceUpdate } from '@/lib/balanceEvents'
 
 interface BattlePageProps {
   params: Promise<{ id: string }>
@@ -139,7 +138,6 @@ export default function CoinflipBattlePage({ params }: BattlePageProps) {
       setShowResult(true)
       await refreshProfile()
       await loadBattle()
-      dispatchBalanceUpdate()
     } catch (err: any) {
       alert(err.message || 'Erreur')
       setAnimating(false)
@@ -168,7 +166,6 @@ export default function CoinflipBattlePage({ params }: BattlePageProps) {
       setShowResult(true)
       await refreshProfile()
       await loadBattle()
-      dispatchBalanceUpdate()
     } catch (err: any) {
       alert(err.message || 'Erreur')
       setAnimating(false)
@@ -183,7 +180,6 @@ export default function CoinflipBattlePage({ params }: BattlePageProps) {
     try {
       await supabase.rpc('cancel_coinflip_battle', { p_battle_id: id })
       await refreshProfile()
-      dispatchBalanceUpdate()
       router.push('/games/coinflip')
     } catch (err: any) {
       alert(err.message)
@@ -241,7 +237,7 @@ export default function CoinflipBattlePage({ params }: BattlePageProps) {
   const canPlayVsBot = isCreator && battle.status === 'waiting'
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0a0118] via-[#0f0a1f] to-[#0a0118] relative overflow-hidden">
+    <div className="min-h-screen -mt-[80px] pt-[80px] bg-gradient-to-br from-[#0a0118] via-[#0f0a1f] to-[#0a0118] relative overflow-hidden">
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute w-96 h-96 bg-purple-500/10 rounded-full blur-3xl -top-48 -left-48 animate-pulse"></div>

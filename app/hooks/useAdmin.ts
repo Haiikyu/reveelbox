@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/app/types/database';
 
 // Types basés sur votre vraie structure de base de données
@@ -48,11 +48,8 @@ export type Toast = {
   type: 'success' | 'error' | 'info';
 };
 
-// Supabase client avec les vraies clés
-const supabase = createClient<Database>(
-  'https://pkweofbyzygbbkervpbv.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrd2VvZmJ5enlnYmJrZXJ2cGJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3NjQ1NTEsImV4cCI6MjA2ODM0MDU1MX0.ZiNODQ7cHX5QJmlvneEtu24LYmTUmtL3mxrT9qEbTI8'
-);
+// Supabase client via shared browser client (uses env vars, no hardcoded keys)
+const supabase = createClient();
 
 // Utility functions
 const formatPrice = (price: number | null | undefined): string => {

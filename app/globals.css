@@ -142,6 +142,10 @@ body {
   color: rgb(var(--text-muted));
 }
 
+.text-success {
+  color: rgb(var(--success));
+}
+
 /* États avec thème */
 .state-success {
   color: rgb(var(--success));
@@ -1285,4 +1289,11 @@ html:not(.dark):not(.light) {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+@keyframes gradientDrift {
+  0%   { background-position: 0% 0%; }
+  33%  { background-position: 100% 50%; }
+  66%  { background-position: 50% 100%; }
+  100% { background-position: 0% 0%; }
 }

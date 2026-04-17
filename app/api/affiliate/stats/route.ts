@@ -16,7 +16,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     const supabase = await createClient()
-    const daysAgo = parseInt(period)
+
+    // Verify the authenticated user can only see their own stats
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (user.id !== userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Validate and clamp the period parameter
+    const daysAgo = Math.max(1, Math.min(365, parseInt(period) || 30))
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - daysAgo)
 

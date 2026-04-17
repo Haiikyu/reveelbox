@@ -49,7 +49,7 @@ export function BoxPresentation({
       className={`relative w-full ${className}`}
     >
       <motion.div
-        className="flex flex-col lg:flex-row items-center gap-12 max-w-7xl mx-auto py-16 px-8 relative z-10"
+        className="flex flex-col lg:flex-row items-center gap-6 lg:gap-8 xl:gap-10 max-w-7xl mx-auto py-4 md:py-6 lg:py-8 px-4 md:px-6 relative z-10"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.2 }}
@@ -78,11 +78,11 @@ export function BoxPresentation({
             }}
           />
           
-          {/* Image principale avec rotation douce */}
+          {/* Image principale avec rotation douce - Responsive */}
           <motion.img
             src={boxImage}
             alt={boxName}
-            className="w-80 h-80 object-contain filter drop-shadow-2xl relative z-10"
+            className="w-48 h-48 md:w-56 md:h-56 lg:w-60 lg:h-60 xl:w-64 xl:h-64 object-contain filter drop-shadow-2xl relative z-10"
             style={{
               filter: `drop-shadow(0 20px 40px ${rarity.glow}30)`
             }}
@@ -139,18 +139,18 @@ export function BoxPresentation({
           )}
         </motion.div>
 
-        {/* Section informations - Layout épuré */}
+        {/* Section informations - Layout épuré responsive */}
         <motion.div
           initial={{ opacity: 0, x: 50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8, delay: 0.4 }}
-          className="flex-1 text-center lg:text-left space-y-8"
+          className="flex-1 text-center lg:text-left space-y-3 md:space-y-4 lg:space-y-5"
         >
           
-          {/* Titre avec animation de typing */}
-          <motion.div className="space-y-4">
+          {/* Titre avec animation de typing - Responsive */}
+          <motion.div className="space-y-2 md:space-y-3">
             <motion.h1
-              className="text-6xl lg:text-7xl font-black text-gray-900 dark:text-white leading-none"
+              className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-black text-gray-900 dark:text-white leading-none"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5, duration: 0.6 }}
@@ -170,13 +170,13 @@ export function BoxPresentation({
             />
           </motion.div>
 
-          {/* Description simple */}
+          {/* Description simple - Responsive */}
           {boxDescription && (
             <motion.p
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.7 }}
-              className="text-xl text-gray-600 dark:text-gray-300 leading-relaxed max-w-2xl"
+              className="text-sm md:text-base lg:text-lg text-gray-600 dark:text-gray-300 leading-relaxed max-w-2xl"
             >
               {boxDescription}
             </motion.p>
@@ -187,15 +187,15 @@ export function BoxPresentation({
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8 }}
-            className="space-y-2"
+            className="space-y-1"
           >
             {isFreedrp ? (
-              <div className="flex items-center gap-4 text-green-500 dark:text-green-400">
-                <Gift size={32} />
-                <span className="text-4xl font-light">GRATUIT</span>
+              <div className="flex items-center gap-2 md:gap-3 text-green-500 dark:text-green-400">
+                <Gift className="w-5 h-5 md:w-6 md:h-6" />
+                <span className="text-2xl md:text-3xl font-light">GRATUIT</span>
               </div>
             ) : boxPrice && (
-              <div className="flex items-center gap-4 text-gray-900 dark:text-white">
+              <div className="flex items-center gap-2 md:gap-3 text-gray-900 dark:text-white">
                 <motion.div
                   animate={{
                     scale: [1, 1.1, 1],
@@ -209,14 +209,14 @@ export function BoxPresentation({
                   <img
                     src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
                     alt="Coins"
-                    className="w-12 h-12 object-contain"
+                    className="w-8 h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 object-contain"
                   />
                 </motion.div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-5xl font-bold" style={{ color: 'var(--hybrid-accent-primary)' }}>
+                <div className="flex items-baseline gap-1 md:gap-2">
+                  <span className="text-3xl md:text-4xl lg:text-5xl font-bold" style={{ color: 'var(--hybrid-accent-primary)' }}>
                     {boxPrice.toLocaleString()}
                   </span>
-                  <span className="text-xl font-medium text-gray-500 dark:text-gray-400">coins</span>
+                  <span className="text-base md:text-lg lg:text-xl font-medium text-gray-500 dark:text-gray-400">coins</span>
                 </div>
               </div>
             )}
@@ -282,26 +282,26 @@ export function BoxPresentation({
             </motion.div>
           )}
 
-          {/* Stats en ligne simple */}
+          {/* Stats en ligne simple - Responsive */}
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.1 }}
-            className="flex gap-8 text-center lg:text-left"
+            className="flex gap-4 md:gap-6 lg:gap-8 text-center lg:text-left"
           >
             <div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">10+</div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">Items</div>
+              <div className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">10+</div>
+              <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400">Items</div>
             </div>
             <div>
-              <div className="text-2xl font-bold" style={{ color: 'var(--hybrid-accent-primary)' }}>
+              <div className="text-lg md:text-xl font-bold" style={{ color: 'var(--hybrid-accent-primary)' }}>
                 {rarity.name}
               </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">Rareté</div>
+              <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400">Rareté</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">Populaire</div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">Type</div>
+              <div className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">Populaire</div>
+              <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400">Type</div>
             </div>
           </motion.div>
         </motion.div>

@@ -6,13 +6,103 @@ import { createClient } from '@/utils/supabase/client'
 import { useTheme } from '@/app/components/ThemeProvider'
 import PlayerHoverCard, { getAvatarFrameClasses } from '@/app/components/PlayerHoverCard'
 // ParticlesBackground removed - using pure CSS background for better performance
-import Footer from '@/app/components/Footer'
 import {
   Users, Eye, Bot, Crown, Zap, Target, Star, Trophy,
   RefreshCw, Shield, Plus, ChevronDown, Check, LayoutGrid, LayoutList, X,
   Package, Swords, Play
 } from 'lucide-react'
 import { useBattleListSubscription } from '@/app/hooks/useBattleSubscription'
+import { sanitizeSvg } from '@/utils/sanitizeSvg'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+// OPEN — sélection / ouverture
+const playInventoryOpen = () => {
+  const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+  const now = audioCtx.currentTime
+  const reverbBuf = audioCtx.createBuffer(2, Math.floor(audioCtx.sampleRate * 1.0), audioCtx.sampleRate)
+  for (let ch = 0; ch < 2; ch++) { const d = reverbBuf.getChannelData(ch); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.8) }
+  const reverb = audioCtx.createConvolver(); reverb.buffer = reverbBuf
+  const master = audioCtx.createGain(); master.gain.value = 0.75; master.connect(audioCtx.destination)
+  const wet = audioCtx.createGain(); wet.gain.value = 0.28; reverb.connect(wet); wet.connect(master)
+  const size = Math.floor(audioCtx.sampleRate * 0.2)
+  const buf = audioCtx.createBuffer(1, size, audioCtx.sampleRate)
+  const d = buf.getChannelData(0); for (let i = 0; i < size; i++) d[i] = (Math.random() * 2 - 1)
+  const src = audioCtx.createBufferSource(); src.buffer = buf
+  const filt = audioCtx.createBiquadFilter(); filt.type = 'bandpass'; filt.Q.value = 3
+  filt.frequency.setValueAtTime(300, now); filt.frequency.exponentialRampToValueAtTime(3000, now + 0.2)
+  const g = audioCtx.createGain(); g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(0.35, now + 0.06); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.2)
+  src.connect(filt); filt.connect(g); g.connect(master); g.connect(reverb); src.start(now); src.stop(now + 0.25)
+}
+
+// CLOSE — désélection / fermeture
+const playInventoryClose = () => {
+  const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+  const now = audioCtx.currentTime
+  const reverbBuf = audioCtx.createBuffer(2, Math.floor(audioCtx.sampleRate * 1.0), audioCtx.sampleRate)
+  for (let ch = 0; ch < 2; ch++) { const d = reverbBuf.getChannelData(ch); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.8) }
+  const reverb = audioCtx.createConvolver(); reverb.buffer = reverbBuf
+  const master = audioCtx.createGain(); master.gain.value = 0.75; master.connect(audioCtx.destination)
+  const wet = audioCtx.createGain(); wet.gain.value = 0.28; reverb.connect(wet); wet.connect(master)
+  const size = Math.floor(audioCtx.sampleRate * 0.16)
+  const buf = audioCtx.createBuffer(1, size, audioCtx.sampleRate)
+  const d = buf.getChannelData(0); for (let i = 0; i < size; i++) d[i] = (Math.random() * 2 - 1)
+  const src = audioCtx.createBufferSource(); src.buffer = buf
+  const filt = audioCtx.createBiquadFilter(); filt.type = 'bandpass'; filt.Q.value = 3
+  filt.frequency.setValueAtTime(3000, now); filt.frequency.exponentialRampToValueAtTime(300, now + 0.16)
+  const g = audioCtx.createGain(); g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(0.35, now + 0.04); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.16)
+  src.connect(filt); filt.connect(g); g.connect(master); g.connect(reverb); src.start(now); src.stop(now + 0.2)
+}
+
+// C5 — navigation / actions importantes (rejoindre, créer, regarder)
+const playC5 = () => {
+  const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+  const now = audioCtx.currentTime
+  const reverbBuf = audioCtx.createBuffer(2, Math.floor(audioCtx.sampleRate * 1.2), audioCtx.sampleRate)
+  for (let ch = 0; ch < 2; ch++) { const d = reverbBuf.getChannelData(ch); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.2) }
+  const reverb = audioCtx.createConvolver(); reverb.buffer = reverbBuf
+  const master = audioCtx.createGain(); master.gain.value = 0.8; master.connect(audioCtx.destination)
+  const wet = audioCtx.createGain(); wet.gain.value = 0.5; reverb.connect(wet); wet.connect(master)
+  const mkOsc = (dest: AudioNode, freq: number, start: number, dur: number, gain: number) => {
+    const o = audioCtx.createOscillator(); const g = audioCtx.createGain(); o.type = 'sine'
+    o.frequency.setValueAtTime(freq, start); g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(gain, start + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, start + dur)
+    o.connect(g); g.connect(dest as any); o.start(start); o.stop(start + dur + 0.05)
+  }
+  mkOsc(master, 880, now, 0.07, 0.18); mkOsc(master, 1320, now + 0.04, 0.07, 0.15)
+  mkOsc(reverb, 880, now, 0.5, 0.08); mkOsc(reverb, 1320, now + 0.04, 0.4, 0.06)
+}
+
+// FILTER TICK — filtres, tris, toggles légers
+const playFilterTick = () => {
+  const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+  const now = audioCtx.currentTime
+  const master = audioCtx.createGain(); master.gain.value = 0.55; master.connect(audioCtx.destination)
+  const mkTone = (freq: number, start: number, dur: number, gain: number) => {
+    const o = audioCtx.createOscillator(); const g = audioCtx.createGain(); o.type = 'triangle'
+    o.frequency.setValueAtTime(freq, start); g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(gain, start + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, start + dur)
+    o.connect(g); g.connect(master); o.start(start); o.stop(start + dur + 0.01)
+  }
+  mkTone(1800, now, 0.06, 0.22); mkTone(2400, now, 0.05, 0.12); mkTone(1200, now + 0.03, 0.04, 0.08)
+}
+
+// BOX PREVIEW — clic sur une case pour voir son contenu
+const playBoxClick = () => {
+  const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+  const now = audioCtx.currentTime
+  const master = audioCtx.createGain(); master.gain.value = 0.6; master.connect(audioCtx.destination)
+  // Petit "pop" doux avec légère montée
+  const o = audioCtx.createOscillator(); const g = audioCtx.createGain()
+  o.type = 'sine'; o.frequency.setValueAtTime(520, now); o.frequency.exponentialRampToValueAtTime(780, now + 0.05)
+  g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(0.3, now + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.12)
+  o.connect(g); g.connect(master); o.start(now); o.stop(now + 0.15)
+  // Harmonique légère
+  const o2 = audioCtx.createOscillator(); const g2 = audioCtx.createGain()
+  o2.type = 'triangle'; o2.frequency.setValueAtTime(1040, now)
+  g2.gain.setValueAtTime(0, now); g2.gain.linearRampToValueAtTime(0.1, now + 0.008); g2.gain.exponentialRampToValueAtTime(0.0001, now + 0.08)
+  o2.connect(g2); g2.connect(master); o2.start(now); o2.stop(now + 0.1)
+}
 
 // Animated Counter Component - smooth count-up effect
 function AnimatedCounter({ value, duration = 2, decimals = 0, prefix = '', suffix = '' }: {
@@ -131,14 +221,12 @@ function CustomDropdown({ value, onChange, options }: {
       <motion.button
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => { playFilterTick(); setIsOpen(!isOpen) }}
         className="px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 min-w-[160px] justify-between"
         style={{
-          background: resolvedTheme === 'dark' ? 'rgba(30, 41, 59, 0.9)' : 'rgba(248, 250, 252, 0.95)',
-          boxShadow: resolvedTheme === 'dark'
-            ? '0 8px 16px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-            : '0 8px 16px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
-          color: resolvedTheme === 'dark' ? '#d1d5db' : '#374151'
+          background: resolvedTheme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.95)',
+          border: `1px solid ${resolvedTheme === 'dark' ? PALETTE.cardBorder : 'rgba(0,0,0,0.08)'}`,
+          color: resolvedTheme === 'dark' ? PALETTE.text2 : '#374151'
         }}
       >
         <span>{selectedOption?.label}</span>
@@ -159,10 +247,12 @@ function CustomDropdown({ value, onChange, options }: {
             transition={{ duration: 0.15 }}
             className="absolute top-full mt-2 left-0 right-0 rounded-xl overflow-hidden z-[100]"
             style={{
-              background: resolvedTheme === 'dark' ? '#1e293b' : '#f8fafc',
+              background: resolvedTheme === 'dark' ? 'rgba(10,15,24,0.98)' : '#f8fafc',
+              border: `1px solid ${resolvedTheme === 'dark' ? PALETTE.cardBorder : 'rgba(0,0,0,0.08)'}`,
               boxShadow: resolvedTheme === 'dark'
-                ? '0 20px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1)'
-                : '0 20px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.08)'
+                ? '0 20px 40px rgba(0,0,0,0.8)'
+                : '0 20px 40px rgba(0,0,0,0.14)',
+              backdropFilter: 'blur(20px)',
             }}
           >
             {options.map((option) => (
@@ -170,6 +260,7 @@ function CustomDropdown({ value, onChange, options }: {
                 key={option.value}
                 whileHover={{ x: 4 }}
                 onClick={() => {
+                  playFilterTick()
                   onChange(option.value)
                   setIsOpen(false)
                 }}
@@ -193,6 +284,22 @@ function CustomDropdown({ value, onChange, options }: {
     </div>
   )
 }
+
+// ─── Palette (cohérente avec /boxes et /boxes/[id]) ──────────────────────
+const PALETTE = {
+  bg:         '#0C1220',
+  card:       'rgba(18,28,48,0.95)',
+  cardBorder: 'rgba(59,130,246,0.1)',
+  sep:        'rgba(59,130,246,0.08)',
+  text1:      '#e2e8f0',
+  text2:      '#94a3b8',
+  text3:      '#64748b',
+  text4:      '#475569',
+  blue:       '#3b82f6',
+  blueDim:    '#2563eb',
+  indigo:     '#6366f1',
+}
+const COIN_LOGO = 'https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png'
 
 const MODE_CONFIGS = {
   classic: { icon: Crown, label: 'Classic', color: 'text-blue-500', darkColor: 'dark:text-blue-400', hexColor: '#3b82f6' },
@@ -463,7 +570,7 @@ function BoxPreviewModal({ lootBoxId, boxName, boxImage, onClose }: {
           <motion.button
             whileHover={{ scale: 1.1, rotate: 90 }}
             whileTap={{ scale: 0.9 }}
-            onClick={onClose}
+            onClick={() => { playInventoryClose(); onClose() }}
             className="absolute top-4 right-4 z-30 w-10 h-10 rounded-full flex items-center justify-center transition-colors"
             style={{
               background: resolvedTheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
@@ -642,7 +749,7 @@ const ParticipantAvatar = React.memo(function ParticipantAvatar({
     consecutive_days: participant.consecutive_days ?? undefined,
     virtual_currency: participant.virtual_currency ?? undefined,
     banner_svg: participant.banner_svg ?? undefined,
-    pins: participant.pins ?? undefined
+    pins: participant.pins?.map((p: { svg_code: string }) => ({ content: p.svg_code })) ?? undefined
   }
 
   const avatarContent = (
@@ -711,10 +818,8 @@ function BattleCardSkeleton({ index }: { index: number }) {
       transition={{ delay: index * 0.05 }}
       className="relative rounded-[28px] overflow-hidden"
       style={{
-        background: resolvedTheme === 'dark' ? 'rgba(30, 41, 59, 0.9)' : 'rgba(248, 250, 252, 0.95)',
-        boxShadow: resolvedTheme === 'dark'
-          ? '0 24px 48px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06)'
-          : '0 24px 48px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)'
+        background: resolvedTheme === 'dark' ? PALETTE.card : 'rgba(248,250,252,0.95)',
+        border: `1px solid ${resolvedTheme === 'dark' ? PALETTE.cardBorder : 'rgba(0,0,0,0.06)'}`,
       }}
     >
       <div className="p-6">
@@ -1027,6 +1132,7 @@ export default function BattlesPage() {
           created_at, expires_at, created_by
         `)
         .in('status', ['waiting', 'countdown', 'active'])
+        .eq('is_private', false)
         .order('created_at', { ascending: false })
 
       if (battlesError) throw battlesError
@@ -1074,14 +1180,15 @@ export default function BattlesPage() {
       if (allUserIds.length > 0) {
         const { data: banners } = await supabase
           .from('user_banners')
-          .select('user_id, shop_banners(svg_code)')
+          .select('user_id, shop_banners(svg_code, image_url)')
           .in('user_id', allUserIds)
           .eq('is_equipped', true)
 
         banners?.forEach(b => {
-          const shopBanners = b.shop_banners as unknown as { svg_code: string } | null
-          if (shopBanners && !Array.isArray(shopBanners) && shopBanners.svg_code) {
-            bannersMap.set(b.user_id, shopBanners.svg_code)
+          const shopBanners = b.shop_banners as unknown as { svg_code: string | null; image_url: string | null } | null
+          if (shopBanners && !Array.isArray(shopBanners)) {
+            const content = shopBanners.image_url || shopBanners.svg_code
+            if (content) bannersMap.set(b.user_id, content)
           }
         })
       }
@@ -1091,17 +1198,20 @@ export default function BattlesPage() {
       if (participantUserIds.length > 0) {
         const { data: pins } = await supabase
           .from('user_pins')
-          .select('user_id, shop_pins(svg_code)')
+          .select('user_id, shop_pins(svg_code, image_url)')
           .in('user_id', participantUserIds)
           .eq('is_equipped', true)
 
         pins?.forEach(pin => {
-          const shopPins = pin.shop_pins as unknown as { svg_code: string } | null
-          if (shopPins && !Array.isArray(shopPins) && shopPins.svg_code) {
-            const existing = pinsMap.get(pin.user_id) || []
-            if (existing.length < 4) {
-              existing.push({ svg_code: shopPins.svg_code })
-              pinsMap.set(pin.user_id, existing)
+          const shopPins = pin.shop_pins as unknown as { svg_code: string | null; image_url: string | null } | null
+          if (shopPins && !Array.isArray(shopPins)) {
+            const content = shopPins.image_url || shopPins.svg_code
+            if (content) {
+              const existing = pinsMap.get(pin.user_id) || []
+              if (existing.length < 4) {
+                existing.push({ svg_code: content })
+                pinsMap.set(pin.user_id, existing)
+              }
             }
           }
         })
@@ -1274,129 +1384,70 @@ export default function BattlesPage() {
     }
   }, [loadBattles])
 
- return (
-  <div className="min-h-screen -mt-[80px] pt-[100px] pb-24 lg:pb-8 bg-gray-50 dark:bg-gray-950 transition-colors duration-300 relative overflow-hidden">
-      {/* Immersive background - Pure CSS, no GPU shaders */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {/* Base gradient - dark blue to purple tint */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: resolvedTheme === 'dark'
-              ? 'radial-gradient(ellipse 120% 80% at 50% -20%, rgba(99, 102, 241, 0.08) 0%, transparent 60%), radial-gradient(ellipse 100% 60% at 80% 50%, rgba(168, 85, 247, 0.05) 0%, transparent 50%), radial-gradient(ellipse 80% 50% at 20% 80%, rgba(59, 130, 246, 0.04) 0%, transparent 50%)'
-              : 'radial-gradient(ellipse 100% 60% at 50% 0%, rgba(99, 102, 241, 0.04) 0%, transparent 50%)'
-          }}
-        />
-        {/* Subtle noise texture overlay */}
-        <div
-          className="absolute inset-0 opacity-[0.02] dark:opacity-[0.015]"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`
-          }}
-        />
-        {/* Grid pattern - battle arena feel */}
-        <div
-          className="absolute inset-0 opacity-[0.02] dark:opacity-[0.03]"
-          style={{
-            backgroundImage: `linear-gradient(rgba(148, 163, 184, 0.3) 1px, transparent 1px),
-                              linear-gradient(90deg, rgba(148, 163, 184, 0.3) 1px, transparent 1px)`,
-            backgroundSize: '60px 60px'
-          }}
-        />
-        {/* Vignette effect */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'radial-gradient(ellipse 70% 60% at 50% 50%, transparent 40%, rgba(0,0,0,0.15) 100%)'
-          }}
-        />
-      </div>
+ const isDark = resolvedTheme === 'dark'
 
-      <div className="relative z-[50] w-full max-w-full mx-auto px-4 lg:px-5 mb-7">
+ return (
+  <div className="min-h-screen -mt-[80px] pt-[100px] pb-24 lg:pb-8 relative overflow-hidden"
+    style={{ background: isDark ? PALETTE.bg : '#f1f5f9' }}>
+
+    {/* Dot grid subtil */}
+    {isDark && (
+      <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+        <div style={{
+          position: 'absolute', inset: 0, opacity: 0.015,
+          backgroundImage: `radial-gradient(${PALETTE.blue} 1px, transparent 1px)`,
+          backgroundSize: '28px 28px',
+        }} />
+      </div>
+    )}
+
+      <div className="relative z-[50] w-full max-w-full mx-auto px-4 lg:px-6 mb-7">
         {/* Header - Title + Live Stats */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-5">
-          <div className="flex items-center gap-4">
-            <h1 className="text-2xl lg:text-3xl font-bold text-primary">
-              Batailles de Caisses
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-6">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] mb-1.5"
+              style={{ color: isDark ? `${PALETTE.blue}99` : 'rgba(0,0,0,0.35)' }}>
+              ReveelBox
+            </p>
+            <h1 className="text-4xl sm:text-5xl font-black tracking-tight"
+              style={{ color: isDark ? PALETTE.text1 : 'rgba(0,0,0,0.88)' }}>
+              Battles
             </h1>
           </div>
 
-          {/* Live Stats - Glass Pills Style (V3 + V7 mix) - Enlarged */}
+          {/* Live Stats pills */}
           <div className="hidden lg:flex items-center gap-2.5">
-            {/* Live indicator pill */}
-            <div className="flex items-center gap-2 px-4 py-2.5 rounded-full"
-              style={{
-                background: resolvedTheme === 'dark' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(239, 68, 68, 0.08)',
-                border: '1px solid rgba(239, 68, 68, 0.2)'
-              }}>
-              <motion.div
-                animate={{ opacity: [1, 0.5, 1] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-                className="w-2 h-2 rounded-full bg-red-500"
-              />
-              <span className="text-xs font-semibold text-red-500 uppercase">Live</span>
+            {/* Live indicator */}
+            <div className="flex items-center gap-2 px-3.5 py-2 rounded-2xl"
+              style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
+              <motion.div animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 1.5, repeat: Infinity }}
+                className="w-1.5 h-1.5 rounded-full bg-red-500" />
+              <span className="text-[10px] font-bold text-red-500 uppercase tracking-widest">Live</span>
             </div>
 
-            {/* Boxes ouvertes pill */}
-            <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-full"
-              style={{
-                background: resolvedTheme === 'dark' ? 'rgba(168, 85, 247, 0.08)' : 'rgba(168, 85, 247, 0.06)',
-                border: '1px solid rgba(168, 85, 247, 0.15)'
-              }}>
-              <Package className="w-4 h-4 text-purple-400" />
-              <span className="text-base font-bold text-purple-400 tabular-nums">
-                {statsLoaded ? <AnimatedCounter value={liveStats.boxesOpenedTotal} duration={2} /> : '—'}
-              </span>
-            </div>
-
-            {/* Battles créées pill */}
-            <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-full"
-              style={{
-                background: resolvedTheme === 'dark' ? 'rgba(234, 179, 8, 0.08)' : 'rgba(234, 179, 8, 0.06)',
-                border: '1px solid rgba(234, 179, 8, 0.15)'
-              }}>
-              <Swords className="w-4 h-4 text-amber-400" />
-              <span className="text-base font-bold text-amber-400 tabular-nums">
-                {statsLoaded ? <AnimatedCounter value={liveStats.battlesCreatedTotal} duration={1.5} /> : '—'}
-              </span>
-            </div>
-
-            {/* Coins distribués pill avec jauge circulaire */}
-            <div className="flex items-center gap-3 px-4 py-2 rounded-full"
-              style={{
-                background: resolvedTheme === 'dark' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.08)',
-                border: '1px solid rgba(16, 185, 129, 0.2)'
-              }}>
-              {/* Circular gauge avec icône coins */}
-              <div className="relative w-9 h-9">
-                <svg className="w-9 h-9 -rotate-90">
-                  <circle cx="18" cy="18" r="14" stroke="rgba(16, 185, 129, 0.2)" strokeWidth="2.5" fill="none" />
-                  <motion.circle
-                    cx="18" cy="18" r="14"
-                    stroke="#10b981"
-                    strokeWidth="2.5"
-                    fill="none"
-                    strokeLinecap="round"
-                    initial={{ strokeDasharray: '0 88' }}
-                    animate={{ strokeDasharray: '66 88' }}
-                    transition={{ duration: 2, ease: 'easeOut' }}
-                  />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <img
-                    src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/loot-boxes/ChatGPT_Image_6_sept._2025_19_31_10.png"
-                    alt="Coins"
-                    className="w-4.5 h-4.5"
-                  />
+            {[
+              { icon: Package, label: 'Boxes ouvertes', value: statsLoaded ? <AnimatedCounter value={liveStats.boxesOpenedTotal} duration={2} /> : '—', color: PALETTE.blue },
+              { icon: Swords,  label: 'Battles créées', value: statsLoaded ? <AnimatedCounter value={liveStats.battlesCreatedTotal} duration={1.5} /> : '—', color: '#818cf8' },
+              { icon: Trophy,  label: 'Coins 24h', value: statsLoaded ? <AnimatedCounter value={Math.floor(liveStats.coinsDistributed24h)} duration={2.5} /> : '—', color: '#10b981', isCoin: true },
+            ].map(({ icon: Icon, label, value, color, isCoin }) => (
+              <div key={label} className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl"
+                style={{
+                  background: isDark ? `${color}0e` : `${color}10`,
+                  border: `1px solid ${color}25`,
+                }}>
+                <div className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: `${color}18` }}>
+                  <Icon size={13} style={{ color }} />
+                </div>
+                <div>
+                  <div className="text-[10px] font-medium leading-none mb-0.5" style={{ color: isDark ? PALETTE.text3 : 'rgba(0,0,0,0.38)' }}>{label}</div>
+                  <div className="flex items-center gap-1">
+                    {isCoin && <img src={COIN_LOGO} alt="" className="w-3.5 h-3.5 flex-shrink-0" />}
+                    <span className="text-sm font-black leading-none tabular-nums" style={{ color }}>{value}</span>
+                  </div>
                 </div>
               </div>
-              <div className="flex flex-col">
-                <span className="text-base font-bold text-emerald-400 tabular-nums leading-none">
-                  {statsLoaded ? <AnimatedCounter value={Math.floor(liveStats.coinsDistributed24h)} duration={2.5} /> : '—'}
-                </span>
-                <span className="text-[9px] text-emerald-500/60 uppercase">24h</span>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
 
@@ -1404,18 +1455,15 @@ export default function BattlesPage() {
         <div className="flex lg:hidden items-center gap-2 w-full mb-4">
           <motion.button
             whileTap={{ scale: 0.98 }}
-            onClick={() => setShowReadyOnly(!showReadyOnly)}
+            onClick={() => { playFilterTick(); setShowReadyOnly(v => !v) }}
             className="px-3 py-2 rounded-xl text-xs font-medium transition-all"
             style={{
               background: showReadyOnly
                 ? 'linear-gradient(135deg, #10b981, #059669)'
-                : resolvedTheme === 'dark' ? 'rgba(30, 41, 59, 0.8)' : 'rgba(248, 250, 252, 0.9)',
-              color: showReadyOnly ? 'white' : resolvedTheme === 'dark' ? '#d1d5db' : '#374151',
-              boxShadow: showReadyOnly
-                ? '0 8px 16px rgba(16, 185, 129, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
-                : resolvedTheme === 'dark'
-                  ? '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
-                  : '0 4px 12px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.5)'
+                : isDark ? 'rgba(255,255,255,0.04)' : 'rgba(248,250,252,0.9)',
+              color: showReadyOnly ? 'white' : isDark ? PALETTE.text2 : '#374151',
+              border: showReadyOnly ? 'none' : `1px solid ${isDark ? PALETTE.cardBorder : 'rgba(0,0,0,0.07)'}`,
+              boxShadow: showReadyOnly ? '0 8px 16px rgba(16,185,129,0.35)' : 'none'
             }}
           >
             {showReadyOnly ? 'Dispo' : 'Tout'}
@@ -1423,15 +1471,13 @@ export default function BattlesPage() {
 
           <motion.button
             whileTap={{ scale: 0.98 }}
-            onClick={loadBattles}
+            onClick={() => { playFilterTick(); loadBattles() }}
             disabled={loading}
             className="w-9 h-9 rounded-xl flex items-center justify-center transition-all"
             style={{
-              background: resolvedTheme === 'dark' ? 'rgba(30, 41, 59, 0.8)' : 'rgba(248, 250, 252, 0.9)',
-              boxShadow: resolvedTheme === 'dark'
-                ? '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
-                : '0 4px 12px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
-              color: resolvedTheme === 'dark' ? '#d1d5db' : '#374151',
+              background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(248,250,252,0.9)',
+              border: `1px solid ${isDark ? PALETTE.cardBorder : 'rgba(0,0,0,0.07)'}`,
+              color: isDark ? PALETTE.text2 : '#374151',
               opacity: loading ? 0.5 : 1
             }}
           >
@@ -1442,7 +1488,7 @@ export default function BattlesPage() {
 
           <motion.button
             whileTap={{ scale: 0.98 }}
-            onClick={() => window.location.href = '/battles/create'}
+            onClick={() => { playC5(); window.location.href = '/battles/create' }}
             className="px-4 py-2 rounded-xl font-bold text-white flex items-center gap-1.5 text-xs"
             style={{
               background: 'linear-gradient(135deg, #10b981, #059669)',
@@ -1464,18 +1510,15 @@ export default function BattlesPage() {
               key={count}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => setPlayerFilter(playerFilter === count ? null : count)}
+              onClick={() => { playFilterTick(); setPlayerFilter(playerFilter === count ? null : count) }}
               className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg lg:rounded-xl flex items-center justify-center text-xs lg:text-sm font-bold transition-all flex-shrink-0"
               style={{
                 background: playerFilter === count
-                  ? 'linear-gradient(135deg, #3b82f6, #2563eb)'
-                  : resolvedTheme === 'dark' ? 'rgba(30, 41, 59, 0.8)' : 'rgba(248, 250, 252, 0.9)',
-                color: playerFilter === count ? 'white' : resolvedTheme === 'dark' ? '#d1d5db' : '#374151',
-                boxShadow: playerFilter === count
-                  ? '0 8px 16px rgba(59, 130, 246, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
-                  : resolvedTheme === 'dark'
-                    ? '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
-                    : '0 4px 12px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.5)'
+                  ? `linear-gradient(135deg, ${PALETTE.blue}, ${PALETTE.blueDim})`
+                  : isDark ? 'rgba(255,255,255,0.04)' : 'rgba(248,250,252,0.9)',
+                color: playerFilter === count ? 'white' : isDark ? PALETTE.text2 : '#374151',
+                border: playerFilter === count ? 'none' : `1px solid ${isDark ? PALETTE.cardBorder : 'rgba(0,0,0,0.07)'}`,
+                boxShadow: playerFilter === count ? `0 6px 16px ${PALETTE.blue}40` : 'none',
               }}
             >
               {count}
@@ -1494,7 +1537,10 @@ export default function BattlesPage() {
               return (
                 <button
                   key={mode}
-                  onClick={() => toggleModeVisibility(mode)}
+                  onClick={() => {
+                    hiddenModes.has(mode) ? playInventoryOpen() : playInventoryClose()
+                    toggleModeVisibility(mode)
+                  }}
                   className="relative flex items-center gap-1.5 lg:gap-2.5 px-2.5 lg:px-4 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-medium transition-all hover:scale-105 card-glass flex-shrink-0"
                 >
                   <Icon className={`w-3.5 h-3.5 lg:w-4 lg:h-4 ${config.color} ${config.darkColor}`} />
@@ -1532,13 +1578,13 @@ export default function BattlesPage() {
           <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
             {/* View Mode Toggle */}
             <div className="flex items-center gap-0.5 p-1 rounded-xl" style={{
-              background: resolvedTheme === 'dark' ? 'rgba(30, 41, 59, 0.9)' : 'rgba(248, 250, 252, 0.95)',
-              border: resolvedTheme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid rgba(0, 0, 0, 0.06)'
+              background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
+              border: `1px solid ${isDark ? PALETTE.cardBorder : 'rgba(0,0,0,0.08)'}`
             }}>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setViewMode('extended')}
+                onClick={() => { playFilterTick(); setViewMode('extended') }}
                 className="p-2 rounded-lg transition-all"
                 style={{
                   background: viewMode === 'extended'
@@ -1552,7 +1598,7 @@ export default function BattlesPage() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setViewMode('compact')}
+                onClick={() => { playFilterTick(); setViewMode('compact') }}
                 className="p-2 rounded-lg transition-all"
                 style={{
                   background: viewMode === 'compact'
@@ -1569,7 +1615,7 @@ export default function BattlesPage() {
             <motion.button
               whileHover={{ scale: 1.03, y: -1 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => window.location.href = '/battles/create'}
+              onClick={() => { playC5(); window.location.href = '/battles/create' }}
               className="px-4 py-2 rounded-xl font-bold text-white flex items-center gap-2 text-sm"
               style={{
                 background: 'linear-gradient(135deg, #10b981, #059669)',
@@ -1584,14 +1630,14 @@ export default function BattlesPage() {
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => setShowReadyOnly(!showReadyOnly)}
+              onClick={() => { playFilterTick(); setShowReadyOnly(v => !v) }}
               className="px-3 py-2 rounded-xl text-sm font-medium transition-all"
               style={{
                 background: showReadyOnly
                   ? 'linear-gradient(135deg, #10b981, #059669)'
-                  : resolvedTheme === 'dark' ? 'rgba(30, 41, 59, 0.9)' : 'rgba(248, 250, 252, 0.95)',
-                color: showReadyOnly ? 'white' : resolvedTheme === 'dark' ? '#d1d5db' : '#374151',
-                border: showReadyOnly ? 'none' : resolvedTheme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid rgba(0, 0, 0, 0.06)',
+                  : isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.9)',
+                color: showReadyOnly ? 'white' : isDark ? PALETTE.text2 : '#374151',
+                border: showReadyOnly ? 'none' : `1px solid ${isDark ? PALETTE.cardBorder : 'rgba(0,0,0,0.08)'}`,
                 boxShadow: showReadyOnly ? '0 4px 12px rgba(16, 185, 129, 0.3)' : 'none'
               }}
             >
@@ -1609,13 +1655,13 @@ export default function BattlesPage() {
             <motion.button
               whileHover={{ scale: 1.05, rotate: 90 }}
               whileTap={{ scale: 0.98 }}
-              onClick={loadBattles}
+              onClick={() => { playFilterTick(); loadBattles() }}
               disabled={loading}
               className="w-9 h-9 rounded-xl flex items-center justify-center transition-all"
               style={{
-                background: resolvedTheme === 'dark' ? 'rgba(30, 41, 59, 0.9)' : 'rgba(248, 250, 252, 0.95)',
-                border: resolvedTheme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid rgba(0, 0, 0, 0.06)',
-                color: resolvedTheme === 'dark' ? '#d1d5db' : '#374151',
+                background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.9)',
+                border: `1px solid ${isDark ? PALETTE.cardBorder : 'rgba(0,0,0,0.08)'}`,
+                color: isDark ? PALETTE.text2 : '#374151',
                 opacity: loading ? 0.5 : 1
               }}
             >
@@ -1670,9 +1716,6 @@ export default function BattlesPage() {
         )}
       </div>
 
-      {/* Footer */}
-      <Footer />
-
     </div>
   )
 }
@@ -1726,7 +1769,7 @@ const ParticipantsWithVS = React.memo(function ParticipantsWithVS({
     return (
       <div className="relative px-2 py-2 rounded-lg overflow-visible">
         {creatorBanner && (
-          <div className="absolute inset-0 pointer-events-none rounded-lg overflow-hidden opacity-40" dangerouslySetInnerHTML={{ __html: creatorBanner }} />
+          <div className="absolute inset-0 pointer-events-none rounded-lg overflow-hidden opacity-40" dangerouslySetInnerHTML={{ __html: sanitizeSvg(creatorBanner) }} />
         )}
         <div className="relative flex items-center gap-2 overflow-visible" style={{ zIndex: 1 }}>
           {/* Team 0 */}
@@ -1791,7 +1834,7 @@ const ParticipantsWithVS = React.memo(function ParticipantsWithVS({
   const renderSharedMode = () => (
     <div className="relative px-2 py-2 rounded-lg overflow-visible">
       {creatorBanner && (
-        <div className="absolute inset-0 pointer-events-none rounded-lg overflow-hidden opacity-40" dangerouslySetInnerHTML={{ __html: creatorBanner }} />
+        <div className="absolute inset-0 pointer-events-none rounded-lg overflow-hidden opacity-40" dangerouslySetInnerHTML={{ __html: sanitizeSvg(creatorBanner) }} />
       )}
       <div className="relative flex items-center gap-1.5 overflow-visible" style={{ zIndex: 1 }}>
         {allSlots.map((slot, idx) => (
@@ -1833,7 +1876,7 @@ const ParticipantsWithVS = React.memo(function ParticipantsWithVS({
   const renderFFAMode = () => (
     <div className="relative px-2 py-2 rounded-lg overflow-visible">
       {creatorBanner && (
-        <div className="absolute inset-0 pointer-events-none rounded-lg overflow-hidden opacity-40" dangerouslySetInnerHTML={{ __html: creatorBanner }} />
+        <div className="absolute inset-0 pointer-events-none rounded-lg overflow-hidden opacity-40" dangerouslySetInnerHTML={{ __html: sanitizeSvg(creatorBanner) }} />
       )}
       <div className="relative flex items-center gap-1.5 overflow-visible" style={{ zIndex: 1 }}>
         {allSlots.map((slot, idx) => (
@@ -1959,6 +2002,7 @@ const MinimalBattleCard = React.memo(function MinimalBattleCard({ battle, index,
       hasDraggedRef.current = false
       return
     }
+    playC5()
     window.location.href = `/battles/${battle.id}`
   }
 
@@ -1990,6 +2034,7 @@ const MinimalBattleCard = React.memo(function MinimalBattleCard({ battle, index,
       hasDraggedRef.current = false
       return
     }
+    playBoxClick()
     setPreviewBox({ lootBoxId: box.loot_box_id, boxName: box.box_name, boxImage: box.box_image })
   }
 
@@ -2033,31 +2078,30 @@ const MinimalBattleCard = React.memo(function MinimalBattleCard({ battle, index,
       aria-label={`Battle ${modeConfig.label} - ${battle.participant_count}/${battle.max_players} joueurs - ${Math.floor(totalPrice)} coins`}
       className="relative rounded-[28px] md:rounded-[28px] rounded-2xl cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 overflow-visible"
       style={{
-        background: resolvedTheme === 'dark' ? 'rgba(30, 41, 59, 0.9)' : 'rgba(248, 250, 252, 0.95)',
+        background: resolvedTheme === 'dark' ? PALETTE.card : 'rgba(255,255,255,0.98)',
+        border: `1px solid ${resolvedTheme === 'dark' ? PALETTE.cardBorder : 'rgba(0,0,0,0.07)'}`,
         boxShadow: resolvedTheme === 'dark'
-          ? '0 24px 48px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06)'
-          : '0 24px 48px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)'
+          ? '0 24px 48px -12px rgba(0,0,0,0.6)'
+          : '0 10px 40px -10px rgba(0,0,0,0.1)',
       }}
     >
       {/* Gradient glow effect on hover */}
       <motion.div
         className="absolute inset-0 pointer-events-none"
         animate={{
-          opacity: isHovering ? 0.15 : 0,
+          opacity: isHovering ? 0.08 : 0,
         }}
         transition={{ duration: 0.08 }}
         style={{
-          background: `radial-gradient(600px circle at ${mousePos.x}px ${mousePos.y}px, ${modeConfig.hexColor}40, transparent 40%)`,
+          background: `radial-gradient(250px circle at ${mousePos.x}px ${mousePos.y}px, ${modeConfig.hexColor}60, transparent 60%)`,
         }}
       />
 
-      {/* Subtle top highlight */}
+      {/* Mode color stripe top */}
       <div
-        className="absolute top-0 left-0 right-0 h-px"
+        className="absolute top-0 left-0 right-0 h-[2px] rounded-t-[28px]"
         style={{
-          background: resolvedTheme === 'dark'
-            ? 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent)'
-            : 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent)'
+          background: `linear-gradient(90deg, transparent, ${modeConfig.hexColor}80 35%, ${modeConfig.hexColor}80 65%, transparent)`
         }}
       />
 
@@ -2183,7 +2227,7 @@ const MinimalBattleCard = React.memo(function MinimalBattleCard({ battle, index,
             whileTap={{ scale: 0.98 }}
             onClick={(e) => {
               e.stopPropagation()
-              window.location.href = battle.participant_count < battle.max_players ? `/battles/${battle.id}` : `/battles/${battle.id}?spectate=true`
+              playC5(); window.location.href = battle.participant_count < battle.max_players ? `/battles/${battle.id}` : `/battles/${battle.id}?spectate=true`
             }}
             className="px-5 py-3 rounded-xl font-bold text-white min-w-[100px]"
             style={{
@@ -2240,11 +2284,11 @@ const MinimalBattleCard = React.memo(function MinimalBattleCard({ battle, index,
             {/* Avatars */}
             <div className="relative rounded-lg overflow-visible flex-shrink-0">
               {battle.creator_banner && (
-                <div className="absolute inset-0 pointer-events-none rounded-lg overflow-hidden opacity-40" dangerouslySetInnerHTML={{ __html: battle.creator_banner }} />
+                <div className="absolute inset-0 pointer-events-none rounded-lg overflow-hidden opacity-40" dangerouslySetInnerHTML={{ __html: sanitizeSvg(battle.creator_banner) }} />
               )}
               <div className="relative flex items-center gap-1.5 p-1" style={{ zIndex: 1 }}>
-                {battle.participants.map((p) => (
-                  <ParticipantAvatar key={p.id} participant={p} resolvedTheme={resolvedTheme} />
+                {battle.participants.map((p, pIdx) => (
+                  <ParticipantAvatar key={`${battle.id}-${p.id}-${pIdx}`} participant={p} resolvedTheme={resolvedTheme} />
                 ))}
                 {Array.from({ length: emptySlots }).map((_, idx) => (
                   <div
@@ -2312,7 +2356,7 @@ const MinimalBattleCard = React.memo(function MinimalBattleCard({ battle, index,
             whileTap={{ scale: 0.98 }}
             onClick={(e) => {
               e.stopPropagation()
-              window.location.href = battle.participant_count < battle.max_players ? `/battles/${battle.id}` : `/battles/${battle.id}?spectate=true`
+              playC5(); window.location.href = battle.participant_count < battle.max_players ? `/battles/${battle.id}` : `/battles/${battle.id}?spectate=true`
             }}
             className="w-full py-2.5 rounded-lg font-bold text-white text-sm"
             style={{

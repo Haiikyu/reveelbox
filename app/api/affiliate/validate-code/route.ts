@@ -2,8 +2,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 
+// In-memory rate limiting to prevent code enumeration
+const validateRateLimit = new Map<string, { count: number; resetAt: number }>()
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
+    // Rate limiting by IP
+    const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    const now = Date.now()
+    const entry = validateRateLimit.get(clientIp)
+
+    if (entry && now < entry.resetAt && entry.count >= 10) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+
+    if (!entry || now >= entry.resetAt) {
+      validateRateLimit.set(clientIp, { count: 1, resetAt: now + 60000 })
+    } else {
+      entry.count++
+    }
+
     const { searchParams } = new URL(request.url)
     const code = searchParams.get('code')
 

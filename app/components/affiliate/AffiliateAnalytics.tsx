@@ -2,7 +2,8 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { BarChart3, TrendingUp, DollarSign, MousePointerClick, Target, Activity } from 'lucide-react'
+import { Target, TrendingUp, MousePointerClick, Activity } from 'lucide-react'
+import { useTheme } from '@/app/components/ThemeProvider'
 import type { AffiliateProfile } from './types'
 
 interface AffiliateAnalyticsProps {
@@ -10,193 +11,93 @@ interface AffiliateAnalyticsProps {
 }
 
 export default function AffiliateAnalytics({ affiliateProfile }: AffiliateAnalyticsProps) {
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
+
+  const sectionStyle = {
+    background: isDark ? 'rgba(255,255,255,0.03)' : '#ffffff',
+    border: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)',
+    borderRadius: '16px',
+  }
+
+  const labelColor = isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.4)'
+  const textColor = isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.9)'
+  const subtextColor = isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'
+
   const conversionRate = affiliateProfile.clicks_count > 0
     ? ((affiliateProfile.conversions_count / affiliateProfile.clicks_count) * 100).toFixed(1)
     : '0.0'
 
-  const avgCommissionPerReferral = affiliateProfile.referrals_count > 0
+  const avgCommission = affiliateProfile.referrals_count > 0
     ? (affiliateProfile.total_earnings / affiliateProfile.referrals_count).toFixed(2)
     : '0.00'
 
   const metrics = [
-    {
-      title: 'Taux de conversion',
-      value: `${conversionRate}%`,
-      description: 'Visiteurs convertis',
-      icon: Target
-    },
-    {
-      title: 'Commission moyenne',
-      value: `${avgCommissionPerReferral}€`,
-      description: 'Par filleul',
-      icon: DollarSign
-    },
-    {
-      title: 'Total clics',
-      value: affiliateProfile.clicks_count.toString(),
-      description: 'Sur votre lien',
-      icon: MousePointerClick
-    },
-    {
-      title: 'Conversions',
-      value: affiliateProfile.conversions_count.toString(),
-      description: 'Parrainages actifs',
-      icon: TrendingUp
-    }
+    { label: 'Taux conv.', value: `${conversionRate}%`, icon: Target, color: '#8b5cf6' },
+    { label: 'Comm. moy.', value: `${avgCommission}\u20ac`, icon: TrendingUp, color: '#10b981' },
+    { label: 'Clics', value: affiliateProfile.clicks_count.toString(), icon: MousePointerClick, color: '#3b82f6' },
+    { label: 'Conversions', value: affiliateProfile.conversions_count.toString(), icon: Activity, color: '#f59e0b' },
   ]
 
-  const performance = [
-    {
-      label: 'Conversions',
-      value: affiliateProfile.conversions_count,
-      max: Math.max(affiliateProfile.clicks_count, 10),
-      percentage: affiliateProfile.clicks_count > 0 ? (affiliateProfile.conversions_count / affiliateProfile.clicks_count) * 100 : 0
-    },
-    {
-      label: 'Parrainages actifs',
-      value: affiliateProfile.referrals_count,
-      max: Math.max(affiliateProfile.conversions_count, 10),
-      percentage: affiliateProfile.conversions_count > 0 ? (affiliateProfile.referrals_count / affiliateProfile.conversions_count) * 100 : 0
-    },
-    {
-      label: 'Gains totaux',
-      value: `${affiliateProfile.total_earnings.toFixed(2)}€`,
-      max: 1000,
-      percentage: Math.min((affiliateProfile.total_earnings / 1000) * 100, 100)
-    }
-  ]
+  const convPercentage = affiliateProfile.clicks_count > 0
+    ? (affiliateProfile.conversions_count / affiliateProfile.clicks_count) * 100
+    : 0
 
   return (
-    <div className="space-y-6">
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {metrics.map((metric, index) => (
-          <motion.div
-            key={index}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-            className="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800 shadow-lg"
-          >
-            {React.createElement(metric.icon, { className: "h-5 w-5 text-[#D4A088] dark:text-indigo-400 mb-2" })}
-            <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="p-5"
+      style={sectionStyle}
+    >
+      <h3 className="text-[11px] font-medium uppercase mb-4" style={{
+        letterSpacing: '0.1em', color: labelColor
+      }}>
+        Statistiques
+      </h3>
+
+      {/* 2x2 Grid */}
+      <div className="grid grid-cols-2 gap-3 mb-5">
+        {metrics.map((metric, i) => (
+          <div key={i} className="p-3 rounded-xl" style={{
+            background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+            border: isDark ? '1px solid rgba(255,255,255,0.04)' : '1px solid rgba(0,0,0,0.04)',
+          }}>
+            <div className="flex items-center gap-1.5 mb-2">
+              {React.createElement(metric.icon, { size: 12, style: { color: metric.color } })}
+              <span className="text-[9px] font-medium uppercase" style={{
+                letterSpacing: '0.08em', color: labelColor
+              }}>
+                {metric.label}
+              </span>
+            </div>
+            <div className="text-lg font-bold" style={{ color: textColor }}>
               {metric.value}
             </div>
-            <div className="text-xs font-medium text-gray-600 dark:text-gray-400">{metric.title}</div>
-            <div className="text-xs text-gray-500 dark:text-gray-500">{metric.description}</div>
-          </motion.div>
+          </div>
         ))}
       </div>
 
-      {/* Performance Bars */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-lg"
-      >
-        <div className="flex items-center gap-2 mb-6">
-          <Activity className="h-5 w-5 text-[#D4A088] dark:text-indigo-400" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Performance</h3>
+      {/* Single performance bar */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs" style={{ color: subtextColor }}>Taux de conversion</span>
+          <span className="text-xs font-bold" style={{ color: '#8b5cf6' }}>
+            {convPercentage.toFixed(1)}%
+          </span>
         </div>
-
-        <div className="space-y-6">
-          {performance.map((item, index) => (
-            <div key={index}>
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <div className="text-sm font-semibold text-gray-900 dark:text-white">{item.label}</div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">
-                    {typeof item.value === 'number' ? item.value : item.value} sur {item.max}
-                  </div>
-                </div>
-                <div className="text-xl font-bold text-[#D4A088] dark:text-indigo-400">
-                  {item.percentage.toFixed(0)}%
-                </div>
-              </div>
-              <div className="relative w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${item.percentage}%` }}
-                  transition={{ duration: 1, delay: 0.3 + index * 0.1, ease: "easeOut" }}
-                  className="bg-gradient-to-r from-[#D4A088] to-[#C18F77] dark:from-indigo-500 dark:to-violet-500 h-2 rounded-full"
-                />
-              </div>
-            </div>
-          ))}
+        <div className="relative w-full h-1.5 rounded-full" style={{
+          background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'
+        }}>
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${Math.min(convPercentage, 100)}%` }}
+            transition={{ duration: 1, ease: "easeOut" }}
+            className="h-1.5 rounded-full"
+            style={{ background: '#8b5cf6' }}
+          />
         </div>
-      </motion.div>
-
-      {/* Financial Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-lg"
-        >
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="h-5 w-5 text-[#D4A088] dark:text-indigo-400" />
-            <h4 className="text-base font-semibold text-gray-900 dark:text-white">Résumé financier</h4>
-          </div>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Gains totaux</span>
-              <span className="text-lg font-bold text-gray-900 dark:text-white">
-                {affiliateProfile.total_earnings.toFixed(2)}€
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600 dark:text-gray-400">En attente</span>
-              <span className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
-                {affiliateProfile.pending_earnings.toFixed(2)}€
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Récupérés</span>
-              <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                {affiliateProfile.claimed_earnings.toFixed(2)}€
-              </span>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-lg"
-        >
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="h-5 w-5 text-[#D4A088] dark:text-indigo-400" />
-            <h4 className="text-base font-semibold text-gray-900 dark:text-white">Performances clés</h4>
-          </div>
-          <div className="space-y-3">
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Taux de conversion</span>
-                <span className="text-lg font-bold text-[#D4A088] dark:text-indigo-400">{conversionRate}%</span>
-              </div>
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
-                <div
-                  className="bg-gradient-to-r from-[#D4A088] to-[#C18F77] dark:from-indigo-500 dark:to-violet-500 h-1.5 rounded-full"
-                  style={{ width: `${Math.min(parseFloat(conversionRate), 100)}%` }}
-                />
-              </div>
-            </div>
-            <div className="pt-2">
-              <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Commission actuelle</div>
-              <div className="text-2xl font-bold text-[#D4A088] dark:text-indigo-400">
-                {(affiliateProfile.commission_rate * 100).toFixed(1)}%
-              </div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Niveau actuel</div>
-              <div className="text-xl font-bold text-gray-900 dark:text-white">{affiliateProfile.tier_name}</div>
-            </div>
-          </div>
-        </motion.div>
       </div>
-    </div>
+    </motion.div>
   )
 }

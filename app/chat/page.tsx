@@ -7,11 +7,14 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Send, Loader2, Shield, Crown, Award } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { getUsernameStyle } from '@/utils/usernameStyle'
+import { sanitizeSvg } from '@/utils/sanitizeSvg'
 
 interface ChatMessage {
   id: string
   user_id: string
   message: string
+  message_type: string | null
   created_at: string
   // Profil
   username: string
@@ -22,6 +25,8 @@ interface ChatMessage {
   pins: Array<{ svg_code: string }> | null
   banner_svg: string | null
   frame_svg: string | null
+  name_color_value: string | null
+  name_color_is_gradient: boolean | null
 }
 
 export default function ChatPage() {
@@ -122,7 +127,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 pt-20 pb-4 px-4">
+    <div className="min-h-screen -mt-[80px] pt-[100px] bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 pb-4 px-4">
       <div className="max-w-5xl mx-auto h-[calc(100vh-120px)] flex flex-col">
         {/* Header */}
         <div className="bg-gray-800/50 backdrop-blur-sm rounded-t-2xl border border-gray-700 p-4">
@@ -146,7 +151,7 @@ export default function ChatPage() {
                   {msg.banner_svg && (
                     <div 
                       className="absolute inset-0 opacity-20"
-                      dangerouslySetInnerHTML={{ __html: msg.banner_svg }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeSvg(msg.banner_svg) }}
                     />
                   )}
                   
@@ -181,7 +186,7 @@ export default function ChatPage() {
                             width: '52px',
                             height: '52px'
                           }}
-                          dangerouslySetInnerHTML={{ __html: msg.frame_svg }}
+                          dangerouslySetInnerHTML={{ __html: sanitizeSvg(msg.frame_svg) }}
                         />
                       )}
                     </div>
@@ -190,19 +195,22 @@ export default function ChatPage() {
                     <div className="flex-1 min-w-0">
                       {/* Header : Pseudo + Pins + Badges */}
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className={`font-bold ${
-                          msg.is_admin ? 'text-red-400' : 'text-white'
-                        }`}>
+                        <span
+                          className={`font-bold ${msg.is_admin ? 'text-red-400' : 'text-white'}`}
+                          style={!msg.is_admin ? getUsernameStyle(msg.name_color_value, msg.name_color_is_gradient) : {}}
+                        >
                           {msg.username || 'Anonyme'}
                         </span>
 
                         {/* Pins équipés */}
-                        {(msg.pins || []).slice(0, 3).map((pin, i) => (
-                          <div 
-                            key={i}
-                            className="h-5 w-5 flex-shrink-0"
-                            dangerouslySetInnerHTML={{ __html: pin.svg_code }}
-                          />
+                        {(msg.pins || []).slice(0, 4).map((pin, i) => (
+                          <div key={i} className="h-5 w-5 flex-shrink-0">
+                            {pin.svg_code && pin.svg_code.startsWith('<') ? (
+                              <div dangerouslySetInnerHTML={{ __html: sanitizeSvg(pin.svg_code) }} />
+                            ) : pin.svg_code ? (
+                              <img src={pin.svg_code} alt={`Pin ${i + 1}`} className="w-full h-full object-contain" />
+                            ) : null}
+                          </div>
                         ))}
 
                         {/* Badge admin */}
@@ -225,9 +233,27 @@ export default function ChatPage() {
                       </div>
 
                       {/* Texte du message */}
-                      <p className="text-gray-200 text-sm break-words">
-                        {msg.message}
-                      </p>
+                      {msg.message_type === 'win_share' ? (
+                        <div className="relative mt-1 px-3 py-2 rounded-lg overflow-hidden" style={{
+                          background: 'linear-gradient(135deg, rgba(245,158,11,0.1), rgba(168,85,247,0.08))',
+                          border: '1px solid rgba(245,158,11,0.2)',
+                        }}>
+                          <div className="absolute top-0 right-0 px-1.5 py-0.5 text-[8px] font-bold uppercase rounded-bl" style={{
+                            background: 'rgba(245,158,11,0.2)',
+                            color: '#f59e0b',
+                            letterSpacing: '0.05em',
+                          }}>
+                            WIN
+                          </div>
+                          <p className="text-sm break-words leading-relaxed" style={{ color: '#fbbf24' }}>
+                            {msg.message.replace(/\*\*(.*?)\*\*/g, '$1')}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-gray-200 text-sm break-words">
+                          {msg.message}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

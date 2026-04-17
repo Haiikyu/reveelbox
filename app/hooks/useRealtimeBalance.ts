@@ -1,7 +1,7 @@
-// app/hooks/useRealtimeBalance.ts - Balance et inventaire en temps réel (OPTIMISÉ)
+// app/hooks/useRealtimeBalance.ts - Balance et inventaire en temps réel via Supabase Realtime
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 
@@ -15,7 +15,6 @@ interface UseRealtimeBalanceReturn {
   balance: number | null
   inventoryCount: number
   isConnected: boolean
-  refreshBalance: () => Promise<void>
 }
 
 // Singleton pour le client Supabase
@@ -29,47 +28,7 @@ export function useRealtimeBalance({
   const [balance, setBalance] = useState<number | null>(null)
   const [inventoryCount, setInventoryCount] = useState<number>(0)
   const [isConnected, setIsConnected] = useState(false)
-  const channelRef = useRef<any>(null)
   const previousBalanceRef = useRef<number | null>(null)
-  const isLoadingRef = useRef(false)
-  const hasLoadedRef = useRef(false)
-
-  // Charger la balance et l'inventaire EN PARALLÈLE (optimisé)
-  const refreshBalance = useCallback(async () => {
-    if (!userId || isLoadingRef.current) return
-
-    isLoadingRef.current = true
-
-    try {
-      // Exécuter les 2 requêtes EN PARALLÈLE au lieu de séquentiellement
-      const [profileResult, inventoryResult] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('virtual_currency')
-          .eq('id', userId)
-          .single(),
-        supabase
-          .from('user_inventory')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .eq('is_sold', false)
-      ])
-
-      if (profileResult.data) {
-        setBalance(profileResult.data.virtual_currency)
-        previousBalanceRef.current = profileResult.data.virtual_currency
-      }
-
-      setInventoryCount(inventoryResult.count || 0)
-    } catch (error) {
-      // Ignore les erreurs silencieusement (AbortError, etc.)
-      if (error instanceof Error && error.name !== 'AbortError') {
-        console.warn('Error refreshing balance:', error.message)
-      }
-    } finally {
-      isLoadingRef.current = false
-    }
-  }, [userId])
 
   // Stocker les callbacks dans des refs pour éviter les re-renders
   const onBalanceChangeRef = useRef(onBalanceChange)
@@ -83,16 +42,39 @@ export function useRealtimeBalance({
   useEffect(() => {
     if (!userId) return
 
-    // Charger les données initiales (une seule fois)
-    if (!hasLoadedRef.current) {
-      hasLoadedRef.current = true
-      refreshBalance()
+    let cancelled = false
+
+    // Charger les données initiales en parallèle
+    const loadInitialData = async () => {
+      const [profileResult, inventoryResult] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('virtual_currency')
+          .eq('id', userId)
+          .single(),
+        supabase
+          .from('user_inventory')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .eq('is_sold', false)
+      ])
+
+      if (cancelled) return
+
+      if (profileResult.data) {
+        setBalance(profileResult.data.virtual_currency)
+        previousBalanceRef.current = profileResult.data.virtual_currency
+      }
+
+      setInventoryCount(inventoryResult.count || 0)
     }
 
-    // S'abonner aux changements - CONSOLIDÉ en 2 handlers au lieu de 4
+    loadInitialData()
+
+    // S'abonner aux changements en temps réel
     const channel = supabase
-      .channel(`user-data-${userId}`)
-      // Handler 1: Balance (profiles UPDATE)
+      .channel(`user-balance-${userId}`)
+      // Balance (profiles UPDATE)
       .on(
         'postgres_changes',
         {
@@ -104,7 +86,7 @@ export function useRealtimeBalance({
         (payload: RealtimePostgresChangesPayload<any>) => {
           const newBalance = payload.new?.virtual_currency
           if (typeof newBalance === 'number') {
-            const previousBalance = previousBalanceRef.current || 0
+            const previousBalance = previousBalanceRef.current ?? 0
             const change = newBalance - previousBalance
 
             setBalance(newBalance)
@@ -116,11 +98,11 @@ export function useRealtimeBalance({
           }
         }
       )
-      // Handler 2: Inventaire (tous les événements consolidés)
+      // Inventaire (tous les événements)
       .on(
         'postgres_changes',
         {
-          event: '*', // Écoute INSERT, UPDATE, DELETE en UN SEUL handler
+          event: '*',
           schema: 'public',
           table: 'user_inventory',
           filter: `user_id=eq.${userId}`
@@ -135,7 +117,6 @@ export function useRealtimeBalance({
             setInventoryCount(prev => Math.max(0, prev - 1))
             onInventoryChangeRef.current?.('remove', payload.old)
           } else if (eventType === 'UPDATE') {
-            // Si l'item est vendu, on décrémente
             if (payload.new?.is_sold === true && payload.old?.is_sold === false) {
               setInventoryCount(prev => Math.max(0, prev - 1))
               onInventoryChangeRef.current?.('remove', payload.new)
@@ -145,23 +126,21 @@ export function useRealtimeBalance({
       )
       .subscribe((status, err) => {
         setIsConnected(status === 'SUBSCRIBED')
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.error('❌ Realtime subscription error:', err)
+        if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && err) {
+          console.error('Realtime subscription error:', err)
         }
       })
 
-    channelRef.current = channel
-
     return () => {
+      cancelled = true
       channel.unsubscribe()
     }
-  }, [userId, refreshBalance])
+  }, [userId])
 
   return {
     balance,
     inventoryCount,
-    isConnected,
-    refreshBalance
+    isConnected
   }
 }
 

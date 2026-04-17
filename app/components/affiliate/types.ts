@@ -39,6 +39,7 @@ export interface AffiliateTier {
   name: string
   commission: number
   color: string
+  hexColor: string
   icon: any
   requirement: number
   bonus: number

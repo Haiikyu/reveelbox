@@ -202,7 +202,7 @@ export default function BuyCoinsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50/50 via-white to-gray-50/50 relative overflow-hidden">
+    <div className="min-h-screen -mt-[80px] pt-[80px] bg-gradient-to-br from-gray-50/50 via-white to-gray-50/50 relative overflow-hidden">
       
       {/* Particules de fond */}
       <div className="fixed inset-0 pointer-events-none">

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReveelBox — Background Alternatives</title>
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; height:100%; overflow:hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+/* ── NAV ────────────────────────────────────────────── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; gap: 6px; padding: 10px 18px;
+  background: rgba(10,14,26,0.7); backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+nav span { font-size: 12px; color: rgba(255,255,255,0.3); margin-right: 6px; text-transform: uppercase; letter-spacing:.08em; }
+nav button {
+  padding: 5px 14px; border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: transparent; color: rgba(255,255,255,0.5);
+  font-size: 12px; font-family: inherit; cursor: pointer;
+  transition: all .15s;
+}
+nav button:hover { color: rgba(255,255,255,0.85); border-color: rgba(255,255,255,0.25); }
+nav button.on { color: #fff; border-color: #4578be; background: rgba(69,120,190,0.15); }
+
+/* ── SCENES ─────────────────────────────────────────── */
+.bg { position: fixed; inset: 0; }
+.bg:not(.on) { display: none; }
+
+/* ── LABEL ──────────────────────────────────────────── */
+.lbl {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+  font-size: 11px; color: rgba(255,255,255,0.3); letter-spacing:.06em;
+  text-transform: uppercase; white-space: nowrap;
+}
+
+/* ══════════════════════════════════════════════════════
+   A — DEPTH LAMP
+   Une lumière douce qui tombe du haut-centre, comme
+   un éclairage de scène. Complètement statique.
+   Rendu très propre, focalisé, professionnel.
+══════════════════════════════════════════════════════ */
+#a {
+  background: #0a0e1a;
+}
+#a::before {
+  content: '';
+  position: absolute;
+  top: -15%; left: 50%; transform: translateX(-50%);
+  width: 80%; height: 70%;
+  background: radial-gradient(ellipse at 50% 0%,
+    rgba(69,120,190,0.18) 0%,
+    rgba(69,120,190,0.08) 35%,
+    transparent 70%
+  );
+  filter: blur(10px);
+}
+#a::after {
+  content: '';
+  position: absolute;
+  bottom: -10%; right: 5%;
+  width: 45%; height: 50%;
+  background: radial-gradient(ellipse at 80% 100%,
+    rgba(85,136,206,0.09) 0%,
+    transparent 65%
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   B — HORIZON GLOW
+   Lueur à mi-hauteur, comme un horizon lumineux la nuit.
+   Très légère oscillation (60s) — pratiquement imperceptible
+   sauf si on fixe longtemps.
+══════════════════════════════════════════════════════ */
+#b { background: #0a0e1a; }
+#b .horizon {
+  position: absolute;
+  top: 38%; left: -10%; right: -10%;
+  height: 40%;
+  background: radial-gradient(ellipse at 50% 50%,
+    rgba(69,120,190,0.16) 0%,
+    rgba(69,120,190,0.06) 45%,
+    transparent 70%
+  );
+  filter: blur(20px);
+  animation: hFloat 60s ease-in-out infinite alternate;
+  transform-origin: center center;
+}
+#b .corner {
+  position: absolute;
+  top: -20%; right: -15%;
+  width: 55%; height: 55%;
+  background: radial-gradient(circle,
+    rgba(101,152,222,0.08) 0%,
+    transparent 60%
+  );
+  filter: blur(30px);
+}
+@keyframes hFloat {
+  from { transform: scaleY(1) translateY(0); opacity: 1; }
+  to   { transform: scaleY(1.08) translateY(3%); opacity: .75; }
+}
+
+/* ══════════════════════════════════════════════════════
+   C — GRADIENT FLOW
+   Le fond lui-même est un dégradé multi-stop qui dérive.
+   Aucun élément supplémentaire. Très propre.
+   40s de cycle, totalement invisible à moins de comparer.
+══════════════════════════════════════════════════════ */
+#c {
+  background: linear-gradient(
+    125deg,
+    #08101f 0%,
+    #0a0e1a 30%,
+    #0b1220 55%,
+    #070c17 80%,
+    #09111e 100%
+  );
+  background-size: 300% 300%;
+  animation: gradientDrift 40s ease infinite;
+}
+@keyframes gradientDrift {
+  0%   { background-position: 0% 0%;   }
+  33%  { background-position: 100% 50%;}
+  66%  { background-position: 50% 100%;}
+  100% { background-position: 0% 0%;   }
+}
+
+/* ══════════════════════════════════════════════════════
+   D — STRUCTURED
+   Grille ultra-fine (1px) + deux glows aux coins opposés.
+   Style "dashboard technique" — plus structuré, lisible.
+   Inspiré Vercel / Linear en dark.
+══════════════════════════════════════════════════════ */
+#d {
+  background: #09101e;
+  background-image:
+    linear-gradient(rgba(69,120,190,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(69,120,190,0.06) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+#d .g1 {
+  position: absolute;
+  top: -20%; left: -10%;
+  width: 60%; height: 60%;
+  background: radial-gradient(circle,
+    rgba(69,120,190,0.18) 0%,
+    transparent 60%
+  );
+  filter: blur(50px);
+  animation: slow1 50s ease-in-out infinite alternate;
+}
+#d .g2 {
+  position: absolute;
+  bottom: -20%; right: -10%;
+  width: 55%; height: 55%;
+  background: radial-gradient(circle,
+    rgba(101,152,222,0.13) 0%,
+    transparent 60%
+  );
+  filter: blur(50px);
+  animation: slow2 55s ease-in-out infinite alternate;
+}
+#d .vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(9,16,30,0.85) 100%);
+}
+@keyframes slow1 { to { transform: translate(6%, 8%) scale(1.05); } }
+@keyframes slow2 { to { transform: translate(-6%, -8%) scale(1.05); } }
+
+/* ══════════════════════════════════════════════════════
+   E — SWEEP
+   Un faisceau diagonal très diffus qui balaie lentement.
+   L'effet lumière "godray" — discret, cinématique.
+   Cycle 45s.
+══════════════════════════════════════════════════════ */
+#e { background: #0a0e1a; }
+#e .sweep {
+  position: absolute;
+  top: -50%; left: -30%;
+  width: 160%; height: 160%;
+  background: conic-gradient(
+    from 210deg at 20% 10%,
+    transparent 0deg,
+    rgba(69,120,190,0.10) 15deg,
+    transparent 30deg
+  );
+  filter: blur(12px);
+  animation: sweepRot 45s linear infinite;
+  transform-origin: 20% 10%;
+}
+#e .base {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 100%;
+  background: radial-gradient(ellipse at 20% 10%,
+    rgba(69,120,190,0.12) 0%,
+    transparent 45%
+  );
+  filter: blur(5px);
+}
+@keyframes sweepRot {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <span>Background</span>
+  <button class="on" onclick="show('a',this)">A — Depth Lamp</button>
+  <button onclick="show('b',this)">B — Horizon Glow</button>
+  <button onclick="show('c',this)">C — Gradient Flow</button>
+  <button onclick="show('d',this)">D — Structured</button>
+  <button onclick="show('e',this)">E — Sweep</button>
+</nav>
+
+<div id="a" class="bg on"></div>
+
+<div id="b" class="bg">
+  <div class="horizon"></div>
+  <div class="corner"></div>
+</div>
+
+<div id="c" class="bg"></div>
+
+<div id="d" class="bg">
+  <div class="g1"></div>
+  <div class="g2"></div>
+  <div class="vignette"></div>
+</div>
+
+<div id="e" class="bg">
+  <div class="sweep"></div>
+  <div class="base"></div>
+</div>
+
+<div class="lbl" id="lbl">A — Depth Lamp · statique</div>
+
+<script>
+const labels = {
+  a: 'A — Depth Lamp · statique, lumière centrée',
+  b: 'B — Horizon Glow · oscillation 60s',
+  c: 'C — Gradient Flow · dérive 40s',
+  d: 'D — Structured · grille + glows 50-55s',
+  e: 'E — Sweep · rotation 45s',
+}
+function show(id, btn) {
+  document.querySelectorAll('.bg').forEach(el => el.classList.remove('on'))
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('on'))
+  document.getElementById(id).classList.add('on')
+  btn.classList.add('on')
+  document.getElementById('lbl').textContent = labels[id]
+}
+</script>
+</body>
+</html>

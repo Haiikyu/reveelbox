@@ -239,7 +239,7 @@ export function useBattleListSubscription(
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           setIsConnected(false)
           setConnectionError(err?.message || 'Erreur de connexion')
-          console.error('❌ Erreur connexion temps réel:', err)
+          if (err) console.error('❌ Erreur connexion temps réel:', err)
         } else if (status === 'CLOSED') {
           setIsConnected(false)
         }

@@ -3,8 +3,108 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Trash2, Sparkles, ArrowRight } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import UpgradeModal from './UpgradeModal'
+
+// ── OPEN ─────────────────────────────────────────────────────────────────────
+const playInventoryOpen = () => {
+  const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  const now = audioCtx.currentTime;
+  const reverbBuf = audioCtx.createBuffer(2, Math.floor(audioCtx.sampleRate * 1.0), audioCtx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = reverbBuf.getChannelData(ch);
+    for (let i = 0; i < d.length; i++)
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.8);
+  }
+  const reverb = audioCtx.createConvolver(); reverb.buffer = reverbBuf;
+  const master = audioCtx.createGain(); master.gain.value = 0.75; master.connect(audioCtx.destination);
+  const wet = audioCtx.createGain(); wet.gain.value = 0.28;
+  reverb.connect(wet); wet.connect(master);
+  const size = Math.floor(audioCtx.sampleRate * 0.2);
+  const buf = audioCtx.createBuffer(1, size, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < size; i++) d[i] = (Math.random() * 2 - 1);
+  const src = audioCtx.createBufferSource(); src.buffer = buf;
+  const filt = audioCtx.createBiquadFilter();
+  filt.type = "bandpass"; filt.Q.value = 3;
+  filt.frequency.setValueAtTime(300, now);
+  filt.frequency.exponentialRampToValueAtTime(3000, now + 0.2);
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(0, now);
+  g.gain.linearRampToValueAtTime(0.35, now + 0.06);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+  src.connect(filt); filt.connect(g);
+  g.connect(master); g.connect(reverb);
+  src.start(now); src.stop(now + 0.25);
+};
+
+// ── CLOSE ────────────────────────────────────────────────────────────────────
+const playInventoryClose = () => {
+  const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  const now = audioCtx.currentTime;
+  const reverbBuf = audioCtx.createBuffer(2, Math.floor(audioCtx.sampleRate * 1.0), audioCtx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = reverbBuf.getChannelData(ch);
+    for (let i = 0; i < d.length; i++)
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.8);
+  }
+  const reverb = audioCtx.createConvolver(); reverb.buffer = reverbBuf;
+  const master = audioCtx.createGain(); master.gain.value = 0.75; master.connect(audioCtx.destination);
+  const wet = audioCtx.createGain(); wet.gain.value = 0.28;
+  reverb.connect(wet); wet.connect(master);
+  const size = Math.floor(audioCtx.sampleRate * 0.16);
+  const buf = audioCtx.createBuffer(1, size, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < size; i++) d[i] = (Math.random() * 2 - 1);
+  const src = audioCtx.createBufferSource(); src.buffer = buf;
+  const filt = audioCtx.createBiquadFilter();
+  filt.type = "bandpass"; filt.Q.value = 3;
+  filt.frequency.setValueAtTime(3000, now);
+  filt.frequency.exponentialRampToValueAtTime(300, now + 0.16);
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(0, now);
+  g.gain.linearRampToValueAtTime(0.35, now + 0.04);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+  src.connect(filt); filt.connect(g);
+  g.connect(master); g.connect(reverb);
+  src.start(now); src.stop(now + 0.2);
+};
+
+// ── C5 (navigation/actions) ──────────────────────────────────────────────────
+const playC5 = () => {
+  const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  const now = audioCtx.currentTime;
+  const reverbBuf = audioCtx.createBuffer(2, Math.floor(audioCtx.sampleRate * 1.2), audioCtx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = reverbBuf.getChannelData(ch);
+    for (let i = 0; i < d.length; i++)
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.2);
+  }
+  const reverb = audioCtx.createConvolver();
+  reverb.buffer = reverbBuf;
+  const master = audioCtx.createGain();
+  master.gain.value = 0.8;
+  master.connect(audioCtx.destination);
+  const wet = audioCtx.createGain();
+  wet.gain.value = 0.5;
+  reverb.connect(wet);
+  wet.connect(master);
+  const mkOsc = (dest: AudioNode, freq: number, start: number, dur: number, gain: number) => {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(freq, start);
+    g.gain.setValueAtTime(0, start);
+    g.gain.linearRampToValueAtTime(gain, start + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    o.connect(g); g.connect(dest as any);
+    o.start(start); o.stop(start + dur + 0.05);
+  };
+  mkOsc(master, 880,  now,        0.07, 0.18);
+  mkOsc(master, 1320, now + 0.04, 0.07, 0.15);
+  mkOsc(reverb, 880,  now,        0.5,  0.08);
+  mkOsc(reverb, 1320, now + 0.04, 0.4,  0.06);
+};
 
 interface CartItem {
   id: string
@@ -43,6 +143,7 @@ export default function CartModal({
   const [position, setPosition] = useState({ top: 0, right: 0 })
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
   const [selectedUpgradeItem, setSelectedUpgradeItem] = useState<any>(null)
+  const selectAllSoundFiredRef = useRef(false)
 
   const totalValue = items
     .filter(item => selectedItems.includes(item.id))
@@ -109,7 +210,7 @@ export default function CartModal({
             {/* Header */}
             <div className="p-4 border-b border-gray-200/60 dark:border-gray-700/50 bg-white/95 dark:bg-gray-800/95">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Mon Panier</h2>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Mon Inventaire</h2>
                 <button
                   onClick={onClose}
                   className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
@@ -121,7 +222,20 @@ export default function CartModal({
               {/* Actions */}
               <div className="flex items-center gap-2 mt-4">
                 <button
-                  onClick={onSelectAll}
+                  onClick={() => {
+                    if (!allSelected) {
+                      // Sélectionner tout → playOpen UNE seule fois
+                      if (!selectAllSoundFiredRef.current) {
+                        playInventoryOpen()
+                        selectAllSoundFiredRef.current = true
+                      }
+                    } else {
+                      // Désélectionner tout → playClose
+                      playInventoryClose()
+                      selectAllSoundFiredRef.current = false
+                    }
+                    onSelectAll()
+                  }}
                   className="flex-shrink-0 px-3 py-2 bg-gray-100 dark:bg-gray-700/50 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-lg transition-colors"
                 >
                   {allSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
@@ -139,6 +253,7 @@ export default function CartModal({
                 </button>
                 <button
                   onClick={() => {
+                    playC5()
                     if (selectedItems.length === 1) {
                       const item = items.find(i => i.id === selectedItems[0])
                       if (item) {
@@ -169,15 +284,24 @@ export default function CartModal({
             <div className="p-4 overflow-y-auto max-h-96 bg-white/95 dark:bg-gray-800/95">
               {items.length === 0 ? (
                 <div className="text-center py-12">
-                  <div className="text-6xl mb-4">🛒</div>
-                  <p className="text-gray-500 dark:text-gray-400">Votre panier est vide</p>
+                  <img src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/profile-images/full%20site/chariot.png" alt="Panier vide" className="w-20 h-20 object-contain mx-auto mb-4 opacity-80" />
+                  <p className="text-gray-500 dark:text-gray-400">Votre inventaire est vide</p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   {items.map((item) => (
                     <div
                       key={item.id}
-                      onClick={() => onSelectItem(item.id)}
+                      onClick={() => {
+                        const isSelected = selectedItems.includes(item.id)
+                        if (isSelected) {
+                          playInventoryClose()
+                        } else {
+                          playInventoryOpen()
+                        }
+                        selectAllSoundFiredRef.current = false
+                        onSelectItem(item.id)
+                      }}
                       className={`p-3 rounded-xl border-2 transition-all cursor-pointer ${
                         selectedItems.includes(item.id)
                           ? 'bg-[#4578be]/10 border-[#4578be]'
@@ -216,7 +340,7 @@ export default function CartModal({
                   <p className="text-lg font-bold text-gray-900 dark:text-white">{totalValue.toLocaleString()} coins</p>
                 </div>
                 <button
-                  onClick={() => router.push('/inventory')}
+                  onClick={() => { playC5(); router.push('/inventory') }}
                   className="px-6 py-3 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all flex items-center gap-2 bg-gradient-to-r from-[#4578be] to-[#5989d8]"
                 >
                   Voir tout

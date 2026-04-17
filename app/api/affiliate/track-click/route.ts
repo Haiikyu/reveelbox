@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const { affiliate_code, ip_address, user_agent, referrer_url } = await request.json()
+    const { affiliate_code, referrer_url } = await request.json()
 
     if (!affiliate_code) {
       return NextResponse.json(
@@ -30,14 +30,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       )
     }
 
-    // Enregistrer le clic
-    const clientIp = ip_address || request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || '127.0.0.1'
+    // Derive IP from server headers only - NEVER trust client-provided ip_address
+    const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+                     request.headers.get('x-real-ip') ||
+                     '0.0.0.0'
     const { data: click, error: clickError } = await supabase
       .from('affiliate_clicks')
       .insert({
         affiliate_code: affiliate_code.toUpperCase(),
         ip_address: clientIp,
-        user_agent: user_agent || request.headers.get('user-agent') || '',
+        user_agent: request.headers.get('user-agent') || '',
         referrer_url: referrer_url,
         clicked_at: new Date().toISOString(),
         converted: false

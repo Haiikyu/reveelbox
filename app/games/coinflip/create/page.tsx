@@ -7,7 +7,6 @@ import { useAuth } from '@/app/components/AuthProvider'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Sparkles } from 'lucide-react'
 import Link from 'next/link'
-import { dispatchBalanceUpdate } from '@/lib/balanceEvents'
 
 const PRESET_AMOUNTS = [50, 100, 250, 500, 1000, 2500]
 
@@ -49,7 +48,6 @@ export default function CreateCoinflipPage() {
 
       if (rpcError) throw rpcError
 
-      dispatchBalanceUpdate()
       router.push(`/games/coinflip/${data}`)
     } catch (err: any) {
       console.error('Erreur création battle:', err)
@@ -78,7 +76,7 @@ export default function CreateCoinflipPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0a0118] via-[#0f0a1f] to-[#0a0118] relative overflow-hidden">
+    <div className="min-h-screen -mt-[80px] pt-[80px] bg-gradient-to-br from-[#0a0118] via-[#0f0a1f] to-[#0a0118] relative overflow-hidden">
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute w-96 h-96 bg-purple-500/10 rounded-full blur-3xl -top-48 -left-48 animate-pulse"></div>

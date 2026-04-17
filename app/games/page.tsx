@@ -97,7 +97,7 @@ export default function GamesPage() {
   const [viewMode, setViewMode] = useState<'compact' | 'extended'>('extended')
 
   return (
-    <div className="min-h-screen bg-[#0a0e1a] relative overflow-hidden">
+    <div className="min-h-screen -mt-[80px] pt-[80px] bg-[#0a0e1a] relative overflow-hidden">
       
       {/* Fond avec cercles flous */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">

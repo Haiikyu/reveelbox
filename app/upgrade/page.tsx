@@ -6,7 +6,6 @@ import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Package, Loader2, TrendingUp, AlertCircle, Trophy, Sparkles, Zap } from 'lucide-react'
-import { dispatchBalanceUpdate, dispatchInventoryUpdate } from '@/lib/balanceEvents'
 
 interface InventoryItem {
   id: string
@@ -173,10 +172,6 @@ export default function UpgradePage() {
 
       await refreshProfile()
       await loadInventory()
-
-      // Notifier la Navbar de mettre à jour la balance et l'inventaire
-      dispatchBalanceUpdate()
-      dispatchInventoryUpdate()
     } catch (error) {
       console.error('Erreur upgrade:', error)
       setIsAnimating(false)
@@ -203,7 +198,7 @@ export default function UpgradePage() {
   if (!user) return null
 
   return (
-    <div className="h-screen bg-[#1a1f2e] pt-20 pb-4 overflow-hidden flex flex-col">
+    <div className="h-screen -mt-[80px] pt-[100px] bg-[#1a1f2e] pb-4 overflow-hidden flex flex-col">
       
       {/* Animation CSS pour le shine effect */}
       <style jsx>{`

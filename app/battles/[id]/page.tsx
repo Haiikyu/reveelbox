@@ -4,14 +4,336 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/utils/supabase/client'
 import { useTheme } from '@/app/components/ThemeProvider'
-import { useParams, useSearchParams } from 'next/navigation'
+import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import {
   Trophy, Bot, User, Crown, Coins, Timer, Users,
-  PlayCircle, Plus, Eye, ArrowLeft, Sparkles, Zap, Swords, Shield, Copy, Check
+  PlayCircle, Plus, Eye, ArrowLeft, Sparkles, Zap, Swords, Shield, Copy, Check,
+  VolumeX, Volume2, UserPlus, X
 } from 'lucide-react'
 import { ProvablyFairVerifier } from '@/app/components/ProvablyFairVerifier'
 import { hashServerSeed, calculateProvablyFairPercentage } from '@/lib/provablyFair'
-import { dispatchBalanceUpdate, dispatchInventoryUpdate } from '@/lib/balanceEvents'
+import { sanitizeSvg } from '@/utils/sanitizeSvg'
+import { registerWatchedBattle, unregisterWatchedBattle } from '@/app/hooks/useNotifications'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SONS — Battle Page
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Utilitaire reverb
+const _makeReverb = (ctx: AudioContext, dur: number, decay: number) => {
+  const buf = ctx.createBuffer(2, Math.floor(ctx.sampleRate * dur), ctx.sampleRate)
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch)
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, decay)
+  }
+  const c = ctx.createConvolver(); c.buffer = buf; return c
+}
+
+// ── ROULETTE SPIN ──────────────────────────────────────────────────────────
+// Son de roue qui tourne : items qui défilent avec un tick régulier qui
+// accélère au début puis ralentit vers la fin (synchronisé sur ROULETTE_DURATION)
+// ── ROULETTE SPIN — style WheelNew ─────────────────────────────────────────
+// Ticks par item qui passe au centre, cadencés selon la physique quartic ease-out
+// identique à WheelNew.tsx (WINNING_POSITION=25, TOTAL_ITEMS=50, duration=8s)
+// + son de suspense à 70% du chemin
+const playRouletteWheel = (durationMs: number): (() => void) => {
+  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+  const master = ctx.createGain(); master.gain.value = 0.7; master.connect(ctx.destination)
+  const reverb = _makeReverb(ctx, 0.5, 5)
+  const wet = ctx.createGain(); wet.gain.value = 0.12; reverb.connect(wet); wet.connect(master)
+
+  const totalSec = durationMs / 1000
+  const now = ctx.currentTime
+
+  // ── Physique identique à WheelNew : quartic ease-out
+  // WINNING_POSITION = 25, ITEM_WIDTH = 140
+  // finalPos = 25 * 140 - viewportCenter + 70 ≈ 3430 (approx, on normalise)
+  // On recalcule les timestamps où chaque item passe au centre
+  const TOTAL_ITEMS = 50
+  const WINNING_POSITION = 25
+  const ITEM_W = 140
+  // viewportCenter approx 400px (moyen desktop)
+  const finalPos = WINNING_POSITION * ITEM_W  // simplifié, suffisant pour les timings
+
+  // Pour chaque item i, calculer le moment où il passe au centre
+  // scrollPos(t) = finalPos * ease(t/duration)
+  // item i passe au centre quand scrollPos = i * ITEM_W (approximatif, sans offset viewport)
+  const tickTimes: number[] = []
+  for (let i = 1; i < TOTAL_ITEMS; i++) {
+    const targetScroll = i * ITEM_W
+    if (targetScroll >= finalPos) break
+    // Inverser ease-out quartic : targetScroll = finalPos * (1 - (1-p)^4)
+    // (1-p)^4 = 1 - targetScroll/finalPos → p = 1 - (1 - targetScroll/finalPos)^0.25
+    const ratio = targetScroll / finalPos
+    const p = 1 - Math.pow(Math.max(0, 1 - ratio), 0.25)
+    const t = p * totalSec
+    if (t >= 0 && t < totalSec - 0.3) tickTimes.push(t)
+  }
+
+  // Jouer chaque tick
+  tickTimes.forEach((t, idx) => {
+    const progress = t / totalSec
+    // Fréquence du tick : haute au début (rapide), plus grave à la fin (lent)
+    const freq = 2200 - progress * 900  // 2200Hz → 1300Hz
+    const vol = 0.15 + (1 - progress) * 0.25  // fort au début, doux à la fin
+
+    const tickSize = Math.floor(ctx.sampleRate * 0.022)
+    const buf = ctx.createBuffer(1, tickSize, ctx.sampleRate)
+    const d = buf.getChannelData(0)
+    for (let j = 0; j < tickSize; j++) {
+      const tj = j / ctx.sampleRate
+      const env = Math.exp(-tj * 220)
+      d[j] = env * (
+        Math.sin(2 * Math.PI * freq * tj) * 0.55 +
+        Math.sin(2 * Math.PI * freq * 1.5 * tj) * 0.25 +
+        (Math.random() - 0.5) * 0.12
+      )
+    }
+    const src = ctx.createBufferSource(); src.buffer = buf
+    const g = ctx.createGain(); g.gain.value = vol
+    src.connect(g); g.connect(master); g.connect(reverb)
+    src.start(now + t); src.stop(now + t + 0.025)
+  })
+
+  // ── Suspense à 70% — identique à wheelSounds.playSuspense()
+  // Son de tension : bruit blanc filtré montant + oscillateur grave pulsé
+  const suspenseTime = now + totalSec * 0.70
+  const suspenseDur = totalSec * 0.30  // couvre jusqu'à la fin
+
+  // Tension : bruit filtré qui monte
+  const sSize = Math.floor(ctx.sampleRate * suspenseDur)
+  const sBuf = ctx.createBuffer(1, sSize, ctx.sampleRate)
+  const sData = sBuf.getChannelData(0); for (let i = 0; i < sSize; i++) sData[i] = Math.random() * 2 - 1
+  const sSrc = ctx.createBufferSource(); sSrc.buffer = sBuf
+  const sFilt = ctx.createBiquadFilter(); sFilt.type = 'bandpass'; sFilt.Q.value = 8
+  sFilt.frequency.setValueAtTime(600, suspenseTime)
+  sFilt.frequency.linearRampToValueAtTime(1800, suspenseTime + suspenseDur * 0.85)
+  const sGain = ctx.createGain()
+  sGain.gain.setValueAtTime(0, suspenseTime)
+  sGain.gain.linearRampToValueAtTime(0.08, suspenseTime + 0.3)
+  sGain.gain.setValueAtTime(0.08, suspenseTime + suspenseDur * 0.7)
+  sGain.gain.linearRampToValueAtTime(0, suspenseTime + suspenseDur * 0.95)
+  sSrc.connect(sFilt); sFilt.connect(sGain); sGain.connect(master)
+  sSrc.start(suspenseTime); sSrc.stop(suspenseTime + suspenseDur)
+
+  // Pulse grave de tension (battement cardiaque)
+  const pulseFreq = 55  // Hz, très grave
+  const pulseOsc = ctx.createOscillator()
+  pulseOsc.type = 'sine'; pulseOsc.frequency.value = pulseFreq
+  const pulseGain = ctx.createGain()
+  pulseGain.gain.setValueAtTime(0, suspenseTime)
+  // Crescendo progressif
+  pulseGain.gain.linearRampToValueAtTime(0.18, suspenseTime + suspenseDur * 0.5)
+  pulseGain.gain.linearRampToValueAtTime(0, suspenseTime + suspenseDur * 0.95)
+  pulseOsc.connect(pulseGain); pulseGain.connect(master)
+  pulseOsc.start(suspenseTime); pulseOsc.stop(suspenseTime + suspenseDur)
+
+  return () => { try { ctx.close() } catch {} }
+}
+
+// ── REVEAL (dernier item affiché — moment de suspense) ────────────────────
+const playReveal = () => {
+  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+  const now = ctx.currentTime
+  const master = ctx.createGain(); master.gain.value = 0.8; master.connect(ctx.destination)
+  const reverb = _makeReverb(ctx, 1.8, 2.5)
+  const wet = ctx.createGain(); wet.gain.value = 0.5; reverb.connect(wet); wet.connect(master)
+
+  // Swoosh descendant : bruit filtrè
+  const swSize = Math.floor(ctx.sampleRate * 0.4)
+  const swBuf = ctx.createBuffer(1, swSize, ctx.sampleRate)
+  const sd = swBuf.getChannelData(0); for (let i = 0; i < swSize; i++) sd[i] = (Math.random() * 2 - 1)
+  const swSrc = ctx.createBufferSource(); swSrc.buffer = swBuf
+  const swFilt = ctx.createBiquadFilter(); swFilt.type = 'bandpass'; swFilt.Q.value = 3
+  swFilt.frequency.setValueAtTime(4000, now); swFilt.frequency.exponentialRampToValueAtTime(400, now + 0.35)
+  const swGain = ctx.createGain(); swGain.gain.setValueAtTime(0.0, now); swGain.gain.linearRampToValueAtTime(0.5, now + 0.04); swGain.gain.exponentialRampToValueAtTime(0.001, now + 0.38)
+  swSrc.connect(swFilt); swFilt.connect(swGain); swGain.connect(master); swGain.connect(reverb)
+  swSrc.start(now); swSrc.stop(now + 0.4)
+
+  // Impact sourd
+  const impOsc = ctx.createOscillator(); const impGain = ctx.createGain()
+  impOsc.type = 'sine'; impOsc.frequency.setValueAtTime(120, now + 0.3); impOsc.frequency.exponentialRampToValueAtTime(40, now + 0.7)
+  impGain.gain.setValueAtTime(0, now + 0.3); impGain.gain.linearRampToValueAtTime(0.6, now + 0.32); impGain.gain.exponentialRampToValueAtTime(0.001, now + 0.75)
+  impOsc.connect(impGain); impGain.connect(master); impGain.connect(reverb)
+  impOsc.start(now + 0.3); impOsc.stop(now + 0.8)
+}
+
+// ── VICTOIRE ───────────────────────────────────────────────────────────────
+// Impact doré + résonance chaleureuse : puissant sans être tape-à-l'oeil
+const playVictory = () => {
+  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+  const now = ctx.currentTime
+  const master = ctx.createGain(); master.gain.value = 0.72; master.connect(ctx.destination)
+  const reverb = _makeReverb(ctx, 2.2, 2.0)
+  const wet = ctx.createGain(); wet.gain.value = 0.45; reverb.connect(wet); wet.connect(master)
+
+  // Impact initial : bruit filtré court + sub-bass
+  const impSize = Math.floor(ctx.sampleRate * 0.08)
+  const impBuf = ctx.createBuffer(1, impSize, ctx.sampleRate)
+  const impD = impBuf.getChannelData(0); for (let i = 0; i < impSize; i++) impD[i] = Math.random() * 2 - 1
+  const impSrc = ctx.createBufferSource(); impSrc.buffer = impBuf
+  const impFilt = ctx.createBiquadFilter(); impFilt.type = 'lowpass'; impFilt.frequency.value = 3000
+  const impGain = ctx.createGain(); impGain.gain.setValueAtTime(0.5, now); impGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08)
+  impSrc.connect(impFilt); impFilt.connect(impGain); impGain.connect(master)
+  impSrc.start(now); impSrc.stop(now + 0.09)
+
+  // Sub-bass impact
+  const sub = ctx.createOscillator(); const subG = ctx.createGain()
+  sub.type = 'sine'; sub.frequency.setValueAtTime(90, now); sub.frequency.exponentialRampToValueAtTime(35, now + 0.35)
+  subG.gain.setValueAtTime(0.5, now); subG.gain.exponentialRampToValueAtTime(0.001, now + 0.4)
+  sub.connect(subG); subG.connect(master); sub.start(now); sub.stop(now + 0.42)
+
+  // Accord doré chaleureux (Ré majeur : Ré + Fa# + La)
+  const mkTone = (freq: number, start: number, dur: number, gain: number) => {
+    const o = ctx.createOscillator(); const g = ctx.createGain()
+    o.type = 'sine'; o.frequency.value = freq
+    // Légère variation de pitch pour chaleur
+    o.frequency.setValueAtTime(freq * 1.003, start); o.frequency.linearRampToValueAtTime(freq, start + 0.1)
+    g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(gain, start + 0.04)
+    g.gain.setValueAtTime(gain * 0.85, start + dur * 0.4); g.gain.exponentialRampToValueAtTime(0.001, start + dur)
+    o.connect(g); g.connect(master); g.connect(reverb); o.start(start); o.stop(start + dur + 0.05)
+  }
+
+  // Accord Ré majeur — chaleureux et satisfaisant
+  mkTone(293.66, now + 0.05, 1.4, 0.22)  // Ré4
+  mkTone(369.99, now + 0.05, 1.4, 0.18)  // Fa#4
+  mkTone(440.00, now + 0.05, 1.4, 0.16)  // La4
+  mkTone(587.33, now + 0.08, 1.2, 0.14)  // Ré5 (octave)
+
+  // Harmonique cristalline haute
+  const crystal = ctx.createOscillator(); const crystalG = ctx.createGain()
+  crystal.type = 'sine'; crystal.frequency.value = 1174.66  // Ré6
+  crystalG.gain.setValueAtTime(0, now + 0.05); crystalG.gain.linearRampToValueAtTime(0.06, now + 0.12)
+  crystalG.gain.exponentialRampToValueAtTime(0.001, now + 1.0)
+  crystal.connect(crystalG); crystalG.connect(master); crystalG.connect(reverb)
+  crystal.start(now + 0.05); crystal.stop(now + 1.1)
+}
+
+// ── DÉFAITE ────────────────────────────────────────────────────────────────
+// Son mélancolique : descente chromatique + résonance grave
+const playDefeat = () => {
+  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+  const now = ctx.currentTime
+  const master = ctx.createGain(); master.gain.value = 0.65; master.connect(ctx.destination)
+  const reverb = _makeReverb(ctx, 2.0, 2.0)
+  const wet = ctx.createGain(); wet.gain.value = 0.55; reverb.connect(wet); wet.connect(master)
+
+  const mkNote = (freq: number, start: number, dur: number, gain: number) => {
+    const o = ctx.createOscillator(); const g = ctx.createGain()
+    o.type = 'sine'; o.frequency.setValueAtTime(freq, start); o.frequency.linearRampToValueAtTime(freq * 0.92, start + dur)
+    g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(gain, start + 0.04)
+    g.gain.setValueAtTime(gain * 0.8, start + dur * 0.5); g.gain.exponentialRampToValueAtTime(0.001, start + dur)
+    o.connect(g); g.connect(master); g.connect(reverb); o.start(start); o.stop(start + dur + 0.1)
+    // Harmonique sous-octave (sensation lourde)
+    const o2 = ctx.createOscillator(); const g2 = ctx.createGain()
+    o2.type = 'triangle'; o2.frequency.value = freq * 0.5
+    g2.gain.setValueAtTime(0, start); g2.gain.linearRampToValueAtTime(gain * 0.4, start + 0.05); g2.gain.exponentialRampToValueAtTime(0.001, start + dur * 0.9)
+    o2.connect(g2); g2.connect(master); o2.start(start); o2.stop(start + dur)
+  }
+
+  // Descente Do-Si-La-Sol (chromatique descendant, triste)
+  mkNote(523.25, now + 0.00, 0.45, 0.2)
+  mkNote(493.88, now + 0.20, 0.45, 0.18)
+  mkNote(440.00, now + 0.40, 0.50, 0.18)
+  mkNote(392.00, now + 0.65, 0.80, 0.22)
+
+  // Grondement grave de fin
+  const subOsc = ctx.createOscillator(); const subGain = ctx.createGain()
+  subOsc.type = 'sine'; subOsc.frequency.setValueAtTime(80, now + 0.8); subOsc.frequency.linearRampToValueAtTime(40, now + 1.8)
+  subGain.gain.setValueAtTime(0, now + 0.8); subGain.gain.linearRampToValueAtTime(0.35, now + 0.9); subGain.gain.exponentialRampToValueAtTime(0.001, now + 2.0)
+  subOsc.connect(subGain); subGain.connect(master); subGain.connect(reverb)
+  subOsc.start(now + 0.8); subOsc.stop(now + 2.1)
+}
+
+// ── COUNTDOWN TICK ────────────────────────────────────────────────────────
+// Même son propre pour 3, 2, 1 — le premier tick du début
+const playCountdownTick = () => {
+  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+  const now = ctx.currentTime
+  const master = ctx.createGain(); master.gain.value = 0.65; master.connect(ctx.destination)
+  const o = ctx.createOscillator(); const g = ctx.createGain()
+  o.type = 'sine'; o.frequency.value = 880
+  g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(0.3, now + 0.01)
+  g.gain.exponentialRampToValueAtTime(0.001, now + 0.2)
+  o.connect(g); g.connect(master); o.start(now); o.stop(now + 0.22)
+}
+
+// ── C5 ─────────────────────────────────────────────────────────────────────
+const playC5 = () => {
+  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+  const now = ctx.currentTime
+  const reverb = _makeReverb(ctx, 1.2, 2.2)
+  const master = ctx.createGain(); master.gain.value = 0.8; master.connect(ctx.destination)
+  const wet = ctx.createGain(); wet.gain.value = 0.5; reverb.connect(wet); wet.connect(master)
+  const mk = (freq: number, start: number, dur: number, gain: number) => {
+    const o = ctx.createOscillator(); const g = ctx.createGain(); o.type = 'sine'; o.frequency.value = freq
+    g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(gain, start + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, start + dur)
+    o.connect(g); g.connect(master); g.connect(reverb); o.start(start); o.stop(start + dur + 0.05)
+  }
+  mk(880, now, 0.07, 0.18); mk(1320, now + 0.04, 0.07, 0.15)
+  mk(880, now, 0.5, 0.08); mk(1320, now + 0.04, 0.4, 0.06)
+}
+
+// ── FILTER TICK ────────────────────────────────────────────────────────────
+const playFilterTick = () => {
+  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+  const now = ctx.currentTime
+  const master = ctx.createGain(); master.gain.value = 0.55; master.connect(ctx.destination)
+  const mk = (freq: number, start: number, dur: number, gain: number) => {
+    const o = ctx.createOscillator(); const g = ctx.createGain(); o.type = 'triangle'; o.frequency.value = freq
+    g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(gain, start + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, start + dur)
+    o.connect(g); g.connect(master); o.start(start); o.stop(start + dur + 0.01)
+  }
+  mk(1800, now, 0.06, 0.22); mk(2400, now, 0.05, 0.12); mk(1200, now + 0.03, 0.04, 0.08)
+}
+
+// ── INVITATION ENVOYÉE ────────────────────────────────────────────────────
+// Double bip ascendant + shimmer — confirmation d'envoi
+const playInviteSent = () => {
+  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+  const now = ctx.currentTime
+  const master = ctx.createGain(); master.gain.value = 0.55; master.connect(ctx.destination)
+  const mk = (freq: number, start: number, dur: number, gain: number, type: OscillatorType = 'sine') => {
+    const o = ctx.createOscillator(); const g = ctx.createGain()
+    o.type = type; o.frequency.value = freq
+    g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(gain, start + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, start + dur)
+    o.connect(g); g.connect(master); o.start(start); o.stop(start + dur + 0.02)
+  }
+  mk(880, now, 0.10, 0.28)
+  mk(1320, now + 0.08, 0.10, 0.22)
+  mk(1760, now + 0.16, 0.14, 0.16, 'triangle')
+}
+
+// ── INVENTORY OPEN/CLOSE ────────────────────────────────────────────────────
+const playInventoryOpen = () => {
+  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+  const now = ctx.currentTime
+  const reverb = _makeReverb(ctx, 1.0, 2.8)
+  const master = ctx.createGain(); master.gain.value = 0.75; master.connect(ctx.destination)
+  const wet = ctx.createGain(); wet.gain.value = 0.28; reverb.connect(wet); wet.connect(master)
+  const size = Math.floor(ctx.sampleRate * 0.2); const buf = ctx.createBuffer(1, size, ctx.sampleRate)
+  const d = buf.getChannelData(0); for (let i = 0; i < size; i++) d[i] = (Math.random() * 2 - 1)
+  const src = ctx.createBufferSource(); src.buffer = buf
+  const filt = ctx.createBiquadFilter(); filt.type = 'bandpass'; filt.Q.value = 3
+  filt.frequency.setValueAtTime(300, now); filt.frequency.exponentialRampToValueAtTime(3000, now + 0.2)
+  const g = ctx.createGain(); g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(0.35, now + 0.06); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.2)
+  src.connect(filt); filt.connect(g); g.connect(master); g.connect(reverb); src.start(now); src.stop(now + 0.25)
+}
+
+const playInventoryClose = () => {
+  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+  const now = ctx.currentTime
+  const reverb = _makeReverb(ctx, 1.0, 2.8)
+  const master = ctx.createGain(); master.gain.value = 0.75; master.connect(ctx.destination)
+  const wet = ctx.createGain(); wet.gain.value = 0.28; reverb.connect(wet); wet.connect(master)
+  const size = Math.floor(ctx.sampleRate * 0.16); const buf = ctx.createBuffer(1, size, ctx.sampleRate)
+  const d = buf.getChannelData(0); for (let i = 0; i < size; i++) d[i] = (Math.random() * 2 - 1)
+  const src = ctx.createBufferSource(); src.buffer = buf
+  const filt = ctx.createBiquadFilter(); filt.type = 'bandpass'; filt.Q.value = 3
+  filt.frequency.setValueAtTime(3000, now); filt.frequency.exponentialRampToValueAtTime(300, now + 0.16)
+  const g = ctx.createGain(); g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(0.35, now + 0.04); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.16)
+  src.connect(filt); filt.connect(g); g.connect(master); g.connect(reverb); src.start(now); src.stop(now + 0.2)
+}
 
 const supabase = createClient()
 
@@ -106,6 +428,7 @@ export default function BattleRoomPage() {
   const { resolvedTheme } = useTheme()
   const params = useParams()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const battleId = params.id as string
   const isSpectating = searchParams.get('spectate') === 'true'
 
@@ -145,6 +468,15 @@ export default function BattleRoomPage() {
   } | null>(null)
   const [copiedSeed, setCopiedSeed] = useState<string | null>(null)
 
+  // État mute/unmute pour les sons
+  const [isMuted, setIsMuted] = useState(false)
+
+  // Modal invitation d'amis
+  const [showInviteModal, setShowInviteModal] = useState(false)
+
+  // État de chargement pour éviter les double-clics sur rejoindre
+  const [isJoining, setIsJoining] = useState(false)
+
   // Charger les données de la battle
   const loadBattle = useCallback(async () => {
     try {
@@ -160,16 +492,6 @@ export default function BattleRoomPage() {
 
       if (battleError) throw battleError
       if (!battleData) throw new Error('Battle not found')
-
-      // ========================================
-      // 🔍 DEBUG : Vérifier le mode de la battle
-      // ========================================
-      console.log('🎮 BATTLE MODE DEBUG:', {
-        battleId: battleData.id,
-        battleName: battleData.name,
-        mode: battleData.mode,
-        isCrazy: battleData.mode === 'crazy'
-      })
 
       // Récupérer les participants
       const { data: participantsData } = await supabase
@@ -261,17 +583,9 @@ export default function BattleRoomPage() {
           const computedHash = hashServerSeed(serverSeed)
           const hashMatches = computedHash === storedHash
 
-          console.log('🔐 Provably Fair consistency check:', {
-            serverSeed: serverSeed.substring(0, 20) + '...',
-            storedHash: storedHash.substring(0, 20) + '...',
-            computedHash: computedHash.substring(0, 20) + '...',
-            matches: hashMatches
-          })
-
           // Si le hash stocké ne correspond pas, utiliser le hash calculé
           // (cela permet à la vérification de fonctionner même si les données stockées sont incohérentes)
           if (!hashMatches) {
-            console.warn('⚠️ Hash mismatch detected - using computed hash for verification')
             correctHash = computedHash
           }
         }
@@ -284,7 +598,6 @@ export default function BattleRoomPage() {
           roll: 0,
           hash: ''
         })
-        console.log('🎲 Provably Fair data loaded from DB')
       }
 
       // Si la battle est terminée, charger les openings depuis la DB
@@ -332,7 +645,6 @@ export default function BattleRoomPage() {
           })
 
           setLoadedOpenings(openingsByParticipant)
-          console.log('Loaded openings from DB:', openingsByParticipant)
         }
       }
 
@@ -362,22 +674,11 @@ export default function BattleRoomPage() {
         !p.is_bot && p.user_id === currentUser.id
       )
       
-      const canJoinValue = !hasJoined && 
+      const canJoinValue = !hasJoined &&
         !isSpectating &&
         battle.participants.length < battle.max_players &&
         battle.status === 'waiting'
-      
-      // DEBUG : Afficher pourquoi on peut ou ne peut pas rejoindre
-      console.log('Can join battle?', {
-        canJoin: canJoinValue,
-        hasJoined,
-        isSpectating,
-        hasSpace: battle.participants.length < battle.max_players,
-        status: battle.status,
-        participantsCount: battle.participants.length,
-        maxPlayers: battle.max_players
-      })
-      
+
       setCanJoin(canJoinValue)
     }
   }, [battle, currentUser, isSpectating])
@@ -387,14 +688,36 @@ export default function BattleRoomPage() {
     loadBattle()
   }, [loadBattle])
 
+  // Enregistre la battle comme "surveillée" pour notification de fin si l'utilisateur quitte
+  useEffect(() => {
+    if (!battle || !currentUser) return
+    const isParticipant = battle.participants.some(p => !p.is_bot && p.user_id === currentUser.id)
+    if (!isParticipant) return
+    if (battle.status === 'finished') {
+      unregisterWatchedBattle(battle.id)
+      return
+    }
+    registerWatchedBattle(battle.id, battle.name)
+    return () => {
+      // Cleanup uniquement si la battle est finie (sinon on garde pour notif)
+      if (battleRef.current?.status === 'finished') {
+        unregisterWatchedBattle(battle.id)
+      }
+    }
+  }, [battle?.id, battle?.status, currentUser?.id])
+
   // Ref pour tracker le status précédent (évite de recréer la subscription)
   const prevStatusRef = useRef<string>('')
+  // Refs pour capturer les valeurs fraîches dans les closures d'animation de fin
+  const loadedOpeningsRef = useRef<{[key: number]: BattleItem[]}>({})
+  const accumulatedItemsRef = useRef<{[key: number]: BattleItem[]}>({})
+  const currentUserRef = useRef<typeof currentUser>(null)
+  const battleRef = useRef<typeof battle>(null)
 
   // Synchroniser le ref quand la battle est chargée initialement
   useEffect(() => {
     if (battle?.status && !prevStatusRef.current) {
       prevStatusRef.current = battle.status
-      console.log('🔄 Status ref initialized:', battle.status)
     }
   }, [battle?.status])
 
@@ -403,12 +726,6 @@ export default function BattleRoomPage() {
     const newData = payload.new
     if (!newData) return
 
-    console.log('📢 Battle update received:', {
-      status: newData.status,
-      current_box: newData.current_box,
-      prevStatus: prevStatusRef.current
-    })
-
     // Toujours mettre à jour le status IMMÉDIATEMENT
     const newStatus = newData.status || prevStatusRef.current
     prevStatusRef.current = newStatus
@@ -416,7 +733,6 @@ export default function BattleRoomPage() {
     // Mettre à jour le state de la battle immédiatement
     setBattle(prev => {
       if (!prev) return prev
-      console.log('🔄 Updating battle state:', { prevStatus: prev.status, newStatus: newData.status })
       return {
         ...prev,
         status: newData.status ?? prev.status,
@@ -429,8 +745,6 @@ export default function BattleRoomPage() {
 
     // Si la battle vient de se terminer, charger aussi les openings
     if (newData.status === 'finished') {
-      console.log('🏆 Battle terminée - chargement des openings finales')
-
       // Charger les openings complètes pour affichage final
       const { data: openingsData, error } = await supabase
         .from('battle_openings')
@@ -475,7 +789,6 @@ export default function BattleRoomPage() {
           })
 
           setLoadedOpenings(openingsByParticipant)
-          console.log('✅ Openings chargés pour l\'affichage final:', openingsByParticipant)
         }
       }
 
@@ -566,7 +879,6 @@ export default function BattleRoomPage() {
           filter: `id=eq.${battleId}`
         },
         (payload) => {
-          console.log('📢 Battle update (incremental):', payload.new?.status, payload.new?.current_box)
           updateBattleIncrementally(payload)
         }
       )
@@ -579,7 +891,6 @@ export default function BattleRoomPage() {
           filter: `battle_id=eq.${battleId}`
         },
         (payload) => {
-          console.log('👥 Participants update (incremental):', payload.eventType)
           updateParticipantsIncrementally()
         }
       )
@@ -594,12 +905,14 @@ export default function BattleRoomPage() {
   useEffect(() => {
     if (battle?.status === 'countdown') {
       setCountdown(3)
+      if (!isMuted) playCountdownTick() // 🔊 tick 3
       const interval = setInterval(() => {
         setCountdown(prev => {
           if (prev === null || prev <= 1) {
             clearInterval(interval)
             return null
           }
+          if (!isMuted) playCountdownTick() // 🔊 tick 2, 1
           return prev - 1
         })
       }, 1000)
@@ -620,7 +933,6 @@ export default function BattleRoomPage() {
     // Vérifier si un nouveau round doit être traité
     const currentBox = battle.current_box || 0
     if (currentBox > lastProcessedRoundRef.current && currentBox <= battle.total_boxes) {
-      console.log(`📦 Nouveau round détecté: ${currentBox}`)
       lastProcessedRoundRef.current = currentBox
       playRoundAnimation(currentBox)
     }
@@ -630,7 +942,6 @@ export default function BattleRoomPage() {
   const playRoundAnimation = async (boxNumber: number) => {
     if (!battle) return
 
-    console.log(`🎰 Playing animation for box ${boxNumber}/${battle.total_boxes}`)
     setCurrentBoxIndex(boxNumber - 1) // 0-indexed for display
 
     // Reset animation state
@@ -672,8 +983,6 @@ export default function BattleRoomPage() {
       return
     }
 
-    console.log(`✅ Loaded ${openingsData.length} openings for round ${boxNumber}`)
-
     // Convertir en format results
     const results = openingsData.map(opening => {
       const participantIndex = battle.participants.findIndex(p => p.id === opening.participant_id)
@@ -706,6 +1015,12 @@ export default function BattleRoomPage() {
     // Activer l'animation
     setIsOpening(true)
 
+    // 🔊 SON ROULETTE — lancé exactement quand la roue démarre
+    const stopRouletteSound = !isMuted ? playRouletteWheel(ROULETTE_DURATION) : () => {}
+
+    // 🔊 SON REVEAL — déclenché 200ms avant la fin de la roulette (moment du ralentissement final)
+    const revealTimer = setTimeout(() => { if (!isMuted) playReveal() }, ROULETTE_DURATION - 200)
+
     // Calculer les offsets pour l'animation - centrer l'item 25
     const newOffsets: {[key: number]: number} = {}
     results.forEach(r => {
@@ -716,6 +1031,8 @@ export default function BattleRoomPage() {
 
     // Attendre la fin de l'animation + temps d'affichage du résultat
     await new Promise(resolve => setTimeout(resolve, ROULETTE_DURATION + 3500))
+
+    clearTimeout(revealTimer)
 
     // Désactiver l'animation
     setIsOpening(false)
@@ -731,24 +1048,28 @@ export default function BattleRoomPage() {
     })
 
     // Mettre à jour les valeurs totales localement
-    if (battle) {
-      const updatedParticipants = battle.participants.map((p, i) => {
+    // IMPORTANT: Utiliser la forme fonctionnelle de setBattle pour éviter les stale closures
+    // et préserver le status 'finished' qui peut arriver via real-time pendant l'animation
+    setBattle(prev => {
+      if (!prev) return prev
+      const updatedParticipants = prev.participants.map((p, i) => {
         const currentItems = accumulatedItems[i] || []
         const newItem = results.find(r => r.participantIndex === i)?.wonItem
         const allParticipantItems = newItem ? [...currentItems, newItem] : currentItems
         const newTotalValue = allParticipantItems.reduce((sum, item) => sum + item.market_value, 0)
         return { ...p, total_value: newTotalValue }
       })
-      setBattle({ ...battle, participants: updatedParticipants })
+      // Préserver le status actuel (ne pas écraser 'finished' avec 'active')
+      return { ...prev, participants: updatedParticipants }
+    })
 
-      // Si c'était le dernier round, vérifier si la battle est terminée après un délai
-      // SEULEMENT si le status n'est pas déjà 'finished'
-      if (boxNumber === battle.total_boxes && battle.status !== 'finished') {
-        console.log('🏁 Dernier round terminé - vérification du statut dans 3 secondes...')
+    // Si c'était le dernier round, vérifier si la battle est terminée après un délai
+    // SEULEMENT si le status n'est pas déjà 'finished'
+    // Utiliser prevStatusRef au lieu de battle.status pour éviter les stale closures
+    if (battle && boxNumber === battle.total_boxes && prevStatusRef.current !== 'finished') {
         setTimeout(async () => {
           // Vérifier si le status a déjà été mis à jour par le real-time
           if (prevStatusRef.current === 'finished') {
-            console.log('✅ Status déjà mis à jour par real-time, pas besoin de fallback')
             return
           }
 
@@ -760,7 +1081,6 @@ export default function BattleRoomPage() {
             .single()
 
           if (battleCheck?.status === 'finished' && prevStatusRef.current !== 'finished') {
-            console.log('✅ Battle confirmée comme terminée - mise à jour forcée')
             setBattle(prev => prev ? {
               ...prev,
               status: 'finished',
@@ -816,7 +1136,6 @@ export default function BattleRoomPage() {
             }
           }
         }, 3000) // Attendre 3 secondes avant de vérifier
-      }
     }
   }
 
@@ -826,7 +1145,6 @@ export default function BattleRoomPage() {
 
     const currentBox = battle.current_box || 0
     if (currentBox > 0 && lastProcessedRoundRef.current === 0) {
-      console.log(`🔄 Catch-up: Loading all openings up to round ${currentBox}`)
       loadOpeningsUpToRound(currentBox)
     }
   }, [battle?.status])
@@ -856,7 +1174,7 @@ export default function BattleRoomPage() {
       .order('box_order')
 
     if (error || !openingsData) {
-      console.error('❌ Failed to load catch-up openings', error)
+      console.error('Failed to load catch-up openings', error)
       return
     }
 
@@ -883,28 +1201,61 @@ export default function BattleRoomPage() {
     setAccumulatedItems(itemsByParticipant)
     setCurrentBoxIndex(upToRound - 1)
     lastProcessedRoundRef.current = upToRound
-
-    console.log(`✅ Catch-up complete: loaded ${openingsData.length} openings`)
   }
+
+  // Synchroniser les refs à chaque render pour éviter les stale closures dans les animations
+  useEffect(() => {
+    loadedOpeningsRef.current = loadedOpenings
+    accumulatedItemsRef.current = accumulatedItems
+    currentUserRef.current = currentUser
+    battleRef.current = battle
+  }, [loadedOpenings, accumulatedItems, currentUser, battle])
 
   // Lancer l'animation de fin quand la battle est terminée
   useEffect(() => {
     if (battle?.status === 'finished' && !itemsAnimating && !itemsTransferred) {
-      console.log('🎬 Lancement animation de fin')
-
-      // Notifier la Navbar de mettre à jour la balance et l'inventaire
-      dispatchBalanceUpdate()
-      dispatchInventoryUpdate()
-
       const timer = setTimeout(() => {
-        console.log('📦 Items animating = true')
         setItemsAnimating(true)
         setTimeout(() => {
-          console.log('📦 Items animating = false')
           setItemsAnimating(false)
           setTimeout(() => {
-            console.log('✅ Items transferred = true')
             setItemsTransferred(true)
+
+            // 🔊 SON VICTOIRE / DÉFAITE
+            // Utiliser les refs pour avoir les valeurs fraîches (évite stale closures)
+            const freshBattle = battleRef.current
+            const freshUser = currentUserRef.current
+            const freshOpenings = loadedOpeningsRef.current
+            const freshAccumulated = accumulatedItemsRef.current
+
+            if (freshUser && freshBattle) {
+              const currentUserIndex = freshBattle.participants.findIndex(
+                (p: any) => !p.is_bot && p.user_id === freshUser.id
+              )
+              // Si spectateur (currentUserIndex === -1), jouer le son du gagnant
+              const isCrazy = freshBattle.mode === 'crazy'
+              const itemsD = Object.keys(freshOpenings).some(k => (freshOpenings[+k] || []).length > 0)
+                ? freshOpenings
+                : freshAccumulated
+              let localWinnerIndex = 0
+              let localTargetValue = isCrazy ? Infinity : 0
+              freshBattle.participants.forEach((_: any, idx: number) => {
+                const items = itemsD[idx] || []
+                const total = items.reduce((s: number, it: any) => s + it.market_value, 0)
+                if (isCrazy ? total < localTargetValue : total > localTargetValue) {
+                  localTargetValue = total; localWinnerIndex = idx
+                }
+              })
+
+              if (currentUserIndex === -1) {
+                // Spectateur → son du gagnant
+                if (!isMuted) playVictory()
+              } else if (currentUserIndex === localWinnerIndex) {
+                if (!isMuted) playVictory()
+              } else {
+                if (!isMuted) playDefeat()
+              }
+            }
           }, 800)
         }, 800)
       }, 300)
@@ -917,18 +1268,16 @@ export default function BattleRoomPage() {
 
   const handleJoinBattle = async () => {
     if (!currentUser || !battle) return
+    if (isJoining) return
 
+    setIsJoining(true)
     try {
-      console.log('Joining battle...', { userId: currentUser.id, battleId: battle.id, entryCost: battle.entry_cost })
-
       // 1. Charger le profil de l'utilisateur pour vérifier le solde
       const { data: userProfile, error: profileError } = await supabase
         .from('profiles')
         .select('virtual_currency')
         .eq('id', currentUser.id)
         .single()
-
-      console.log('Profile query result:', { userProfile, profileError })
 
       if (profileError) {
         console.error('Profile error:', profileError)
@@ -937,12 +1286,9 @@ export default function BattleRoomPage() {
       }
 
       if (!userProfile) {
-        console.error('No profile found for user:', currentUser.id)
         setError('Profil utilisateur introuvable')
         return
       }
-
-      console.log('User virtual_currency:', userProfile.virtual_currency, 'Entry cost:', battle.entry_cost)
 
       // 2. Vérifier que l'utilisateur a assez de coins
       if ((userProfile.virtual_currency || 0) < battle.entry_cost) {
@@ -951,13 +1297,10 @@ export default function BattleRoomPage() {
       }
 
       // 3. Prélever les coins du joueur
-      console.log('Deducting coins...')
       const { data: deductData, error: deductError } = await supabase.rpc('deduct_coins', {
         p_user_id: currentUser.id,
         p_amount: battle.entry_cost
       })
-
-      console.log('Deduct result:', { deductData, deductError })
 
       if (deductError) {
         console.error('Erreur déduction coins:', deductError)
@@ -966,8 +1309,6 @@ export default function BattleRoomPage() {
       }
 
       // 4. Ajouter le joueur à la battle
-      console.log('Adding to battle...')
-      
       // Trouver la prochaine position disponible
       const maxPosition = battle.participants.length > 0 
         ? Math.max(...battle.participants.map(p => p.position))
@@ -980,10 +1321,7 @@ export default function BattleRoomPage() {
         const team1Count = battle.participants.filter(p => p.team === 1).length
         const team2Count = battle.participants.filter(p => p.team === 2).length
         assignedTeam = team1Count <= team2Count ? 1 : 2
-        console.log(`Assigning to team ${assignedTeam} (Team A: ${team1Count}, Team B: ${team2Count})`)
       }
-      
-      console.log('Current participants:', battle.participants.length, 'Max position:', maxPosition, 'Next position:', nextPosition)
       
       const insertData: any = {
         battle_id: battleId,
@@ -1007,17 +1345,13 @@ export default function BattleRoomPage() {
       }
 
       // 5. Rafraîchir la battle
-      console.log('Reloading battle...')
       await loadBattle()
-
-      // Notifier la Navbar de mettre à jour la balance
-      dispatchBalanceUpdate()
-
-      console.log(`✅ Joueur ${currentUser.id} a rejoint la battle. ${battle.entry_cost} coins prélevés.`)
 
     } catch (err: any) {
       console.error('Error joining battle:', err)
       setError(err.message)
+    } finally {
+      setIsJoining(false)
     }
   }
 
@@ -1037,21 +1371,17 @@ export default function BattleRoomPage() {
         ? Math.max(...existingPositions) + 1 
         : 0
 
-      console.log('Adding bot at position:', nextPosition, '(existing positions:', existingPositions, ')')
-
       // Pour les modes équipe (2v2, 3v3), utiliser targetTeam OU auto-assigner
       let assignedTeam: number | null = null
       if (isTeamMode(battle)) {
         if (targetTeam) {
           // PRIORITÉ : Utiliser l'équipe demandée par le bouton cliqué
           assignedTeam = targetTeam
-          console.log(`Bot assigned to requested team ${assignedTeam}`)
         } else {
           // FALLBACK : Auto-assigner à l'équipe la moins remplie
           const team1Count = battle.participants.filter(p => p.team === 1).length
           const team2Count = battle.participants.filter(p => p.team === 2).length
           assignedTeam = team1Count <= team2Count ? 1 : 2
-          console.log(`Bot auto-assigned to team ${assignedTeam} (Team A: ${team1Count}, Team B: ${team2Count})`)
         }
       }
 
@@ -1084,8 +1414,6 @@ export default function BattleRoomPage() {
     if (!battle || battle.participants.length < battle.max_players) return
 
     try {
-      console.log('🚀 Starting battle via Edge Function...')
-
       // Call Edge Function to start battle server-side
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.access_token) {
@@ -1110,7 +1438,6 @@ export default function BattleRoomPage() {
       }
 
       const result = await response.json()
-      console.log('🎲 Battle started:', result)
 
       // Update provably fair data locally
       if (result.server_seed_hash) {
@@ -1158,7 +1485,7 @@ export default function BattleRoomPage() {
         <div className="text-center">
           <p className="text-red-500 text-xl mb-4">Erreur: {error || 'Battle introuvable'}</p>
           <button
-            onClick={() => window.location.href = '/battles'}
+            onClick={() => { if (!isMuted) playC5(); router.push('/battles') }}
             className="px-6 py-3 bg-[#4578be] text-white rounded-xl hover:bg-[#5989d8] transition"
           >
             Retour aux battles
@@ -1235,24 +1562,11 @@ export default function BattleRoomPage() {
     // MODE CRAZY : Inverser - l'équipe avec le MOINS gagne
     const isCrazyMode = battle.mode === 'crazy'
     
-    // ========================================
-    // 🔍 DEBUG : Mode Crazy dans calcul affichage
-    // ========================================
-    console.log('🎨 AFFICHAGE - Calcul gagnant:', {
-      mode: battle.mode,
-      isCrazyMode: isCrazyMode,
-      team1Score: team1Score,
-      team2Score: team2Score,
-      logique: isCrazyMode ? 'INVERSÉE (le moins gagne)' : 'NORMALE (le plus gagne)'
-    })
-    
     if (isCrazyMode) {
       winningTeam = team1Score < team2Score ? 1 : 2
     } else {
       winningTeam = team1Score > team2Score ? 1 : 2
     }
-    
-    console.log('🏆 Équipe gagnante:', winningTeam, 'avec score:', winningTeam === 1 ? team1Score : team2Score)
   }
 
   // Pool total et gains par joueur gagnant (pour modes équipe)
@@ -1283,7 +1597,7 @@ export default function BattleRoomPage() {
       {/* Header minimaliste - Bouton retour + Provably Fair */}
       <div className="flex-shrink-0 px-4 py-1 flex items-center justify-between">
         <button
-          onClick={() => window.location.href = '/battles'}
+          onClick={() => { if (!isMuted) playC5(); router.push('/battles') }}
           className={`p-1.5 rounded-lg transition ${
             resolvedTheme === 'dark' ? 'hover:bg-[#4578be]/20' : 'hover:bg-slate-200'
           }`}
@@ -1291,24 +1605,51 @@ export default function BattleRoomPage() {
           <ArrowLeft className={`w-4 h-4 ${resolvedTheme === 'dark' ? 'text-white' : 'text-slate-700'}`} />
         </button>
 
-        {/* Bouton Provably Fair */}
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setShowProvablyFair(true)}
-          className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 rounded-lg transition-colors"
-        >
-          <Shield className="w-4 h-4 text-emerald-400" />
-          <span className="text-sm font-medium text-emerald-400">Provably Fair</span>
-        </motion.button>
+        <div className="flex items-center gap-2">
+          {/* Bouton Mute/Unmute */}
+          <button
+            onClick={() => setIsMuted(prev => !prev)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${
+              isMuted
+                ? 'bg-gray-700/50 border border-gray-600/30'
+                : 'bg-gray-700/30 border border-gray-600/20'
+            }`}
+            title={isMuted ? 'Activer le son' : 'Couper le son'}
+          >
+            {isMuted ? <VolumeX className="w-4 h-4 text-gray-400" /> : <Volume2 className="w-4 h-4 text-gray-400" />}
+          </button>
+
+          {/* Bouton Inviter des amis */}
+          {currentUser && battle.status === 'waiting' && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => { if (!isMuted) playFilterTick(); setShowInviteModal(true) }}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#4578be]/20 hover:bg-[#4578be]/30 border border-[#4578be]/30 rounded-lg transition-colors"
+            >
+              <UserPlus className="w-4 h-4 text-[#4578be]" />
+              <span className="text-sm font-medium text-[#4578be] hidden sm:inline">Inviter</span>
+            </motion.button>
+          )}
+
+          {/* Bouton Provably Fair */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => { if (!isMuted) playFilterTick(); setShowProvablyFair(true) }}
+            className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 rounded-lg transition-colors"
+          >
+            <Shield className="w-4 h-4 text-emerald-400" />
+            <span className="text-sm font-medium text-emerald-400">Provably Fair</span>
+          </motion.button>
+        </div>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden flex flex-col">
         
         {/* ÉCRAN EN JEU ET TERMINÉ - MÊME LAYOUT */}
-        {(battle.status !== 'finished' || true) && (
-          <div className="flex-1 flex flex-col overflow-hidden relative">
+        <div className="flex-1 flex flex-col overflow-hidden relative">
             
             {/* Icône mode CRAZY en arrière-plan flouté */}
             {battle.mode === 'crazy' && (
@@ -1599,6 +1940,7 @@ export default function BattleRoomPage() {
                               onAddBot={handleAddBot}
                               price={Math.floor(battle.total_prize / battle.max_players)}
                               team={1}
+                              isJoining={isJoining}
                             />
                           </div>
                           
@@ -1722,6 +2064,7 @@ export default function BattleRoomPage() {
                               onAddBot={handleAddBot}
                               price={Math.floor(battle.total_prize / battle.max_players)}
                               team={2}
+                              isJoining={isJoining}
                             />
                           </div>
                           
@@ -1829,6 +2172,7 @@ export default function BattleRoomPage() {
                             team={participant?.team}
                             isWinner={battle.status === 'finished' && participant ? (slotIndex === winnerIndex) : null}
                             totalGains={battle.status === 'finished' && slotIndex === winnerIndex ? allItems.reduce((sum, item) => sum + item.market_value, 0) : null}
+                            isJoining={isJoining}
                           />
                           
                         </div>
@@ -2072,7 +2416,6 @@ export default function BattleRoomPage() {
               )}
             </div>
           </div>
-        )}
       </div>
 
       {/* Actions en bas */}
@@ -2080,7 +2423,7 @@ export default function BattleRoomPage() {
         <div className="flex-shrink-0 p-4">
           <div className="flex justify-center">
             <button
-              onClick={handleStartBattle}
+              onClick={() => { if (!isMuted) playC5(); handleStartBattle() }}
               className="px-8 py-3 bg-gradient-to-r from-[#4578be] to-[#5989d8] text-white text-lg font-bold rounded-xl hover:scale-105 transition shadow-lg shadow-[#4578be]/50"
             >
               <PlayCircle className="w-5 h-5 inline mr-2" />
@@ -2093,9 +2436,20 @@ export default function BattleRoomPage() {
       {/* Modal Provably Fair */}
       <ProvablyFairVerifier
         isOpen={showProvablyFair}
-        onClose={() => setShowProvablyFair(false)}
+        onClose={() => { if (!isMuted) playInventoryClose(); setShowProvablyFair(false) }}
         data={provablyFairData || undefined}
       />
+
+      {/* Modal invitation d'amis */}
+      {currentUser && (
+        <InviteFriendsModal
+          isOpen={showInviteModal}
+          onClose={() => setShowInviteModal(false)}
+          battleId={battleId}
+          currentUserId={currentUser.id}
+          resolvedTheme={resolvedTheme}
+        />
+      )}
 
       {/* Panel Provably Fair info (affiché en permanence en bas) */}
       <AnimatePresence>
@@ -2134,7 +2488,7 @@ export default function BattleRoomPage() {
                 </div>
               </div>
               <button
-                onClick={() => setShowProvablyFair(true)}
+                onClick={() => { if (!isMuted) playFilterTick(); setShowProvablyFair(true) }}
                 className="mt-2 w-full text-xs text-emerald-400 hover:text-emerald-300 flex items-center justify-center gap-1"
               >
                 Voir les détails <ArrowLeft className="w-3 h-3 rotate-180" />
@@ -2181,48 +2535,142 @@ function ParticipantCardCompact({
       // Charger les pins équipés
       const { data: pinsData } = await supabase
         .from('user_pins')
-        .select(`pin_id, shop_pins (id, svg_code)`)
+        .select(`pin_id, shop_pins (id, svg_code, image_url)`)
         .eq('user_id', participant.user_id)
         .eq('is_equipped', true)
         .limit(4)
-      
+
       if (pinsData) {
         const pins = pinsData
-          .filter((item): item is typeof item & { shop_pins: { id: any; svg_code: any } } =>
+          .filter((item): item is typeof item & { shop_pins: { id: any; svg_code: any; image_url?: any } } =>
             item.shop_pins !== null && !Array.isArray(item.shop_pins)
           )
-          .map(item => ({ id: item.shop_pins.id, svg_code: item.shop_pins.svg_code }))
+          .map(item => ({
+            id: item.shop_pins.id,
+            svg_code: item.shop_pins.image_url || item.shop_pins.svg_code
+          }))
         setUserPins(pins)
       }
 
       // Charger le cadre équipé
       const { data: frameData } = await supabase
         .from('user_frames')
-        .select(`frame_id, shop_frames (svg_code)`)
+        .select(`frame_id, shop_frames (svg_code, image_url)`)
         .eq('user_id', participant.user_id)
         .eq('is_equipped', true)
         .single()
-      
+
       if (frameData) {
         const shopFrames = frameData.shop_frames as any
-        if (shopFrames?.svg_code) setAvatarFrame(shopFrames.svg_code)
+        if (shopFrames?.image_url || shopFrames?.svg_code) {
+          setAvatarFrame(shopFrames.image_url || shopFrames.svg_code)
+        }
       }
 
       // Charger la bannière équipée
       const { data: bannerData } = await supabase
         .from('user_banners')
-        .select(`banner_id, shop_banners (svg_code)`)
+        .select(`banner_id, shop_banners (svg_code, image_url)`)
         .eq('user_id', participant.user_id)
         .eq('is_equipped', true)
         .single()
-      
+
       if (bannerData) {
         const shopBanners = bannerData.shop_banners as any
-        if (shopBanners?.svg_code) setBannerSvg(shopBanners.svg_code)
+        if (shopBanners?.image_url || shopBanners?.svg_code) {
+          setBannerSvg(shopBanners.image_url || shopBanners.svg_code)
+        }
       }
     }
 
     loadUserData()
+  }, [participant.user_id, participant.is_bot])
+
+  // Subscription temps réel pour les cosmétiques
+  useEffect(() => {
+    if (participant.is_bot || !participant.user_id) return
+
+    const channel = supabase.channel(`battle-cosmetics-compact-${participant.user_id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'user_pins',
+        filter: `user_id=eq.${participant.user_id}`
+      }, () => {
+        // Recharger les pins
+        supabase
+          .from('user_pins')
+          .select(`pin_id, shop_pins (id, svg_code, image_url)`)
+          .eq('user_id', participant.user_id)
+          .eq('is_equipped', true)
+          .limit(4)
+          .then(({ data }) => {
+            if (data) {
+              const pins = data
+                .filter((item): item is typeof item & { shop_pins: { id: any; svg_code: any; image_url?: any } } =>
+                  item.shop_pins !== null && !Array.isArray(item.shop_pins)
+                )
+                .map(item => ({
+                  id: item.shop_pins.id,
+                  svg_code: item.shop_pins.image_url || item.shop_pins.svg_code
+                }))
+              setUserPins(pins)
+            }
+          })
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'user_frames',
+        filter: `user_id=eq.${participant.user_id}`
+      }, () => {
+        // Recharger le frame
+        supabase
+          .from('user_frames')
+          .select(`frame_id, shop_frames (svg_code, image_url)`)
+          .eq('user_id', participant.user_id)
+          .eq('is_equipped', true)
+          .single()
+          .then(({ data }) => {
+            if (data) {
+              const shopFrames = data.shop_frames as any
+              if (shopFrames?.image_url || shopFrames?.svg_code) {
+                setAvatarFrame(shopFrames.image_url || shopFrames.svg_code)
+              }
+            } else {
+              setAvatarFrame(null)
+            }
+          })
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'user_banners',
+        filter: `user_id=eq.${participant.user_id}`
+      }, () => {
+        // Recharger la bannière
+        supabase
+          .from('user_banners')
+          .select(`banner_id, shop_banners (svg_code, image_url)`)
+          .eq('user_id', participant.user_id)
+          .eq('is_equipped', true)
+          .single()
+          .then(({ data }) => {
+            if (data) {
+              const shopBanners = data.shop_banners as any
+              if (shopBanners?.image_url || shopBanners?.svg_code) {
+                setBannerSvg(shopBanners.image_url || shopBanners.svg_code)
+              }
+            } else {
+              setBannerSvg(null)
+            }
+          })
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [participant.user_id, participant.is_bot])
 
   const isLoser = !isWinner && participant.total_value >= 0
@@ -2242,10 +2690,13 @@ function ParticipantCardCompact({
     >
       {/* Bannière en fond à 50% */}
       {bannerSvg && (
-        <div 
-          className="absolute inset-0 opacity-50"
-          dangerouslySetInnerHTML={{ __html: bannerSvg }}
-        />
+        <div className="absolute inset-0 opacity-50">
+          {bannerSvg.startsWith('<') ? (
+            <div dangerouslySetInnerHTML={{ __html: sanitizeSvg(bannerSvg) }} />
+          ) : (
+            <img src={bannerSvg} alt="Banner" className="w-full h-full object-cover" />
+          )}
+        </div>
       )}
       
       {/* Fond par défaut */}
@@ -2288,11 +2739,16 @@ function ParticipantCardCompact({
           
           {/* Cadre SVG par-dessus */}
           {avatarFrame && (
-            <div 
+            <div
               className="absolute pointer-events-none"
               style={{ top: '-3px', left: '-3px', width: '62px', height: '62px' }}
-              dangerouslySetInnerHTML={{ __html: avatarFrame }}
-            />
+            >
+              {avatarFrame.startsWith('<') ? (
+                <div dangerouslySetInnerHTML={{ __html: sanitizeSvg(avatarFrame) }} />
+              ) : (
+                <img src={avatarFrame} alt="Frame" className="w-full h-full object-contain" />
+              )}
+            </div>
           )}
         </div>
 
@@ -2325,14 +2781,19 @@ function ParticipantCardCompact({
         {/* 4 Pins */}
         <div className="flex-shrink-0 flex items-center gap-1">
           {!participant.is_bot && userPins.slice(0, 4).map((pin) => (
-            <div 
+            <div
               key={pin.id}
               className="h-8 w-8 rounded-md bg-black/40 border border-gray-600/30 flex items-center justify-center p-0.5"
-              dangerouslySetInnerHTML={{ __html: pin.svg_code }}
-            />
+            >
+              {pin.svg_code.startsWith('<') ? (
+                <div dangerouslySetInnerHTML={{ __html: sanitizeSvg(pin.svg_code) }} />
+              ) : (
+                <img src={pin.svg_code} alt="Pin" className="w-full h-full object-contain" />
+              )}
+            </div>
           ))}
           {!participant.is_bot && Array.from({ length: Math.max(0, 4 - userPins.length) }).map((_, i) => (
-            <div 
+            <div
               key={`empty-${i}`}
               className="h-8 w-8 rounded-md bg-black/40 border border-gray-600/30 flex items-center justify-center"
             >
@@ -2364,6 +2825,7 @@ function BattleFinishedScreen({
   battle: any
   itemsData: {[key: number]: BattleItem[]}
 }) {
+  const router = useRouter()
   const [itemsAnimating, setItemsAnimating] = useState(true)
   const [itemsTransferred, setItemsTransferred] = useState(false)
 
@@ -2430,28 +2892,32 @@ function BattleFinishedScreen({
                 // Charger bannière
                 supabase
                   .from('user_banners')
-                  .select(`banner_id, shop_banners (svg_code)`)
+                  .select(`banner_id, shop_banners (svg_code, image_url)`)
                   .eq('user_id', pv.participant.user_id)
                   .eq('is_equipped', true)
                   .single()
                   .then(({ data }) => {
                     if (data) {
                       const shopBanners = data.shop_banners as any
-                      if (shopBanners?.svg_code) setBannerSvg(shopBanners.svg_code)
+                      if (shopBanners?.image_url || shopBanners?.svg_code) {
+                        setBannerSvg(shopBanners.image_url || shopBanners.svg_code)
+                      }
                     }
                   })
 
                 // Charger frame
                 supabase
                   .from('user_frames')
-                  .select(`frame_id, shop_frames (svg_code)`)
+                  .select(`frame_id, shop_frames (svg_code, image_url)`)
                   .eq('user_id', pv.participant.user_id)
                   .eq('is_equipped', true)
                   .single()
                   .then(({ data }) => {
                     if (data) {
                       const shopFrames = data.shop_frames as any
-                      if (shopFrames?.svg_code) setFrameSvg(shopFrames.svg_code)
+                      if (shopFrames?.image_url || shopFrames?.svg_code) {
+                        setFrameSvg(shopFrames.image_url || shopFrames.svg_code)
+                      }
                     }
                   })
               }
@@ -2471,14 +2937,17 @@ function BattleFinishedScreen({
               >
                 {/* Bannière de fond */}
                 {bannerSvg ? (
-                  <div 
-                    className="absolute inset-0 opacity-30"
-                    dangerouslySetInnerHTML={{ __html: bannerSvg }}
-                  />
+                  <div className="absolute inset-0 opacity-30">
+                    {bannerSvg.startsWith('<') ? (
+                      <div dangerouslySetInnerHTML={{ __html: sanitizeSvg(bannerSvg) }} />
+                    ) : (
+                      <img src={bannerSvg} alt="Banner" className="w-full h-full object-cover" />
+                    )}
+                  </div>
                 ) : (
                   <div className={`absolute inset-0 ${
-                    isWinner 
-                      ? 'bg-gradient-to-br from-emerald-600/30 to-emerald-900/30' 
+                    isWinner
+                      ? 'bg-gradient-to-br from-emerald-600/30 to-emerald-900/30'
                       : 'bg-gradient-to-br from-gray-800/50 to-gray-900/50'
                   }`} />
                 )}
@@ -2527,10 +2996,13 @@ function BattleFinishedScreen({
                       )}
                     </motion.div>
                     {frameSvg && (
-                      <div 
-                        className="absolute inset-0 pointer-events-none scale-125"
-                        dangerouslySetInnerHTML={{ __html: frameSvg }}
-                      />
+                      <div className="absolute inset-0 pointer-events-none scale-125">
+                        {frameSvg.startsWith('<') ? (
+                          <div dangerouslySetInnerHTML={{ __html: sanitizeSvg(frameSvg) }} />
+                        ) : (
+                          <img src={frameSvg} alt="Frame" className="w-full h-full object-contain" />
+                        )}
+                      </div>
                     )}
                   </div>
 
@@ -2633,7 +3105,7 @@ function BattleFinishedScreen({
       {/* Bouton retour */}
       <div className="flex-shrink-0 p-6 flex justify-center gap-4">
         <button
-          onClick={() => window.location.href = '/battles'}
+          onClick={() => { playC5(); router.push('/battles') }}
           className="px-8 py-3 bg-gradient-to-r from-[#4578be] to-[#5989d8] text-white font-bold rounded-xl hover:scale-105 transition shadow-lg"
         >
           Retour aux Battles
@@ -2675,46 +3147,140 @@ function FinishedResultCard({
 
       const { data: pinsData } = await supabase
         .from('user_pins')
-        .select(`pin_id, shop_pins (id, svg_code)`)
+        .select(`pin_id, shop_pins (id, svg_code, image_url)`)
         .eq('user_id', participant.user_id)
         .eq('is_equipped', true)
         .limit(4)
-      
+
       if (pinsData) {
         const pins = pinsData
-          .filter((item): item is typeof item & { shop_pins: { id: any; svg_code: any } } =>
+          .filter((item): item is typeof item & { shop_pins: { id: any; svg_code: any; image_url?: any } } =>
             item.shop_pins !== null && !Array.isArray(item.shop_pins)
           )
-          .map(item => ({ id: item.shop_pins.id, svg_code: item.shop_pins.svg_code }))
+          .map(item => ({
+            id: item.shop_pins.id,
+            svg_code: item.shop_pins.image_url || item.shop_pins.svg_code
+          }))
         setUserPins(pins)
       }
 
       const { data: frameData } = await supabase
         .from('user_frames')
-        .select(`frame_id, shop_frames (svg_code)`)
+        .select(`frame_id, shop_frames (svg_code, image_url)`)
         .eq('user_id', participant.user_id)
         .eq('is_equipped', true)
         .single()
-      
+
       if (frameData) {
         const shopFrames = frameData.shop_frames as any
-        if (shopFrames?.svg_code) setAvatarFrame(shopFrames.svg_code)
+        if (shopFrames?.image_url || shopFrames?.svg_code) {
+          setAvatarFrame(shopFrames.image_url || shopFrames.svg_code)
+        }
       }
 
       const { data: bannerData } = await supabase
         .from('user_banners')
-        .select(`banner_id, shop_banners (svg_code)`)
+        .select(`banner_id, shop_banners (svg_code, image_url)`)
         .eq('user_id', participant.user_id)
         .eq('is_equipped', true)
         .single()
-      
+
       if (bannerData) {
         const shopBanners = bannerData.shop_banners as any
-        if (shopBanners?.svg_code) setBannerSvg(shopBanners.svg_code)
+        if (shopBanners?.image_url || shopBanners?.svg_code) {
+          setBannerSvg(shopBanners.image_url || shopBanners.svg_code)
+        }
       }
     }
 
     loadUserData()
+  }, [participant.user_id, participant.is_bot])
+
+  // Subscription temps réel pour les cosmétiques
+  useEffect(() => {
+    if (participant.is_bot || !participant.user_id) return
+
+    const channel = supabase.channel(`battle-cosmetics-finished-${participant.user_id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'user_pins',
+        filter: `user_id=eq.${participant.user_id}`
+      }, () => {
+        // Recharger les pins
+        supabase
+          .from('user_pins')
+          .select(`pin_id, shop_pins (id, svg_code, image_url)`)
+          .eq('user_id', participant.user_id)
+          .eq('is_equipped', true)
+          .limit(4)
+          .then(({ data }) => {
+            if (data) {
+              const pins = data
+                .filter((item): item is typeof item & { shop_pins: { id: any; svg_code: any; image_url?: any } } =>
+                  item.shop_pins !== null && !Array.isArray(item.shop_pins)
+                )
+                .map(item => ({
+                  id: item.shop_pins.id,
+                  svg_code: item.shop_pins.image_url || item.shop_pins.svg_code
+                }))
+              setUserPins(pins)
+            }
+          })
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'user_frames',
+        filter: `user_id=eq.${participant.user_id}`
+      }, () => {
+        // Recharger le frame
+        supabase
+          .from('user_frames')
+          .select(`frame_id, shop_frames (svg_code, image_url)`)
+          .eq('user_id', participant.user_id)
+          .eq('is_equipped', true)
+          .single()
+          .then(({ data }) => {
+            if (data) {
+              const shopFrames = data.shop_frames as any
+              if (shopFrames?.image_url || shopFrames?.svg_code) {
+                setAvatarFrame(shopFrames.image_url || shopFrames.svg_code)
+              }
+            } else {
+              setAvatarFrame(null)
+            }
+          })
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'user_banners',
+        filter: `user_id=eq.${participant.user_id}`
+      }, () => {
+        // Recharger la bannière
+        supabase
+          .from('user_banners')
+          .select(`banner_id, shop_banners (svg_code, image_url)`)
+          .eq('user_id', participant.user_id)
+          .eq('is_equipped', true)
+          .single()
+          .then(({ data }) => {
+            if (data) {
+              const shopBanners = data.shop_banners as any
+              if (shopBanners?.image_url || shopBanners?.svg_code) {
+                setBannerSvg(shopBanners.image_url || shopBanners.svg_code)
+              }
+            } else {
+              setBannerSvg(null)
+            }
+          })
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [participant.user_id, participant.is_bot])
 
   return (
@@ -2730,10 +3296,13 @@ function FinishedResultCard({
     >
       {/* Bannière en fond */}
       {bannerSvg && (
-        <div 
-          className="absolute inset-0 opacity-40"
-          dangerouslySetInnerHTML={{ __html: bannerSvg }}
-        />
+        <div className="absolute inset-0 opacity-40">
+          {bannerSvg.startsWith('<') ? (
+            <div dangerouslySetInnerHTML={{ __html: sanitizeSvg(bannerSvg) }} />
+          ) : (
+            <img src={bannerSvg} alt="Banner" className="w-full h-full object-cover" />
+          )}
+        </div>
       )}
       
       {/* Fond dégradé */}
@@ -2781,16 +3350,21 @@ function FinishedResultCard({
             
             {/* Cadre SVG par-dessus */}
             {avatarFrame && (
-              <div 
+              <div
                 className="absolute pointer-events-none"
-                style={{ 
-                  top: '-4px', 
-                  left: '-4px', 
-                  width: isWinner ? '88px' : '62px', 
-                  height: isWinner ? '88px' : '62px' 
+                style={{
+                  top: '-4px',
+                  left: '-4px',
+                  width: isWinner ? '88px' : '62px',
+                  height: isWinner ? '88px' : '62px'
                 }}
-                dangerouslySetInnerHTML={{ __html: avatarFrame }}
-              />
+              >
+                {avatarFrame.startsWith('<') ? (
+                  <div dangerouslySetInnerHTML={{ __html: sanitizeSvg(avatarFrame) }} />
+                ) : (
+                  <img src={avatarFrame} alt="Frame" className="w-full h-full object-contain" />
+                )}
+              </div>
             )}
             
             {/* Badge Winner */}
@@ -2835,7 +3409,7 @@ function FinishedResultCard({
           {!participant.is_bot && (
             <div className="flex-shrink-0 flex items-center gap-1">
               {userPins.slice(0, 4).map((pin) => (
-                <motion.div 
+                <motion.div
                   key={pin.id}
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
@@ -2843,11 +3417,16 @@ function FinishedResultCard({
                   className={`rounded-md bg-black/40 border border-gray-600/30 flex items-center justify-center p-0.5 ${
                     isWinner ? 'h-10 w-10' : 'h-7 w-7'
                   }`}
-                  dangerouslySetInnerHTML={{ __html: pin.svg_code }}
-                />
+                >
+                  {pin.svg_code.startsWith('<') ? (
+                    <div dangerouslySetInnerHTML={{ __html: sanitizeSvg(pin.svg_code) }} />
+                  ) : (
+                    <img src={pin.svg_code} alt="Pin" className="w-full h-full object-contain" />
+                  )}
+                </motion.div>
               ))}
               {Array.from({ length: Math.max(0, 4 - userPins.length) }).map((_, i) => (
-                <div 
+                <div
                   key={`empty-${i}`}
                   className={`rounded-md bg-black/40 border border-gray-600/30 flex items-center justify-center ${
                     isWinner ? 'h-10 w-10' : 'h-7 w-7'
@@ -2955,7 +3534,8 @@ function PlayerProfileCard({
   price,
   team,
   isWinner,
-  totalGains
+  totalGains,
+  isJoining
 }: {
   participant: BattleParticipant | null | undefined
   totalValue: number
@@ -2968,6 +3548,7 @@ function PlayerProfileCard({
   team?: number | null
   isWinner?: boolean | null
   totalGains?: number | null
+  isJoining?: boolean
 }) {
   const [bannerSvg, setBannerSvg] = useState<string | null>(null)
   const [frameSvg, setFrameSvg] = useState<string | null>(null)
@@ -3011,30 +3592,94 @@ function PlayerProfileCard({
 
       const { data: bannerData } = await supabase
         .from('user_banners')
-        .select(`banner_id, shop_banners (svg_code)`)
+        .select(`banner_id, shop_banners (svg_code, image_url)`)
         .eq('user_id', participant.user_id)
         .eq('is_equipped', true)
         .single()
-      
+
       if (bannerData) {
         const shopBanners = bannerData.shop_banners as any
-        if (shopBanners?.svg_code) setBannerSvg(shopBanners.svg_code)
+        if (shopBanners?.image_url || shopBanners?.svg_code) {
+          setBannerSvg(shopBanners.image_url || shopBanners.svg_code)
+        }
       }
 
       const { data: frameData } = await supabase
         .from('user_frames')
-        .select(`frame_id, shop_frames (svg_code)`)
+        .select(`frame_id, shop_frames (svg_code, image_url)`)
         .eq('user_id', participant.user_id)
         .eq('is_equipped', true)
         .single()
-      
+
       if (frameData) {
         const shopFrames = frameData.shop_frames as any
-        if (shopFrames?.svg_code) setFrameSvg(shopFrames.svg_code)
+        if (shopFrames?.image_url || shopFrames?.svg_code) {
+          setFrameSvg(shopFrames.image_url || shopFrames.svg_code)
+        }
       }
     }
 
     loadUserData()
+  }, [participant])
+
+  // Subscription temps réel pour les cosmétiques
+  useEffect(() => {
+    if (!participant || participant.is_bot || !participant.user_id) return
+
+    const channel = supabase.channel(`battle-cosmetics-profile-${participant.user_id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'user_frames',
+        filter: `user_id=eq.${participant.user_id}`
+      }, () => {
+        // Recharger le frame
+        supabase
+          .from('user_frames')
+          .select(`frame_id, shop_frames (svg_code, image_url)`)
+          .eq('user_id', participant.user_id)
+          .eq('is_equipped', true)
+          .single()
+          .then(({ data }) => {
+            if (data) {
+              const shopFrames = data.shop_frames as any
+              if (shopFrames?.image_url || shopFrames?.svg_code) {
+                setFrameSvg(shopFrames.image_url || shopFrames.svg_code)
+              }
+            } else {
+              setFrameSvg(null)
+            }
+          })
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'user_banners',
+        filter: `user_id=eq.${participant.user_id}`
+      }, () => {
+        // Recharger la bannière
+        supabase
+          .from('user_banners')
+          .select(`banner_id, shop_banners (svg_code, image_url)`)
+          .eq('user_id', participant.user_id)
+          .eq('is_equipped', true)
+          .single()
+          .then(({ data }) => {
+            if (data) {
+              const shopBanners = data.shop_banners as any
+              if (shopBanners?.image_url || shopBanners?.svg_code) {
+                setBannerSvg(shopBanners.image_url || shopBanners.svg_code)
+              }
+            } else {
+              setBannerSvg(null)
+            }
+          })
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [participant])
 
   // Affichage pour slot vide
@@ -3095,18 +3740,25 @@ function PlayerProfileCard({
         {canJoin && onJoin && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-xl">
             <button
-              onClick={onJoin}
-              className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold rounded-xl hover:scale-105 transition-all shadow-lg shadow-emerald-500/30 flex flex-col items-center gap-2"
+              onClick={() => { playC5(); onJoin() }}
+              disabled={isJoining}
+              className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold rounded-xl hover:scale-105 transition-all shadow-lg shadow-emerald-500/30 flex flex-col items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
-              <span className="text-sm">Rejoindre pour</span>
-              <div className="flex items-center gap-2">
-                <img 
-                  src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/profile-images/favicon.ico.png" 
-                  className="w-5 h-5" 
-                  alt="coins"
-                />
-                <span className="text-xl font-black">{price}</span>
-              </div>
+              {isJoining ? (
+                <span className="text-sm">Chargement...</span>
+              ) : (
+                <>
+                  <span className="text-sm">Rejoindre pour</span>
+                  <div className="flex items-center gap-2">
+                    <img
+                      src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/profile-images/favicon.ico.png"
+                      className="w-5 h-5"
+                      alt="coins"
+                    />
+                    <span className="text-xl font-black">{price}</span>
+                  </div>
+                </>
+              )}
             </button>
           </div>
         )}
@@ -3115,7 +3767,7 @@ function PlayerProfileCard({
         {!canJoin && canAddBot && onAddBot && (
           <div className="absolute bottom-2 right-2">
             <button
-              onClick={() => onAddBot(team ?? undefined)}
+              onClick={() => { playFilterTick(); onAddBot(team ?? undefined) }}
               className="w-10 h-10 bg-[#4578be] rounded-lg hover:bg-[#5989d8] transition flex items-center justify-center shadow-lg"
             >
               <Bot className="w-5 h-5 text-white" />
@@ -3130,11 +3782,16 @@ function PlayerProfileCard({
     <div className="flex-shrink-0 rounded-xl overflow-hidden relative">
       {/* Bannière en fond */}
       {bannerSvg ? (
-        <div 
+        <div
           className="absolute inset-0 opacity-70"
-          dangerouslySetInnerHTML={{ __html: bannerSvg }}
           style={{ filter: 'brightness(0.6)' }}
-        />
+        >
+          {bannerSvg.startsWith('<') ? (
+            <div dangerouslySetInnerHTML={{ __html: sanitizeSvg(bannerSvg) }} />
+          ) : (
+            <img src={bannerSvg} alt="Banner" className="w-full h-full object-cover" />
+          )}
+        </div>
       ) : participant?.is_bot ? (
         // Bannière stylée pour les BOTS avec dégradé CYAN ÉLECTRIQUE + icons répartis partout
         <>
@@ -3337,10 +3994,13 @@ function PlayerProfileCard({
                   )}
                 </div>
                 {frameSvg && (
-                  <div 
-                    className="absolute inset-0 pointer-events-none"
-                    dangerouslySetInnerHTML={{ __html: frameSvg }}
-                  />
+                  <div className="absolute inset-0 pointer-events-none">
+                    {frameSvg.startsWith('<') ? (
+                      <div dangerouslySetInnerHTML={{ __html: sanitizeSvg(frameSvg) }} />
+                    ) : (
+                      <img src={frameSvg} alt="Frame" className="w-full h-full object-contain" />
+                    )}
+                  </div>
                 )}
                 {/* Badge niveau */}
                 {!participant.is_bot && (
@@ -3392,10 +4052,13 @@ function PlayerProfileCard({
                   )}
                 </div>
                 {frameSvg && (
-                  <div 
-                    className="absolute inset-0 pointer-events-none"
-                    dangerouslySetInnerHTML={{ __html: frameSvg }}
-                  />
+                  <div className="absolute inset-0 pointer-events-none">
+                    {frameSvg.startsWith('<') ? (
+                      <div dangerouslySetInnerHTML={{ __html: sanitizeSvg(frameSvg) }} />
+                    ) : (
+                      <img src={frameSvg} alt="Frame" className="w-full h-full object-contain" />
+                    )}
+                  </div>
                 )}
                 {/* Badge niveau */}
                 {!participant.is_bot && (
@@ -3834,7 +4497,7 @@ function EmptySlotCompact({
         
         {onJoin && (
           <button
-            onClick={onJoin}
+            onClick={() => { playC5(); onJoin() }}
             className="px-4 py-2 bg-gradient-to-r from-[#4578be] to-[#5989d8] text-white text-sm font-bold rounded-lg hover:scale-105 transition shadow-lg shadow-[#4578be]/50 flex items-center gap-2"
           >
             <span>Rejoindre pour</span>
@@ -3849,7 +4512,7 @@ function EmptySlotCompact({
         
         {onAddBot && (
           <button
-            onClick={() => onAddBot()}
+            onClick={() => { playFilterTick(); onAddBot() }}
             className="px-4 py-2 bg-gray-800 text-white text-sm font-bold rounded-lg hover:bg-gray-700 transition"
           >
             <Plus className="w-4 h-4 inline mr-1" />
@@ -4101,13 +4764,14 @@ function RouletteAnimationCompact({
 }
 
 // Composant WinnerDisplayCompact - Version améliorée
-function WinnerDisplayCompact({ 
-  winner, 
-  totalPrize 
-}: { 
+function WinnerDisplayCompact({
+  winner,
+  totalPrize
+}: {
   winner: BattleParticipant
   totalPrize: number
 }) {
+  const router = useRouter()
   const [showConfetti, setShowConfetti] = useState(true)
   
   return (
@@ -4206,7 +4870,7 @@ function WinnerDisplayCompact({
                   transition={{ delay: 0.6, type: "spring" }}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => window.location.reload()}
+                  onClick={() => { playC5(); window.location.reload() }}
                   className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white text-lg font-bold rounded-xl hover:shadow-lg hover:shadow-emerald-500/30 transition"
                 >
                   <Zap className="w-5 h-5 inline mr-2" />
@@ -4219,7 +4883,7 @@ function WinnerDisplayCompact({
                   transition={{ delay: 0.7, type: "spring" }}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => window.location.href = '/battles'}
+                  onClick={() => { playC5(); router.push('/battles') }}
                   className="px-6 py-3 bg-gradient-to-r from-[#4578be] to-[#5989d8] text-white text-lg font-bold rounded-xl hover:shadow-lg hover:shadow-[#4578be]/30 transition"
                 >
                   Retour aux battles
@@ -4230,5 +4894,264 @@ function WinnerDisplayCompact({
         </div>
       </div>
     </motion.div>
+  )
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// Composant InviteFriendsModal
+// ─────────────────────────────────────────────────────────────────────────────
+interface FriendEntry {
+  friendshipId: string
+  userId: string
+  username: string | null
+  avatar_url: string | null
+  level: number
+}
+
+function InviteFriendsModal({
+  isOpen,
+  onClose,
+  battleId,
+  currentUserId,
+  resolvedTheme,
+}: {
+  isOpen: boolean
+  onClose: () => void
+  battleId: string
+  currentUserId: string
+  resolvedTheme: string | undefined
+}) {
+  const [friends, setFriends] = useState<FriendEntry[]>([])
+  const [loadingFriends, setLoadingFriends] = useState(true)
+  const [invited, setInvited] = useState<Set<string>>(new Set())
+  const [inviting, setInviting] = useState<Set<string>>(new Set())
+  const isDark = resolvedTheme === 'dark'
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    const load = async () => {
+      setLoadingFriends(true)
+
+      const { data: friendships } = await supabase
+        .from('friendships')
+        .select('id, requester_id, addressee_id')
+        .or(`requester_id.eq.${currentUserId},addressee_id.eq.${currentUserId}`)
+        .eq('status', 'accepted')
+
+      if (!friendships?.length) {
+        setFriends([])
+        setLoadingFriends(false)
+        return
+      }
+
+      const friendIds = friendships.map(f =>
+        f.requester_id === currentUserId ? f.addressee_id : f.requester_id
+      )
+
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url, level')
+        .in('id', friendIds)
+
+      const { data: existingInvites } = await supabase
+        .from('battle_invitations')
+        .select('to_user_id')
+        .eq('battle_id', battleId)
+        .eq('from_user_id', currentUserId)
+        .eq('status', 'pending')
+
+      setInvited(new Set(existingInvites?.map((i: any) => i.to_user_id) || []))
+
+      const profileMap = new Map(profiles?.map((p: any) => [p.id, p]) || [])
+      setFriends(
+        friendships.map(f => {
+          const otherId = f.requester_id === currentUserId ? f.addressee_id : f.requester_id
+          const p = profileMap.get(otherId) as any
+          return {
+            friendshipId: f.id,
+            userId: otherId,
+            username: p?.username ?? null,
+            avatar_url: p?.avatar_url ?? null,
+            level: p?.level ?? 1,
+          }
+        })
+      )
+      setLoadingFriends(false)
+    }
+
+    load()
+  }, [isOpen, battleId, currentUserId])
+
+  const handleInvite = async (friendUserId: string) => {
+    if (inviting.has(friendUserId) || invited.has(friendUserId)) return
+    setInviting(prev => new Set([...prev, friendUserId]))
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+    const { error } = await supabase.from('battle_invitations').insert({
+      battle_id: battleId,
+      from_user_id: currentUserId,
+      to_user_id: friendUserId,
+      status: 'pending',
+      expires_at: expiresAt,
+    })
+    setInviting(prev => { const s = new Set(prev); s.delete(friendUserId); return s })
+    if (!error) {
+      setInvited(prev => new Set([...prev, friendUserId]))
+      try { playInviteSent() } catch {}
+    }
+  }
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.93, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.93, y: 20 }}
+            onClick={e => e.stopPropagation()}
+            className="w-full flex flex-col rounded-2xl overflow-hidden"
+            style={{
+              maxWidth: '400px',
+              maxHeight: '70vh',
+              background: isDark ? 'rgba(15,20,35,0.98)' : 'rgba(248,250,252,0.98)',
+              border: `1px solid ${isDark ? 'rgba(69,120,190,0.25)' : 'rgba(148,163,184,0.25)'}`,
+              boxShadow: '0 24px 60px rgba(0,0,0,0.5)',
+            }}
+          >
+            {/* Header */}
+            <div
+              className="px-5 py-4 flex items-center justify-between flex-shrink-0"
+              style={{
+                borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)'}`,
+                background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+              }}
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#4578be]/20 border border-[#4578be]/30">
+                  <UserPlus className="w-4 h-4 text-[#4578be]" />
+                </div>
+                <div>
+                  <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-800'}`}>
+                    Inviter des amis
+                  </h3>
+                  {!loadingFriends && (
+                    <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>
+                      {friends.length} ami{friends.length !== 1 ? 's' : ''} disponible{friends.length !== 1 ? 's' : ''}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className={`p-1.5 rounded-lg transition ${isDark ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-black/05 text-slate-500'}`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-3" style={{ scrollbarWidth: 'none' }}>
+              {loadingFriends ? (
+                <div className="flex flex-col gap-2">
+                  {[...Array(3)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-14 rounded-xl animate-pulse"
+                      style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }}
+                    />
+                  ))}
+                </div>
+              ) : friends.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <Users className={`w-10 h-10 mb-3 ${isDark ? 'text-gray-700' : 'text-slate-300'}`} />
+                  <p className={`text-sm font-medium ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>
+                    Aucun ami pour le moment
+                  </p>
+                  <p className={`text-xs mt-1 ${isDark ? 'text-gray-600' : 'text-slate-300'}`}>
+                    Ajoutez des amis depuis votre profil
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {friends.map((friend, i) => {
+                    const isInvited = invited.has(friend.userId)
+                    const isInviting = inviting.has(friend.userId)
+                    return (
+                      <motion.div
+                        key={friend.userId}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.04 }}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                        style={{
+                          background: isInvited
+                            ? isDark ? 'rgba(16,185,129,0.08)' : 'rgba(16,185,129,0.05)'
+                            : isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.025)',
+                          border: `1px solid ${isInvited
+                            ? isDark ? 'rgba(16,185,129,0.2)' : 'rgba(16,185,129,0.15)'
+                            : isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
+                        }}
+                      >
+                        <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 border border-[#4578be]/30">
+                          {friend.avatar_url ? (
+                            <img
+                              src={friend.avatar_url}
+                              alt={friend.username || ''}
+                              className="w-full h-full object-cover"
+                              onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png' }}
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-[#4578be]/30 flex items-center justify-center">
+                              <User className="w-4 h-4 text-[#4578be]" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-semibold truncate ${isDark ? 'text-white' : 'text-slate-800'}`}>
+                            {friend.username || 'Joueur'}
+                          </p>
+                          <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>
+                            Nv. {friend.level}
+                          </p>
+                        </div>
+                        <motion.button
+                          whileTap={!isInvited && !isInviting ? { scale: 0.93 } : {}}
+                          onClick={() => handleInvite(friend.userId)}
+                          disabled={isInvited || isInviting}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold flex-shrink-0 transition-all"
+                          style={{
+                            background: isInvited
+                              ? 'rgba(16,185,129,0.15)'
+                              : isDark ? 'rgba(69,120,190,0.2)' : 'rgba(69,120,190,0.1)',
+                            border: `1px solid ${isInvited ? 'rgba(16,185,129,0.3)' : 'rgba(69,120,190,0.35)'}`,
+                            color: isInvited ? '#10b981' : '#4578be',
+                            cursor: isInvited || isInviting ? 'default' : 'pointer',
+                          }}
+                        >
+                          {isInviting ? (
+                            <div className="w-3 h-3 border-2 border-[#4578be]/40 border-t-[#4578be] rounded-full animate-spin" />
+                          ) : isInvited ? (
+                            <><Check className="w-3 h-3" /><span>Invité</span></>
+                          ) : (
+                            <><UserPlus className="w-3 h-3" /><span>Inviter</span></>
+                          )}
+                        </motion.button>
+                      </motion.div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }

@@ -126,7 +126,7 @@ export default function CoinflipPage() {
   )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+    <div className="min-h-screen -mt-[80px] pt-[80px] bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
       {/* Header */}
       <div className="relative overflow-hidden border-b border-white/10">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-cyan-500/10 to-blue-500/10" />

@@ -4,6 +4,403 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef } f
 import { createClient, resetSupabaseInstance } from '@/utils/supabase/client'
 import type { User, Session } from '@supabase/supabase-js'
 import { calculateLevel } from '@/lib/xp-system'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useRouter } from 'next/navigation'
+
+// ─── Sons ────────────────────────────────────────────────────────
+const playLevelUp = () => {
+  const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+  const now = audioCtx.currentTime
+  const reverbBuf = audioCtx.createBuffer(2, Math.floor(audioCtx.sampleRate * 1.4), audioCtx.sampleRate)
+  for (let ch = 0; ch < 2; ch++) {
+    const d = reverbBuf.getChannelData(ch)
+    for (let i = 0; i < d.length; i++)
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.5)
+  }
+  const reverb = audioCtx.createConvolver(); reverb.buffer = reverbBuf
+  const master = audioCtx.createGain(); master.gain.value = 0.8; master.connect(audioCtx.destination)
+  const wet = audioCtx.createGain(); wet.gain.value = 0.4
+  reverb.connect(wet); wet.connect(master)
+  const note = (freq: number, delay: number, dur: number, gain: number) => {
+    const o = audioCtx.createOscillator(); const g = audioCtx.createGain()
+    o.type = 'sine'; o.frequency.value = freq
+    g.gain.setValueAtTime(0, now + delay)
+    g.gain.linearRampToValueAtTime(gain, now + delay + 0.008)
+    g.gain.exponentialRampToValueAtTime(0.0001, now + delay + dur)
+    o.connect(g); g.connect(master); g.connect(reverb)
+    o.start(now + delay); o.stop(now + delay + dur + 0.05)
+  }
+  const notes = [392, 523, 659, 784, 880, 1047]
+  notes.forEach((freq, i) => {
+    note(freq, i * 0.07, 0.065, 0.14 + i * 0.01)
+    note(freq, i * 0.07, 0.35 + i * 0.05, 0.05)
+  })
+}
+
+const playPopOff = () => {
+  const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+  const now = audioCtx.currentTime
+  const reverbBuf = audioCtx.createBuffer(2, Math.floor(audioCtx.sampleRate * 1.4), audioCtx.sampleRate)
+  for (let ch = 0; ch < 2; ch++) {
+    const d = reverbBuf.getChannelData(ch)
+    for (let i = 0; i < d.length; i++)
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.5)
+  }
+  const reverb = audioCtx.createConvolver(); reverb.buffer = reverbBuf
+  const master = audioCtx.createGain(); master.gain.value = 0.8; master.connect(audioCtx.destination)
+  const wet = audioCtx.createGain(); wet.gain.value = 0.4
+  reverb.connect(wet); wet.connect(master)
+  const o = audioCtx.createOscillator(); const g = audioCtx.createGain()
+  o.type = 'sine'; o.frequency.value = 880
+  g.gain.setValueAtTime(0, now)
+  g.gain.linearRampToValueAtTime(0.2, now + 0.008)
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.035)
+  o.connect(g); g.connect(master); g.connect(reverb)
+  o.start(now); o.stop(now + 0.1)
+}
+
+const playConfirmSelect = () => {
+  const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+  const now = audioCtx.currentTime
+  const reverbBuf = audioCtx.createBuffer(2, Math.floor(audioCtx.sampleRate * 1.4), audioCtx.sampleRate)
+  for (let ch = 0; ch < 2; ch++) {
+    const d = reverbBuf.getChannelData(ch)
+    for (let i = 0; i < d.length; i++)
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.5)
+  }
+  const reverb = audioCtx.createConvolver(); reverb.buffer = reverbBuf
+  const master = audioCtx.createGain(); master.gain.value = 0.8; master.connect(audioCtx.destination)
+  const wet = audioCtx.createGain(); wet.gain.value = 0.4
+  reverb.connect(wet); wet.connect(master)
+  const note = (freq: number, delay: number, dur: number, gain: number) => {
+    const o = audioCtx.createOscillator(); const g = audioCtx.createGain()
+    o.type = 'sine'; o.frequency.value = freq
+    g.gain.setValueAtTime(0, now + delay)
+    g.gain.linearRampToValueAtTime(gain, now + delay + 0.008)
+    g.gain.exponentialRampToValueAtTime(0.0001, now + delay + dur)
+    o.connect(g); g.connect(master); g.connect(reverb)
+    o.start(now + delay); o.stop(now + delay + dur + 0.05)
+  }
+  note(523,  0,    0.06, 0.15)
+  note(784,  0.05, 0.06, 0.17)
+  note(1047, 0.10, 0.07, 0.20)
+  note(1047, 0.10, 0.5,  0.09)
+}
+
+// ─── Notification level-up simple ────────────────────────────────
+function LevelUpNotification({ level, onDone }: { level: number; onDone: () => void }) {
+  useEffect(() => {
+    playLevelUp()
+    const t = setTimeout(onDone, 3800)
+    return () => clearTimeout(t)
+  }, [onDone])
+
+  return (
+    <motion.div
+      initial={{ x: -120, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: -120, opacity: 0 }}
+      transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+      style={{
+        position: 'fixed', bottom: 24, left: 24, zIndex: 9999,
+        minWidth: 280, maxWidth: 340, borderRadius: 12,
+        background: 'linear-gradient(135deg, #0d2318 0%, #0a1f14 100%)',
+        border: '1px solid rgba(34, 197, 94, 0.35)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.45), 0 0 24px rgba(34,197,94,0.12)',
+        overflow: 'hidden',
+      }}
+    >
+      <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{
+          width: 38, height: 38, borderRadius: 8, flexShrink: 0,
+          background: 'rgba(34, 197, 94, 0.15)',
+          border: '1px solid rgba(34, 197, 94, 0.3)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18
+        }}>🏆</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ color: '#fff', fontWeight: 600, fontSize: 14 }}>Niveau {level} atteint !</div>
+          <div style={{ color: 'rgba(148,163,184,0.85)', fontSize: 12, marginTop: 2 }}>Félicitations</div>
+        </div>
+        <div style={{
+          width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+          background: 'rgba(34, 197, 94, 0.2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M2 6l3 3 5-5" stroke="#22c55e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+      </div>
+      <motion.div
+        initial={{ scaleX: 1 }} animate={{ scaleX: 0 }}
+        transition={{ duration: 3.5, ease: 'linear' }}
+        style={{ height: 3, background: 'linear-gradient(90deg, #16a34a, #22c55e)', transformOrigin: 'left' }}
+      />
+    </motion.div>
+  )
+}
+
+// ─── Notification freedrop débloquée ─────────────────────────────
+interface FreedropBox { id: string; name: string; image_url: string; required_level: number }
+
+function FreedropUnlockedNotification({ box, onDone }: { box: FreedropBox; onDone: () => void }) {
+  const router = useRouter()
+
+  useEffect(() => {
+    playLevelUp()
+  }, [])
+
+  const handleOpen = () => {
+    playConfirmSelect()
+    router.push(`/freedrop/${box.id}`)
+    onDone()
+  }
+
+  const handleLater = () => {
+    playPopOff()
+    onDone()
+  }
+
+  return (
+    <motion.div
+      initial={{ x: -400, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: -400, opacity: 0 }}
+      transition={{ type: 'spring', stiffness: 280, damping: 26 }}
+      style={{
+        position: 'fixed', bottom: 24, left: 24, zIndex: 9999,
+        width: 420, borderRadius: 16,
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)',
+        border: '1px solid rgba(139, 92, 246, 0.4)',
+        boxShadow: '0 12px 48px rgba(0,0,0,0.6), 0 0 40px rgba(139,92,246,0.15)',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Ligne déco top */}
+      <div style={{
+        height: 2,
+        background: 'linear-gradient(90deg, transparent, #8b5cf6, #a78bfa, #8b5cf6, transparent)'
+      }} />
+
+      <div style={{ display: 'flex', alignItems: 'stretch' }}>
+        {/* Image caisse — côté gauche */}
+        <div style={{
+          width: 110, flexShrink: 0,
+          background: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(109,40,217,0.1))',
+          borderRight: '1px solid rgba(139,92,246,0.2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '16px 8px', position: 'relative', overflow: 'hidden'
+        }}>
+          {/* Glow derrière l'image */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'radial-gradient(circle at center, rgba(139,92,246,0.25) 0%, transparent 70%)'
+          }} />
+          <motion.img
+            src={box.image_url || '/placeholder.png'}
+            alt={box.name}
+            animate={{ y: [0, -4, 0] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ width: 80, height: 80, objectFit: 'contain', position: 'relative', zIndex: 1,
+              filter: 'drop-shadow(0 0 12px rgba(139,92,246,0.5))'
+            }}
+          />
+        </div>
+
+        {/* Contenu — côté droit */}
+        <div style={{ flex: 1, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* Badge niveau */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+              padding: '2px 8px', borderRadius: 20,
+              background: 'rgba(139,92,246,0.25)',
+              border: '1px solid rgba(139,92,246,0.4)',
+              color: '#a78bfa'
+            }}>NIVEAU {box.required_level}</span>
+            <span style={{ fontSize: 10, color: 'rgba(148,163,184,0.6)' }}>DÉBLOQUÉ</span>
+          </div>
+
+          {/* Titre */}
+          <div>
+            <div style={{ color: '#fff', fontWeight: 700, fontSize: 15, lineHeight: 1.2 }}>
+              Caisse débloquée !
+            </div>
+            <div style={{ color: '#a78bfa', fontWeight: 600, fontSize: 13, marginTop: 3 }}>
+              {box.name}
+            </div>
+          </div>
+
+          {/* Boutons */}
+          <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+            <motion.button
+              whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+              onClick={handleOpen}
+              style={{
+                flex: 1, padding: '7px 0', borderRadius: 8, border: 'none', cursor: 'pointer',
+                background: 'linear-gradient(135deg, #7c3aed, #8b5cf6)',
+                color: '#fff', fontWeight: 700, fontSize: 12,
+                boxShadow: '0 4px 12px rgba(124,58,237,0.4)'
+              }}
+            >
+              Ouvrir maintenant
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+              onClick={handleLater}
+              style={{
+                padding: '7px 14px', borderRadius: 8, cursor: 'pointer',
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                color: 'rgba(148,163,184,0.9)', fontWeight: 600, fontSize: 12
+              }}
+            >
+              Plus tard
+            </motion.button>
+          </div>
+        </div>
+      </div>
+
+      {/* Barre progression */}
+      <motion.div
+        initial={{ scaleX: 1 }} animate={{ scaleX: 0 }}
+        transition={{ duration: 15, ease: 'linear' }}
+        style={{ height: 3, background: 'linear-gradient(90deg, #7c3aed, #a78bfa)', transformOrigin: 'left' }}
+      />
+    </motion.div>
+  )
+}
+
+// ─── Notification chat débloqué (niveau 2) ────────────────────────
+function ChatUnlockedNotification({ onDone }: { onDone: () => void }) {
+  const router = useRouter()
+
+  useEffect(() => {
+    const t = setTimeout(onDone, 15000)
+    return () => clearTimeout(t)
+  }, [onDone])
+
+  const handleOpen = () => {
+    playConfirmSelect()
+    onDone()
+    // Le chat est en bas à droite, pas besoin de redirect
+  }
+
+  const handleLater = () => {
+    playPopOff()
+    onDone()
+  }
+
+  return (
+    <motion.div
+      initial={{ x: 400, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: 400, opacity: 0 }}
+      transition={{ type: 'spring', stiffness: 280, damping: 26 }}
+      style={{
+        position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
+        width: 380, borderRadius: 16,
+        background: 'linear-gradient(135deg, #0f172a 0%, #172554 50%, #0f172a 100%)',
+        border: '1px solid rgba(59, 130, 246, 0.4)',
+        boxShadow: '0 12px 48px rgba(0,0,0,0.6), 0 0 40px rgba(59,130,246,0.15)',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Ligne déco top */}
+      <div style={{
+        height: 2,
+        background: 'linear-gradient(90deg, transparent, #3b82f6, #60a5fa, #3b82f6, transparent)'
+      }} />
+
+      <div style={{ display: 'flex', alignItems: 'stretch' }}>
+        {/* Icône chat — côté droit */}
+        <div style={{
+          width: 100, flexShrink: 0,
+          background: 'linear-gradient(135deg, rgba(59,130,246,0.2), rgba(37,99,235,0.1))',
+          borderRight: '1px solid rgba(59,130,246,0.2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '16px 8px', position: 'relative', overflow: 'hidden'
+        }}>
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'radial-gradient(circle at center, rgba(59,130,246,0.25) 0%, transparent 70%)'
+          }} />
+          <motion.div
+            animate={{ scale: [1, 1.08, 1] }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ position: 'relative', zIndex: 1 }}
+          >
+            {/* Icône chat SVG */}
+            <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+              <circle cx="28" cy="28" r="28" fill="rgba(59,130,246,0.15)"/>
+              <path d="M14 18C14 15.8 15.8 14 18 14H38C40.2 14 42 15.8 42 18V32C42 34.2 40.2 36 38 36H30L22 42V36H18C15.8 36 14 34.2 14 32V18Z"
+                fill="#3b82f6" opacity="0.9"/>
+              <circle cx="22" cy="25" r="2.5" fill="white"/>
+              <circle cx="28" cy="25" r="2.5" fill="white"/>
+              <circle cx="34" cy="25" r="2.5" fill="white"/>
+            </svg>
+          </motion.div>
+        </div>
+
+        {/* Contenu */}
+        <div style={{ flex: 1, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+              padding: '2px 8px', borderRadius: 20,
+              background: 'rgba(59,130,246,0.25)',
+              border: '1px solid rgba(59,130,246,0.4)',
+              color: '#60a5fa'
+            }}>NIVEAU 2</span>
+            <span style={{ fontSize: 10, color: 'rgba(148,163,184,0.6)' }}>DÉBLOQUÉ</span>
+          </div>
+
+          <div>
+            <div style={{ color: '#fff', fontWeight: 700, fontSize: 15, lineHeight: 1.2 }}>
+              Chat communautaire !
+            </div>
+            <div style={{ color: '#93c5fd', fontSize: 12, marginTop: 3, lineHeight: 1.4 }}>
+              Bonne discussion avec les autres joueurs 💬
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+            <motion.button
+              whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+              onClick={handleOpen}
+              style={{
+                flex: 1, padding: '7px 0', borderRadius: 8, border: 'none', cursor: 'pointer',
+                background: 'linear-gradient(135deg, #1d4ed8, #3b82f6)',
+                color: '#fff', fontWeight: 700, fontSize: 12,
+                boxShadow: '0 4px 12px rgba(29,78,216,0.4)'
+              }}
+            >
+              Ouvrir le chat
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+              onClick={handleLater}
+              style={{
+                padding: '7px 14px', borderRadius: 8, cursor: 'pointer',
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                color: 'rgba(148,163,184,0.9)', fontWeight: 600, fontSize: 12
+              }}
+            >
+              Plus tard
+            </motion.button>
+          </div>
+        </div>
+      </div>
+
+      <motion.div
+        initial={{ scaleX: 1 }} animate={{ scaleX: 0 }}
+        transition={{ duration: 15, ease: 'linear' }}
+        style={{ height: 3, background: 'linear-gradient(90deg, #1d4ed8, #60a5fa)', transformOrigin: 'left' }}
+      />
+    </motion.div>
+  )
+}
 
 interface Profile {
   id: string
@@ -46,16 +443,27 @@ interface AuthContextType {
   updateProfile: (updates: Partial<Profile>) => Promise<void>
   signOut: () => Promise<void>
   isAuthenticated: boolean
+  streakLostDays: number
+  clearStreakLost: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [streakLostDays, setStreakLostDays] = useState(0)
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [profileLoading, setProfileLoading] = useState(false)
+  const [levelUpNotif, setLevelUpNotif] = useState<number | null>(null)
+  const [freedropNotif, setFreedropNotif] = useState<FreedropBox | null>(null)
+  const [chatNotif, setChatNotif] = useState(false)
+  const lastNotifiedLevelRef = useRef<number>(
+    typeof window !== 'undefined'
+      ? parseInt(localStorage.getItem('reveelbox_last_notified_level') || '0', 10)
+      : 0
+  )
   
   const supabaseRef = useRef(createClient())
   const initializingRef = useRef(false)
@@ -262,6 +670,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (!profileCacheRef.current || profileCacheRef.current.userId !== newSession.user.id) {
               await loadProfile(newSession.user.id)
             }
+
+            // Mise à jour de la flamme quotidienne (système Snapchat)
+            if (event === 'SIGNED_IN') {
+              supabaseRef.current.rpc('update_streak', { p_user_id: newSession.user.id })
+                .then(({ data }) => {
+                  if (data?.action === 'incremented') {
+                    console.log('🔥 Streak +1 :', data.streak)
+                  } else if (data?.action === 'reset') {
+                    console.log('💔 Streak reset, jours perdus :', data.days_lost)
+                  }
+                })
+            }
+
             setLoading(false)
           }
         }, 100)
@@ -339,6 +760,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const enrichedProfile = enrichProfileWithXP(payload.new)
           setProfile(enrichedProfile)
           profileCacheRef.current = { userId: user.id, profile: enrichedProfile }
+
+          // Détecter le level-up en comparant directement les total_exp
+          const oldLevel = calculateLevel(payload.old?.total_exp || 0)
+          const newLevel = calculateLevel(payload.new?.total_exp || 0)
+
+          // Ne notifier qu'une seule fois par niveau
+          if (newLevel > oldLevel && newLevel > lastNotifiedLevelRef.current) {
+            lastNotifiedLevelRef.current = newLevel
+            localStorage.setItem('reveelbox_last_notified_level', String(newLevel))
+
+            // Vérifier si une caisse freedrop est débloquée à ce niveau
+            try {
+              const { data: freedropBox } = await supabaseRef.current
+                .from('loot_boxes')
+                .select('id, name, image_url, required_level')
+                .eq('required_level', newLevel)
+                .limit(1)
+                .single()
+
+              if (freedropBox) {
+                // Niveau avec freedrop → seulement la notif caisse (pas level-up)
+                setFreedropNotif(freedropBox)
+                // Niveau 2 → aussi la notif chat (après la caisse)
+                if (newLevel === 2) {
+                  setTimeout(() => setChatNotif(true), 100)
+                }
+              } else {
+                // Niveau sans freedrop → notif level-up simple
+                setLevelUpNotif(newLevel)
+              }
+            } catch {
+              // En cas d'erreur DB → notif level-up simple par défaut
+              setLevelUpNotif(newLevel)
+            }
+          }
         }
       )
       .subscribe()
@@ -347,6 +803,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       channel.unsubscribe()
     }
   }, [user?.id])
+
+  const clearStreakLost = useCallback(() => setStreakLostDays(0), [])
 
   const refreshProfile = useCallback(async () => {
     if (!user) return
@@ -404,6 +862,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('supabase.auth.token')
         localStorage.removeItem('redirectAfterLogin')
         localStorage.removeItem('redirectAfterSignup')
+        localStorage.removeItem('reveelbox_last_notified_level')
+        lastNotifiedLevelRef.current = 0
       }
     } catch (error) {
       console.error('Erreur signOut:', error)
@@ -419,14 +879,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     profileLoading,
     refreshProfile,
+    streakLostDays,
+    clearStreakLost,
     updateProfile,
     signOut,
     isAuthenticated: !!user && !!session
-  }), [user, session, profile, loading, profileLoading, refreshProfile, updateProfile, signOut])
+  }), [user, session, profile, loading, profileLoading, refreshProfile, updateProfile, signOut, streakLostDays, clearStreakLost])
 
   return (
     <AuthContext.Provider value={contextValue()}>
       {children}
+      <AnimatePresence>
+        {levelUpNotif !== null && (
+          <LevelUpNotification
+            key={levelUpNotif}
+            level={levelUpNotif}
+            onDone={() => setLevelUpNotif(null)}
+          />
+        )}
+        {freedropNotif !== null && (
+          <FreedropUnlockedNotification
+            key={freedropNotif.id}
+            box={freedropNotif}
+            onDone={() => setFreedropNotif(null)}
+          />
+        )}
+        {chatNotif && (
+          <ChatUnlockedNotification
+            key="chat-unlocked"
+            onDone={() => setChatNotif(false)}
+          />
+        )}
+      </AnimatePresence>
     </AuthContext.Provider>
   )
 }

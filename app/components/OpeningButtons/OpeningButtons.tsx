@@ -41,11 +41,11 @@ export function OpeningButtons({
   })
 
   return (
-    <div className={`flex flex-col items-center gap-6 ${className}`}>
-      
+    <div className={`flex flex-col items-center gap-3 ${className}`}>
+
 
       {/* Boutons principaux - Layout horizontal minimaliste */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         
         {/* Bouton principal d'ouverture */}
         <motion.button
@@ -54,8 +54,8 @@ export function OpeningButtons({
           whileHover={!isDisabled && canAfford ? { scale: 1.02 } : {}}
           whileTap={!isDisabled && canAfford ? { scale: 0.98 } : {}}
           className={`
-            relative px-12 py-4 rounded-2xl font-bold text-lg
-            transition-all duration-300 min-w-[280px] overflow-hidden
+            relative px-8 py-3 rounded-2xl font-bold text-base
+            transition-all duration-300 min-w-[240px] overflow-hidden
             ${canAfford && !isDisabled
               ? 'text-white shadow-lg hover:shadow-2xl cursor-pointer hybrid-btn-primary-gradient'
               : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed border-2 border-gray-200 dark:border-gray-700'
@@ -77,11 +77,11 @@ export function OpeningButtons({
           )}
 
           {/* Contenu du bouton */}
-          <div className="relative z-10 flex items-center justify-center gap-5">
+          <div className="relative z-10 flex items-center justify-center gap-3">
             {isLoading ? (
               <>
                 <motion.div
-                  className="w-8 h-8 border-2 border-white border-t-transparent rounded-full"
+                  className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
                   animate={{ rotate: 360 }}
                   transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                 />
@@ -90,7 +90,7 @@ export function OpeningButtons({
             ) : (
               <>
                 <span>Open Box</span>
-                <div className={`flex items-center gap-1 px-2 py-1 rounded-lg ${
+                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-lg ${
                   canAfford && !isDisabled
                     ? 'bg-white/20'
                     : 'bg-gray-200 dark:bg-gray-700'
@@ -98,9 +98,9 @@ export function OpeningButtons({
                   <motion.img
                     src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
                     alt="Coins"
-                    className={`w-6 h-6 object-contain ${canAfford && !isDisabled ? 'opacity-100' : 'opacity-50'}`}
+                    className={`w-5 h-5 object-contain ${canAfford && !isDisabled ? 'opacity-100' : 'opacity-50'}`}
                   />
-                  <span className="font-black text-base">
+                  <span className="font-black text-sm">
                     {boxPrice.toLocaleString()}
                   </span>
                 </div>
@@ -116,7 +116,7 @@ export function OpeningButtons({
           whileHover={!isDisabled ? { scale: 1.05 } : {}}
           whileTap={!isDisabled ? { scale: 0.95 } : {}}
           className={`
-            px-6 py-4 rounded-2xl font-medium text-lg
+            px-5 py-3 rounded-2xl font-medium text-base
             transition-all duration-300
             ${!isDisabled
               ? 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
@@ -134,7 +134,7 @@ export function OpeningButtons({
           whileHover={!isDisabled ? { scale: 1.1 } : {}}
           whileTap={!isDisabled ? { scale: 0.9 } : {}}
           className={`
-            w-14 h-14 rounded-xl transition-all duration-300
+            w-12 h-12 rounded-xl transition-all duration-300
             flex items-center justify-center border-2
             ${fastMode && !isDisabled
               ? 'text-white shadow-lg hybrid-btn-secondary-gradient border-transparent'
@@ -154,7 +154,7 @@ export function OpeningButtons({
               duration: 0.3 
             }}
           >
-            <Zap size={18} />
+            <Zap size={16} />
           </motion.div>
         </motion.button>
       </div>
@@ -181,8 +181,8 @@ export function OpeningButtons({
         )}
 
         {/* Barre de progression hybrid */}
-        <div className="mt-3 w-64 mx-auto">
-          <div className="h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden border border-gray-300 dark:border-gray-700">
+        <div className="mt-2 w-56 mx-auto">
+          <div className="h-1 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden border border-gray-300 dark:border-gray-700">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${Math.min((userCoins / boxPrice) * 100, 100)}%` }}

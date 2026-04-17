@@ -343,7 +343,7 @@ export default function RevealBoxMines() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 py-8 px-4">
+    <div className="min-h-screen -mt-[80px] pt-[100px] bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 pb-8 px-4">
       <Toaster position="top-center" />
       
       {/* Modal de résultat */}

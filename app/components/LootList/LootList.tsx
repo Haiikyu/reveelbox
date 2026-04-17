@@ -6,46 +6,42 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Coins, Percent } from 'lucide-react'
+import { useTheme } from '@/app/components/ThemeProvider'
 // ✅ IMPORT CORRIGÉ - Utilise le type du service
 import type { FreedropItem } from '@/lib/services/freedrop'
 
 interface LootListProps {
   items: FreedropItem[]
+  onItemClick?: (item: FreedropItem) => void
   className?: string
 }
 
-export function LootList({ items, className = '' }: LootListProps) {
-  // Fonction pour obtenir la couleur de rareté - memoized
+export function LootList({ items, onItemClick, className = '' }: LootListProps) {
   const getRarityGlow = useCallback((rarity: string) => {
     const glows = {
       common: '#10b981',
       uncommon: '#3b82f6',
-      rare: '#8b5cf6', 
+      rare: '#8b5cf6',
       epic: '#d946ef',
       legendary: '#f59e0b'
     }
     return glows[rarity.toLowerCase() as keyof typeof glows] || glows.common
   }, [])
 
-  // Trier les items par valeur décroissante - memoized
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => b.market_value - a.market_value)
   }, [items])
 
   return (
     <div className={className}>
-      {/* Grid des objets - identique au style /boxes */}
       <motion.div
         initial={{ opacity: 0 }}
-        animate={{ 
+        whileInView={{
           opacity: 1,
-          transition: {
-            delayChildren: 0.1,
-            staggerChildren: 0.05
-          }
+          transition: { delayChildren: 0.05, staggerChildren: 0.03 }
         }}
-        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8"
+        viewport={{ once: true, margin: '-40px' }}
+        className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-2 sm:gap-2.5"
       >
         {sortedItems.map((item, index) => (
           <LootItemCard
@@ -53,6 +49,7 @@ export function LootList({ items, className = '' }: LootListProps) {
             item={item}
             index={index}
             getRarityGlow={getRarityGlow}
+            onClick={() => onItemClick?.(item)}
           />
         ))}
       </motion.div>
@@ -60,156 +57,92 @@ export function LootList({ items, className = '' }: LootListProps) {
   )
 }
 
-// Composant LootItemCard - hover uniforme pour tous
 interface LootItemCardProps {
   item: FreedropItem
   index: number
   getRarityGlow: (rarity: string) => string
+  onClick?: () => void
 }
 
-function LootItemCard({ item, index, getRarityGlow }: LootItemCardProps) {
+function LootItemCard({ item, index, getRarityGlow, onClick }: LootItemCardProps) {
   const glowColor = getRarityGlow(item.rarity)
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
   const [isHovered, setIsHovered] = useState(false)
 
-  // Callbacks optimisés pour éviter les re-renders
   const handleHoverStart = useCallback(() => setIsHovered(true), [])
   const handleHoverEnd = useCallback(() => setIsHovered(false), [])
 
   return (
     <motion.div
-      initial={{ 
-        opacity: 0, 
-        y: 50, 
-        rotateY: -10 
-      }}
-      animate={{
-        opacity: 1,
-        y: 0,
-        rotateY: 0,
-      }}
+      initial={{ opacity: 0, y: 12 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-20px' }}
       transition={{
-        duration: 0.6,
+        duration: 0.4,
         ease: [0.25, 0.46, 0.45, 0.94],
-        delay: Math.min(index * 0.05, 0.5)
+        delay: Math.min(index * 0.025, 0.3)
       }}
-      whileHover={{ 
-        y: -20,
-        rotateY: 15,
-        rotateX: -5,
-        scale: 1.05,
-        transition: { 
-          duration: 0.2,
-          ease: "easeOut"
-        }
+      whileHover={{
+        y: -8,
+        scale: 1.04,
+        transition: { duration: 0.2, ease: "easeOut" }
       }}
       onHoverStart={handleHoverStart}
       onHoverEnd={handleHoverEnd}
-      className="group cursor-pointer"
-      style={{ 
-        perspective: '1000px',
-        transform: 'translateZ(0)',
-        willChange: 'transform'
-      }}
+      onClick={onClick}
+      className="cursor-pointer py-2"
+      style={{ transform: 'translateZ(0)' }}
     >
-      <motion.div className="relative">
-        
-
-        {/* Ombre dynamique */}
-        <motion.div
-          className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-24 h-6 bg-black/10 dark:bg-black/20 rounded-full blur-lg transition-colors"
+      {/* Image flottante - pas de container */}
+      <div className="relative mb-2">
+        <motion.img
+          src={item.image_url || 'https://via.placeholder.com/200x200/F3F4F6/9CA3AF?text=Item'}
+          alt={item.name}
+          className="w-full h-14 sm:h-16 md:h-[72px] object-contain"
           animate={{
-            scale: isHovered ? 1.5 : 1,
-            opacity: isHovered ? 0.3 : 0.1
+            filter: isHovered
+              ? `drop-shadow(0 8px 20px ${glowColor}35) brightness(1.06)`
+              : 'drop-shadow(0 2px 8px rgba(0,0,0,0.06)) brightness(1)'
           }}
-          transition={{ 
-            duration: 0.2,
-            ease: "easeOut" 
+          transition={{ duration: 0.2 }}
+          loading="lazy"
+          style={{ transform: 'translateZ(0)' }}
+          onError={(e) => {
+            const target = e.target as HTMLImageElement
+            target.src = 'https://via.placeholder.com/200x200/F3F4F6/9CA3AF?text=Item'
           }}
         />
+      </div>
 
-        {/* Container principal */}
-        <div className="">
-          
-          {/* Image de l'objet */}
-          <div className="relative mb-4">
-            <motion.img
-              src={item.image_url || 'https://via.placeholder.com/200x200/F3F4F6/9CA3AF?text=Item'}
-              alt={item.name}
-              className="w-full h-32 object-contain drop-shadow-lg"
-              animate={{
-                filter: isHovered 
-                  ? `drop-shadow(0 25px 50px ${glowColor}40) brightness(1.1)`
-                  : 'drop-shadow(0 10px 25px rgba(0,0,0,0.15)) brightness(1)'
-              }}
-              transition={{ 
-                duration: 0.2,
-                ease: "easeOut" 
-              }}
-              loading="lazy"
-              style={{
-                transform: 'translateZ(0)',
-                backfaceVisibility: 'hidden'
-              }}
-              onError={(e) => {
-                const target = e.target as HTMLImageElement
-                target.src = 'https://via.placeholder.com/200x200/F3F4F6/9CA3AF?text=Item'
-              }}
-            />
-          </div>
+      {/* Petit dot de rareté */}
+      <div className="flex justify-center mb-1.5">
+        <div
+          className="w-4 h-[1.5px] rounded-full"
+          style={{ backgroundColor: glowColor, opacity: isHovered ? 0.8 : 0.3 }}
+        />
+      </div>
 
-          {/* Informations */}
-          <motion.div
-            className="text-center"
-            animate={{
-              y: isHovered ? -5 : 0
-            }}
-            transition={{ 
-              duration: 0.2,
-              ease: "easeOut" 
-            }}
-          >
-            {/* Nom de l'objet */}
-            <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3 truncate transition-colors leading-tight px-2">
-              {item.name}
-            </h3>
+      {/* Infos minimales */}
+      <div className="text-center">
+        <h3 className="text-[10px] sm:text-xs font-medium mb-0.5 line-clamp-1 leading-tight" style={{ color: isDark ? '#C0B8AD' : 'rgba(0,0,0,0.5)' }}>
+          {item.name}
+        </h3>
 
-            {/* Valeur et probabilité */}
-            <div className="space-y-1 mb-2">
-              {/* Valeur en coins - affichage simple */}
-              <div className="flex items-center justify-center gap-1">
-                <img
-                  src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
-                  alt="Coins"
-                  className="w-5 h-5 object-contain"
-                />
-                <span
-                  className="text-lg font-black transition-colors"
-                  style={{ color: 'var(--hybrid-accent-primary)' }}
-                >
-                  {item.market_value.toLocaleString()}
-                </span>
-              </div>
-
-              {/* Pourcentage de chance avec couleur de rareté */}
-              <div className="flex items-center justify-center gap-2">
-                <Percent
-                  size={14}
-                  style={{ color: glowColor, opacity: 0 }}
-                />
-                <span
-                  className="text-sm font-bold transition-colors"
-                  style={{ color: glowColor }}
-                >
-                  {item.probability.toLocaleString("en-US", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 6
-                  })}%
-                </span>
-              </div>
-            </div>
-          </motion.div>
+        <div className="flex items-center justify-center gap-0.5">
+          <img
+            src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
+            alt="Coins"
+            className="w-2.5 h-2.5 object-contain opacity-60"
+          />
+          <span className="text-[9px] sm:text-[10px] font-semibold" style={{ color: isDark ? '#969087' : 'rgba(0,0,0,0.4)' }}>
+            {item.market_value.toLocaleString()}
+          </span>
+          <span className="text-[7px] sm:text-[8px] font-medium ml-0.5" style={{ color: `${glowColor}70` }}>
+            {item.probability.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}%
+          </span>
         </div>
-      </motion.div>
+      </div>
     </motion.div>
   )
 }

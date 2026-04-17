@@ -31,10 +31,10 @@ interface WheelItemProps {
   isCenterItem: boolean
 }
 
-// Configuration finale optimisée
+// Configuration finale optimisée et responsive
 const WHEEL_CONFIG = {
-  ITEM_WIDTH: 180,
-  ITEM_HEIGHT: 200,
+  ITEM_WIDTH: 150,
+  ITEM_HEIGHT: 150,
   TOTAL_ITEMS: 60,
   WINNING_POSITION: 40,
 } as const
@@ -297,12 +297,15 @@ export function Wheel({
   return (
     <div
       ref={containerRef}
-      // ✅ Overflow-x hidden, overflow-y visible pour le halo
-      className="relative w-full overflow-x-hidden overflow-y-visible"
-      style={{ height: 650, paddingTop: 80, paddingBottom: 80 }} // Hauteur augmentée avec padding pour le halo
+      // Container propre avec padding généreux pour contenir complètement le glow
+      className="relative w-full overflow-hidden"
+      style={{
+        height: 420,
+        paddingTop: 80,
+        paddingBottom: 80
+      }}
     >
 
-      
       {/* Container principal */}
       <div className="relative h-full will-change-transform">
         <AnimatePresence mode="wait">
@@ -351,10 +354,10 @@ export function Wheel({
 // ✅ WINNER DISPLAY AVEC HALO PLUS GRAND POUR DÉBORDEMENT
 const WinnerDisplay = ({ item, rarityColors }: WinnerDisplayProps) => {
   const glowColor = rarityColors[item.rarity.toLowerCase()] || rarityColors.common
-  
+
   return (
     <motion.div
-      className="flex flex-col items-center gap-4 py-8 px-8"
+      className="flex flex-col items-center gap-3 py-4 px-6"
       animate={{
         y: [0, -12, 0],
         scale: [1, 1.03, 1]
@@ -366,30 +369,30 @@ const WinnerDisplay = ({ item, rarityColors }: WinnerDisplayProps) => {
       }}
     >
       <div className="relative">
-        {/* Halo complet visible */}
+        {/* Halo contenu dans le padding */}
         <motion.div
-          className="absolute inset-0 rounded-full blur-3xl opacity-30"
+          className="absolute -inset-12 rounded-full blur-2xl"
           style={{
             backgroundColor: glowColor,
-            transform: 'scale(1.8)',
-            transformOrigin: 'center'
+            zIndex: -1,
+            opacity: 0.4
           }}
           animate={{
-            scale: [1.8, 2, 1.8],
-            opacity: [0.2, 0.4, 0.2]
+            scale: [1, 1.1, 1],
+            opacity: [0.3, 0.4, 0.3]
           }}
           transition={{
-            duration: 4,
+            duration: 3,
             repeat: Infinity,
             ease: "easeInOut"
           }}
         />
 
-        {/* Image principale */}
+        {/* Image principale - Responsive */}
         <motion.img
           src={item.image_url || 'https://via.placeholder.com/200x200/F3F4F6/9CA3AF?text=?'}
           alt={item.name}
-          className="relative w-64 h-64 object-contain"
+          className="relative w-40 h-40 md:w-48 md:h-48 object-contain"
           style={{
             filter: `drop-shadow(0 20px 60px ${glowColor}80) brightness(1.2)`
           }}
@@ -407,26 +410,26 @@ const WinnerDisplay = ({ item, rarityColors }: WinnerDisplayProps) => {
           }}
         />
       </div>
-      
+
 <div className="text-center">
-  <motion.h3 
-    className="text-2xl font-bold text-gray-900 dark:text-white mb-4" 
+  <motion.h3
+    className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-2 md:mb-3"
     style={{ color: glowColor }}
   >
     {item.name}
   </motion.h3>
-  
-  <motion.div 
-    className="flex items-center gap-4 justify-center" 
+
+  <motion.div
+    className="flex items-center gap-2 md:gap-3 justify-center"
     animate={{ opacity: [0.9, 1, 0.9] }}
     transition={{ duration: 2, repeat: Infinity }}
   >
-    <img 
-      src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"   // 🔹 ton lien ou chemin d'image ici
+    <img
+      src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png"
       alt="coin"
-      className="w-10 h-10 object-contain"  // 🔹 taille et comportement de l'image
+      className="w-7 h-7 md:w-9 md:h-9 object-contain"
     />
-    <span className="text-3xl font-bold text-gray-900 dark:text-white"> 
+    <span className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
       {item.market_value.toLocaleString()}
     </span>
   </motion.div>
@@ -437,34 +440,34 @@ const WinnerDisplay = ({ item, rarityColors }: WinnerDisplayProps) => {
 
 const WheelItem = ({ item, index, isWinning, rarityColors, isSpinning, isCenterItem }: WheelItemProps) => {
   const glowColor = rarityColors[item.rarity.toLowerCase()] || rarityColors.common
-  
+
   const shouldShowHover = item.rarity === 'legendary' || item.rarity === 'epic' || item.rarity === 'rare' || isCenterItem
-  
+
   return (
-    <motion.div 
-      className="flex-shrink-0 flex items-center justify-center p-6 group overflow-visible"
-      style={{ 
-        width: WHEEL_CONFIG.ITEM_WIDTH, 
+    <motion.div
+      className="flex-shrink-0 flex items-center justify-center p-4 group"
+      style={{
+        width: WHEEL_CONFIG.ITEM_WIDTH,
         height: WHEEL_CONFIG.ITEM_HEIGHT,
         position: 'relative'
       }}
-      whileHover={!isSpinning ? { 
+      whileHover={!isSpinning ? {
         scale: 1.1,
         y: -5,
         transition: { duration: 0.2 }
       } : {}}
     >
-      <div className="relative w-full h-full overflow-visible" style={{ isolation: 'auto' }}>
-        
-        {/* Halo de rareté */}
-        <motion.div 
-          className="absolute inset-3 rounded-xl blur-xl"
-          style={{ 
+      <div className="relative w-full h-full">
+
+        {/* Halo de rareté - contenu dans le padding */}
+        <motion.div
+          className="absolute -inset-4 rounded-xl blur-lg"
+          style={{
             backgroundColor: glowColor,
             zIndex: -1
           }}
           animate={{
-            opacity: shouldShowHover || isWinning ? 0.25 : 0.1,
+            opacity: shouldShowHover || isWinning ? 0.2 : 0.08,
             scale: shouldShowHover || isWinning ? 1.1 : 1.0
           }}
           transition={{ duration: 0.3 }}
