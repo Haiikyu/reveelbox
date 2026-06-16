@@ -3,7 +3,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/app/components/AuthProvider'
-import { useAuthModal } from '@/app/components/AuthModalProvider'
 import { useTheme } from '@/app/components/ThemeProvider'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter, useParams } from 'next/navigation'
@@ -137,40 +136,149 @@ function LegendaryWheelWrapper({ items, winningItem, fastMode, onFinish, isSpinn
 
   return (
     <div className="relative">
+      {/* Animation intermédiaire légendaire — entre roulette 1 et roulette 2 */}
       <AnimatePresence>
-        {phase === 'flash' && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="absolute inset-0 flex items-center justify-center overflow-hidden z-50"
-            style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(4px)' }}
-          >
-            <motion.div className="absolute inset-0"
-              initial={{ opacity: 0 }} animate={{ opacity: [0, 1, 0.8, 0] }}
-              transition={{ duration: 0.5, times: [0, 0.1, 0.3, 1] }}
-              style={{ background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.95) 0%, rgba(245,158,11,0.4) 40%, transparent 70%)' }}
-            />
+        {phase === 'flash' && (() => {
+          // Valeurs fixes pour éviter Math.random() dans le rendu
+          const RAYS = [
+            { left: 8,  w: 3,  angle: -8, delay: 0.20 },
+            { left: 18, w: 9,  angle: -5, delay: 0.10 },
+            { left: 27, w: 4,  angle: -3, delay: 0.35 },
+            { left: 36, w: 13, angle: -1, delay: 0.05 },
+            { left: 45, w: 5,  angle:  1, delay: 0.25 },
+            { left: 54, w: 10, angle:  3, delay: 0.15 },
+            { left: 63, w: 4,  angle:  5, delay: 0.30 },
+            { left: 72, w: 8,  angle:  7, delay: 0.08 },
+            { left: 81, w: 3,  angle:  9, delay: 0.40 },
+            { left: 90, w: 7,  angle: 11, delay: 0.18 },
+          ]
+          const PARTICLES = [
+            { x: 12, bot: 14, s: 3, d: 0.30, dur: 2.0, rise: 110 },
+            { x: 23, bot: 10, s: 2, d: 0.55, dur: 1.7, rise: 90  },
+            { x: 35, bot: 18, s: 3, d: 0.20, dur: 2.2, rise: 130 },
+            { x: 48, bot: 12, s: 4, d: 0.40, dur: 1.9, rise: 105 },
+            { x: 60, bot: 16, s: 2, d: 0.65, dur: 1.6, rise: 85  },
+            { x: 71, bot: 10, s: 3, d: 0.35, dur: 2.1, rise: 120 },
+            { x: 83, bot: 14, s: 2, d: 0.50, dur: 1.8, rise: 95  },
+            { x: 20, bot: 22, s: 2, d: 0.70, dur: 1.5, rise: 80  },
+            { x: 55, bot: 20, s: 3, d: 0.45, dur: 2.0, rise: 115 },
+            { x: 78, bot: 18, s: 2, d: 0.60, dur: 1.7, rise: 100 },
+          ]
+          return (
             <motion.div
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amber-400"
-              initial={{ width: 0, height: 0, opacity: 1 }} animate={{ width: '150%', height: '500%', opacity: 0 }}
-              transition={{ duration: 0.6, ease: 'easeOut', delay: 0.1 }}
-              style={{ boxShadow: '0 0 30px #f59e0b' }}
-            />
-            <motion.div className="relative text-center z-10"
-              animate={{ x: [0, -6, 6, -4, 4, -2, 2, 0] }} transition={{ duration: 0.5, delay: 0.4 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 flex items-center justify-center overflow-hidden z-50"
+              style={{ background: 'rgba(0,0,0,0.96)' }}
             >
-              <motion.img src={LEGENDARY_LOGO_URL} alt="Legendary" className="w-16 h-16 object-contain mx-auto mb-2"
-                initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.3, type: 'spring', stiffness: 300 }}
-                style={{ filter: 'drop-shadow(0 0 20px #f59e0b)' }}
+              {/* Gradient ambiant doré persistant */}
+              <motion.div className="absolute inset-0"
+                initial={{ opacity: 0 }} animate={{ opacity: 0.5 }}
+                transition={{ duration: 1.2 }}
+                style={{ background: 'radial-gradient(ellipse at 50% 65%, rgba(245,158,11,0.2) 0%, rgba(245,158,11,0.04) 50%, transparent 70%)' }}
               />
-              <motion.h2 initial={{ scale: 0.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.5, type: 'spring', stiffness: 250 }}
-                className="text-2xl font-black uppercase"
-                style={{ color: '#f59e0b', textShadow: '0 0 15px #f59e0b, 0 0 30px #f59e0b', letterSpacing: '0.2em' }}
-              >Legendary</motion.h2>
+
+              {/* Rayons d'or du bas vers le haut */}
+              {RAYS.map((r, i) => (
+                <motion.div key={i}
+                  style={{
+                    position: 'absolute', bottom: '-2%', left: `${r.left}%`,
+                    width: `${r.w}px`, height: '115%',
+                    background: 'linear-gradient(to top, transparent 0%, rgba(245,158,11,0.55) 25%, rgba(255,210,0,0.3) 60%, transparent 100%)',
+                    transformOrigin: 'bottom center',
+                    rotate: `${r.angle}deg`,
+                    borderRadius: '40%',
+                  }}
+                  initial={{ scaleY: 0, opacity: 0 }}
+                  animate={{ scaleY: [0, 1, 1, 0.6], opacity: [0, 1, 0.8, 0] }}
+                  transition={{ duration: 2.1, delay: r.delay, ease: [0.15, 0, 0.75, 1] }}
+                />
+              ))}
+
+              {/* Flash burst central */}
+              <motion.div className="absolute inset-0"
+                initial={{ opacity: 0 }} animate={{ opacity: [0, 1, 0] }}
+                transition={{ duration: 0.45, times: [0, 0.08, 1] }}
+                style={{ background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.65) 0%, rgba(245,158,11,0.25) 35%, transparent 60%)' }}
+              />
+
+              {/* Anneau qui s'expanse */}
+              <motion.div
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                initial={{ width: 0, height: 0, opacity: 1 }}
+                animate={{ width: '220%', height: '650%', opacity: 0 }}
+                transition={{ duration: 0.75, ease: 'easeOut', delay: 0.08 }}
+                style={{ border: '2px solid rgba(245,158,11,0.9)', boxShadow: '0 0 40px #f59e0b80' }}
+              />
+
+              {/* Particules dorées montantes */}
+              {PARTICLES.map((p, i) => (
+                <motion.div key={i}
+                  style={{
+                    position: 'absolute', bottom: `${p.bot}%`, left: `${p.x}%`,
+                    width: `${p.s}px`, height: `${p.s}px`, borderRadius: '50%',
+                    background: '#f59e0b', boxShadow: `0 0 ${p.s * 2}px #f59e0b`,
+                  }}
+                  initial={{ y: 0, opacity: 0 }}
+                  animate={{ y: -p.rise, opacity: [0, 1, 0] }}
+                  transition={{ duration: p.dur, delay: p.d, ease: 'easeOut' }}
+                />
+              ))}
+
+              {/* Contenu central */}
+              <motion.div className="relative text-center z-10"
+                animate={{ x: [0, -5, 5, -3, 3, 0] }}
+                transition={{ duration: 0.4, delay: 0.4 }}
+              >
+                {/* Halo derrière le coin */}
+                <motion.div
+                  className="absolute rounded-full"
+                  style={{ width: '280px', height: '280px', top: '50%', left: '50%', transform: 'translate(-50%, -55%)', background: 'radial-gradient(ellipse, rgba(245,158,11,0.28) 0%, transparent 68%)' }}
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.28, duration: 0.8 }}
+                />
+
+                {/* Coin légendaire — 2× plus grand */}
+                <motion.img
+                  src={LEGENDARY_LOGO_URL} alt="Legendary"
+                  className="object-contain mx-auto"
+                  style={{
+                    width: '144px', height: '144px',  // était 64px
+                    filter: 'drop-shadow(0 0 28px #f59e0b) drop-shadow(0 0 55px rgba(245,158,11,0.5))',
+                    marginBottom: '16px',
+                  }}
+                  initial={{ scale: 0.2, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.28, type: 'spring', stiffness: 180, damping: 14 }}
+                />
+
+                {/* LEGENDARY */}
+                <motion.h2
+                  initial={{ scale: 0.2, opacity: 0, y: 18 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5, type: 'spring', stiffness: 180 }}
+                  style={{
+                    color: '#f59e0b',
+                    textShadow: '0 0 18px #f59e0b, 0 0 40px #f59e0b, 0 0 80px rgba(245,158,11,0.4)',
+                    letterSpacing: '0.28em',
+                    fontSize: '2.8rem',
+                    fontWeight: 900,
+                    textTransform: 'uppercase',
+                    lineHeight: 1,
+                  }}
+                >LEGENDARY</motion.h2>
+
+                {/* Ligne décorative sous le texte */}
+                <motion.div
+                  initial={{ scaleX: 0, opacity: 0 }}
+                  animate={{ scaleX: 1, opacity: 0.65 }}
+                  transition={{ delay: 0.85, duration: 0.5 }}
+                  style={{ height: '1px', background: 'linear-gradient(90deg, transparent, #f59e0b, transparent)', margin: '10px auto 0', width: '220px' }}
+                />
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
+          )
+        })()}
       </AnimatePresence>
       <Wheel
         key={`wheel-${spinKey}`}
@@ -892,7 +1000,6 @@ function GradientSeparator() {
 
 export default function BoxOpeningPage() {
   const { user, profile, loading: authLoading, isAuthenticated, refreshProfile } = useAuth()
-  const { openLoginModal } = useAuthModal()
   const { resolvedTheme } = useTheme()
   const router = useRouter()
   const params = useParams()
@@ -949,9 +1056,9 @@ export default function BoxOpeningPage() {
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      openLoginModal()
+      router.push('/login')
     }
-  }, [authLoading, isAuthenticated, openLoginModal])
+  }, [authLoading, isAuthenticated, router])
 
   useEffect(() => {
     if (!isAuthenticated || !boxId) return

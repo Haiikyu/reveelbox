@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuth } from '@/app/components/AuthProvider'
+import { useAuthModal } from '@/app/components/AuthModalProvider'
 import { useTheme } from '@/app/components/ThemeProvider'
 import { createClient } from '@/utils/supabase/client'
 import { useQuickNotifications } from '@/app/components/ui'
@@ -151,6 +152,7 @@ const RARITY_ORDER: Record<string, number> = { common: 0, rare: 1, epic: 2, lege
 
 export default function ShopPage() {
   const { user, profile, refreshProfile } = useAuth()
+  const { openLoginModal } = useAuthModal()
   const { resolvedTheme } = useTheme()
   const { success, error: showError } = useQuickNotifications()
   const { playSound } = useSound()
@@ -219,9 +221,8 @@ export default function ShopPage() {
 
   // --- Data loading ---
   const loadPins = useCallback(async () => {
-    if (!user) return
     const { data: shopPins } = await supabase.from('shop_pins').select('*').order('price').limit(200)
-    const { data: userPins } = await supabase.from('user_pins').select('pin_id, is_equipped, slot_number').eq('user_id', user.id)
+    const userPins = user ? (await supabase.from('user_pins').select('pin_id, is_equipped, slot_number').eq('user_id', user.id)).data : null
     const result = (shopPins || []).map(pin => ({
       ...pin,
       is_owned: !!userPins?.find(up => up.pin_id === pin.id),
@@ -229,80 +230,74 @@ export default function ShopPage() {
       slot_number: userPins?.find(up => up.pin_id === pin.id)?.slot_number ?? null,
     }))
     setPins(result)
-    if (_shopCache?.userId === user.id) _shopCache.pins = result
+    if (user && _shopCache?.userId === user.id) _shopCache.pins = result
   }, [user, supabase])
 
   const loadBanners = useCallback(async () => {
-    if (!user) return
     const { data: shopBanners } = await supabase.from('shop_banners').select('*').order('price').limit(200)
-    const { data: userBanners } = await supabase.from('user_banners').select('banner_id, is_equipped').eq('user_id', user.id)
+    const userBanners = user ? (await supabase.from('user_banners').select('banner_id, is_equipped').eq('user_id', user.id)).data : null
     const result = (shopBanners || []).map(banner => ({
       ...banner,
       is_owned: !!userBanners?.find(ub => ub.banner_id === banner.id),
       is_equipped: userBanners?.find(ub => ub.banner_id === banner.id)?.is_equipped || false
     }))
     setBanners(result)
-    if (_shopCache?.userId === user.id) _shopCache.banners = result
+    if (user && _shopCache?.userId === user.id) _shopCache.banners = result
   }, [user, supabase])
 
   const loadFrames = useCallback(async () => {
-    if (!user) return
     const { data: shopFrames } = await supabase.from('shop_frames').select('*').order('price').limit(200)
-    const { data: userFrames } = await supabase.from('user_frames').select('frame_id, is_equipped').eq('user_id', user.id)
+    const userFrames = user ? (await supabase.from('user_frames').select('frame_id, is_equipped').eq('user_id', user.id)).data : null
     const result = (shopFrames || []).map(frame => ({
       ...frame,
       is_owned: !!userFrames?.find(uf => uf.frame_id === frame.id),
       is_equipped: userFrames?.find(uf => uf.frame_id === frame.id)?.is_equipped || false
     }))
     setFrames(result)
-    if (_shopCache?.userId === user.id) _shopCache.frames = result
+    if (user && _shopCache?.userId === user.id) _shopCache.frames = result
   }, [user, supabase])
 
   const loadNameColors = useCallback(async () => {
-    if (!user) return
     const { data: shopColors } = await supabase.from('shop_name_colors').select('*').order('price').limit(200)
-    const { data: userColors } = await supabase.from('user_name_colors').select('color_id, is_equipped').eq('user_id', user.id)
+    const userColors = user ? (await supabase.from('user_name_colors').select('color_id, is_equipped').eq('user_id', user.id)).data : null
     const result = (shopColors || []).map(color => ({
       ...color,
       is_owned: !!userColors?.find(uc => uc.color_id === color.id),
       is_equipped: userColors?.find(uc => uc.color_id === color.id)?.is_equipped || false
     }))
     setNameColors(result)
-    if (_shopCache?.userId === user.id) _shopCache.nameColors = result
+    if (user && _shopCache?.userId === user.id) _shopCache.nameColors = result
   }, [user, supabase])
 
   const loadBackgrounds = useCallback(async () => {
-    if (!user) return
     const { data: shopBgs } = await supabase.from('shop_backgrounds').select('*').order('price').limit(200)
-    const { data: userBgs } = await supabase.from('user_backgrounds').select('background_id, is_equipped').eq('user_id', user.id)
+    const userBgs = user ? (await supabase.from('user_backgrounds').select('background_id, is_equipped').eq('user_id', user.id)).data : null
     const result = (shopBgs || []).map(bg => ({
       ...bg,
       is_owned: !!userBgs?.find(ub => ub.background_id === bg.id),
       is_equipped: userBgs?.find(ub => ub.background_id === bg.id)?.is_equipped || false
     }))
     setBackgrounds(result)
-    if (_shopCache?.userId === user.id) _shopCache.backgrounds = result
+    if (user && _shopCache?.userId === user.id) _shopCache.backgrounds = result
   }, [user, supabase])
 
   useEffect(() => {
-    if (!user) return
-
-    // Si le cache est valide pour ce user, initialiser depuis le cache sans spinner
-    if (_shopCache?.userId === user.id) {
+    // Si user connecté et cache valide, initialiser depuis le cache sans spinner
+    if (user && _shopCache?.userId === user.id) {
       setPins(_shopCache.pins)
       setBanners(_shopCache.banners)
       setFrames(_shopCache.frames)
       setNameColors(_shopCache.nameColors)
       setBackgrounds(_shopCache.backgrounds)
       setLoading(false)
-      // Refresh silencieux en arrière-plan
       Promise.all([loadPins(), loadBanners(), loadFrames(), loadNameColors(), loadBackgrounds()])
         .catch(err => console.error('Erreur refresh:', err))
       return
     }
 
-    // Premier chargement : initialiser le cache et afficher le spinner
-    _shopCache = { userId: user.id, pins: [], banners: [], frames: [], nameColors: [], backgrounds: [] }
+    if (user) {
+      _shopCache = { userId: user.id, pins: [], banners: [], frames: [], nameColors: [], backgrounds: [] }
+    }
     setLoading(true)
     Promise.all([loadPins(), loadBanners(), loadFrames(), loadNameColors(), loadBackgrounds()])
       .catch(err => console.error('Erreur chargement:', err))
@@ -365,7 +360,8 @@ export default function ShopPage() {
 
   // --- Purchase ---
   const purchase = useCallback(async (item: ShopItem | ShopColorItem | ShopBackgroundItem, type: TabType) => {
-    if (!user || !profile || profile.virtual_currency < item.price) {
+    if (!user) { openLoginModal(); return }
+    if (!profile || profile.virtual_currency < item.price) {
       showError('Solde insuffisant', 'Vous n\'avez pas assez de coins')
       return
     }
@@ -392,7 +388,7 @@ export default function ShopPage() {
 
   // --- Purchase with Reevs ---
   const purchaseWithReevs = useCallback(async (item: ShopItem | ShopColorItem | ShopBackgroundItem, type: TabType) => {
-    if (!user) return
+    if (!user) { openLoginModal(); return }
     const itemTypeMap: Partial<Record<TabType, 'frame' | 'banner' | 'pin' | 'name_color' | 'background'>> = {
       frames: 'frame', banners: 'banner', pins: 'pin', colors: 'name_color', backgrounds: 'background'
     }
@@ -420,7 +416,7 @@ export default function ShopPage() {
 
   // --- Equip (SVG items) ---
   const equip = useCallback(async (item: ShopItem, type: Exclude<TabType, 'colors'>) => {
-    if (!user) return
+    if (!user) { openLoginModal(); return }
 
     // For pins: if equipping, open slot picker; if unequipping, proceed directly
     if (type === 'pins') {
@@ -477,7 +473,7 @@ export default function ShopPage() {
 
   // --- Equip pin in specific slot ---
   const equipPinInSlot = useCallback(async (item: ShopItem, slot: number) => {
-    if (!user) return
+    if (!user) { openLoginModal(); return }
     setEquipping(item.id)
     setSlotPickerPin(null)
 
@@ -505,7 +501,7 @@ export default function ShopPage() {
 
   // --- Equip color ---
   const equipColor = useCallback(async (color: ShopColorItem) => {
-    if (!user) return
+    if (!user) { openLoginModal(); return }
 
     // Pour les couleurs : ne PAS permettre le déséquipement (seulement remplacer)
     if (color.is_equipped) {
@@ -533,7 +529,7 @@ export default function ShopPage() {
 
   // --- Equip background ---
   const equipBackground = useCallback(async (bg: ShopBackgroundItem) => {
-    if (!user) return
+    if (!user) { openLoginModal(); return }
     if (bg.is_equipped) {
       showError('Deja equipe', 'Ce fond est deja equipe')
       return
@@ -578,7 +574,7 @@ export default function ShopPage() {
 
   // --- Unequip individual item ---
   const unequipItem = useCallback(async (type: Exclude<TabType, 'inventory'>, id: string) => {
-    if (!user) return
+    if (!user) { openLoginModal(); return }
     setEquipping(id)
     const prevPins = [...pins], prevBanners = [...banners], prevFrames = [...frames]
     const prevColors = [...nameColors], prevBgs = [...backgrounds]
@@ -618,7 +614,7 @@ export default function ShopPage() {
 
   // --- Unequip everything ---
   const unequipAll = useCallback(async () => {
-    if (!user) return
+    if (!user) { openLoginModal(); return }
     const calls: (() => Promise<unknown>)[] = []
     if (equippedBanner) {
       const b = banners.find(x => x.is_equipped)
@@ -820,16 +816,6 @@ export default function ShopPage() {
   const xpToNext = getExpToNextLevel(totalExp, level)
   const progressPct = xpToNext > 0 ? Math.min(100, Math.round((currentXp / xpToNext) * 100)) : 100
 
-  if (!user) {
-    return (
-      <div className="min-h-screen -mt-[80px] pt-[100px] bg-slate-100 dark:bg-gray-950 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-500 dark:text-gray-400">Connectez-vous pour acceder au shop</p>
-        </div>
-      </div>
-    )
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen -mt-[80px] pt-[100px] bg-slate-100 dark:bg-gray-950 flex items-center justify-center">
@@ -955,6 +941,13 @@ export default function ShopPage() {
 
         {/* PROFILE PREVIEW HORIZONTALE */}
         <div className="relative w-full rounded-[22px] overflow-hidden mb-8" style={{ height: 185, ...cardStyle }}>
+          {!user && (
+            <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold"
+              style={{ background: 'rgba(168,85,247,0.25)', border: '1px solid rgba(168,85,247,0.4)', color: '#c084fc' }}>
+              <Eye className="w-3 h-3" />
+              Mode démo — connectez-vous pour sauvegarder
+            </div>
+          )}
           {/* Banner BG */}
           <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #1e2d4a 0%, #0f1a2e 100%)' }}>
             {previewBanner && (isSvg(previewBanner)
@@ -969,7 +962,7 @@ export default function ShopPage() {
 
             {/* Avatar + cadre */}
             <div className="flex-shrink-0 relative rounded-xl overflow-hidden" style={{ width: 82, height: 82 }}>
-              <img src={profile?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'} className="w-full h-full object-cover" alt="" />
+              <img src={profile?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=guest'} className="w-full h-full object-cover" alt="" />
               {previewFrameSvg && (
                 isSvg(previewFrameSvg)
                   ? <div className="absolute inset-0 [&>svg]:w-full [&>svg]:h-full pointer-events-none" dangerouslySetInnerHTML={{ __html: previewFrameSvg }} />
@@ -980,7 +973,7 @@ export default function ShopPage() {
             {/* Infos centrales */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-2">
-                <h3 className="font-black text-xl text-white truncate" style={usernameStyle}>{profile?.username || 'User'}</h3>
+                <h3 className="font-black text-xl text-white truncate" style={usernameStyle}>{profile?.username || 'Visiteur'}</h3>
                 <span className="text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0"
                   style={{ background: 'rgba(59,130,246,0.3)', color: '#93c5fd', border: '1px solid rgba(59,130,246,0.35)' }}
                 >
