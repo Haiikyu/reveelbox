@@ -104,7 +104,7 @@ export default function AffiliatePage(): JSX.Element | null {
     try {
       const supabase = createClient()
       const { data: referralsData, error } = await supabase
-        .from('affiliate_referrals').select('*').eq('referrer_user_id', userId).order('created_at', { ascending: false })
+        .from('affiliate_referrals').select('*').eq('referrer_user_id', userId).order('created_at', { ascending: false }).limit(200)
       if (error) { setReferrals([]); return }
       if (referralsData && referralsData.length > 0) {
         const userIds = [...new Set(referralsData.map(ref => ref.referred_user_id).filter(Boolean))]

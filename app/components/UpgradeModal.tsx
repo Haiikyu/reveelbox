@@ -36,14 +36,13 @@ interface WonReward {
 }
 
 export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: UpgradeModalProps) {
-  const { user, profile, refreshProfile } = useAuth()
+  const { user, refreshProfile } = useAuth()
   const [selectedMultiplier, setSelectedMultiplier] = useState(2)
   const [customMultiplier, setCustomMultiplier] = useState('')
   const [isUpgrading, setIsUpgrading] = useState(false)
   const [showAnimation, setShowAnimation] = useState(false)
   const [showResult, setShowResult] = useState(false)
   const [upgradeSuccess, setUpgradeSuccess] = useState(false)
-  const [animationResult, setAnimationResult] = useState<boolean | null>(null)
   const [wonReward, setWonReward] = useState<WonReward | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [inputFocused, setInputFocused] = useState(false)
@@ -61,29 +60,6 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
       setInputFocused(false)
     }
   }, [isOpen])
-
-  // Fonction pour trouver un objet du site dont la valeur est ≤ targetValue
-  const findSuitableItem = async (targetValue: number) => {
-    try {
-      const { data: availableItems, error } = await supabase
-        .from('items')
-        .select('*')
-        .lte('market_value', targetValue)
-        .order('market_value', { ascending: false })
-        .limit(10)
-
-      if (error || !availableItems || availableItems.length === 0) {
-        return null
-      }
-
-      // Sélectionner aléatoirement parmi les meilleurs items
-      const randomIndex = Math.floor(Math.random() * Math.min(3, availableItems.length))
-      return availableItems[randomIndex]
-    } catch (error) {
-      console.error('Error finding suitable item:', error)
-      return null
-    }
-  }
 
   const getRarityConfig = (rarity: string) => {
     const configs: Record<string, { gradient: string; glow: string }> = {
@@ -119,141 +95,43 @@ export default function UpgradeModal({ isOpen, onClose, item, onSuccess }: Upgra
 
     setIsUpgrading(true)
     setShowResult(false)
-    setShowAnimation(true)
     setError(null)
 
-    let success = false
-
     try {
-      console.log('🎯 Starting upgrade for item:', item.name)
-      const successRate = calculateSuccessRate(selectedMultiplier)
-      const targetValue = item.market_value * selectedMultiplier
+      // Le serveur effectue le RNG, supprime l'item et distribue les récompenses atomiquement
+      const { data: result, error: rpcError } = await supabase.rpc('execute_upgrade_modal', {
+        p_inventory_id: item.id,
+        p_multiplier: selectedMultiplier,
+        p_user_id: user.id,
+      })
 
-      // L'animation dure 3 secondes
-      await new Promise(resolve => setTimeout(resolve, 3000))
+      if (rpcError) throw rpcError
+      if (!result?.success) throw new Error(result?.error || 'Upgrade échoué')
 
-      success = Math.random() * 100 < successRate
-      console.log('🎲 Upgrade result:', success ? 'SUCCESS' : 'FAIL', `(${successRate.toFixed(1)}% chance)`)
-
-      // Supprimer l'objet de l'inventaire AVANT d'ajouter les rewards
-      console.log('🗑️ Deleting item from inventory...')
-      const { error: deleteError } = await supabase
-        .from('user_inventory')
-        .delete()
-        .eq('id', item.id)
-
-      if (deleteError) {
-        console.error('❌ Delete error:', deleteError)
-        throw new Error(`Erreur lors de la suppression de l'item: ${deleteError.message}`)
-      }
-      console.log('✅ Item deleted successfully')
+      const success: boolean = result.upgrade_success
 
       if (success) {
-        // Trouver un objet du site dont la valeur ≤ targetValue
-        console.log('🔍 Finding suitable item with max value:', targetValue)
-        const wonItem = await findSuitableItem(targetValue)
-
-        let coinsToGive = 0
-
-        if (wonItem) {
-          console.log('🎁 Found item:', wonItem.name, 'value:', wonItem.market_value)
-          // Calculer la différence en coins
-          coinsToGive = Math.floor(targetValue - wonItem.market_value)
-
-          // Ajouter l'objet gagné à l'inventaire
-          console.log('📦 Adding won item to inventory...')
-          const { error: inventoryError } = await supabase.from('user_inventory').insert({
-            user_id: user.id,
-            item_id: wonItem.id,
-            quantity: 1
-          })
-
-          if (inventoryError) {
-            console.error('❌ Inventory insert error:', inventoryError)
-            throw new Error(`Erreur lors de l'ajout de l'item: ${inventoryError.message}`)
-          }
-          console.log('✅ Item added to inventory')
-
-          setWonReward({
-            item: wonItem,
-            coins: coinsToGive,
-            totalValue: targetValue
-          })
-        } else {
-          console.log('💰 No item found, giving all value as coins')
-          // Si aucun objet trouvé, donner toute la valeur en coins
-          coinsToGive = Math.floor(targetValue)
-          setWonReward({
-            coins: coinsToGive,
-            totalValue: targetValue
-          })
-        }
-
-        // Ajouter les coins
-        if (coinsToGive > 0) {
-          console.log('💵 Adding', coinsToGive, 'coins to profile...')
-          const newBalance = (profile?.virtual_currency || 0) + coinsToGive
-          const { error: coinsError } = await supabase
-            .from('profiles')
-            .update({
-              virtual_currency: newBalance
-            })
-            .eq('id', user.id)
-
-          if (coinsError) {
-            console.error('❌ Coins update error:', coinsError)
-            throw new Error(`Erreur lors de l'ajout des coins: ${coinsError.message}`)
-          }
-          console.log('✅ Coins added successfully. New balance:', newBalance)
-        }
-
-        // Refresh profile pour mettre à jour le solde
-        console.log('🔄 Refreshing profile...')
-        await refreshProfile()
-        console.log('✅ Profile refreshed')
-      }
-
-      // Enregistrer la tentative d'upgrade (optionnel - peut être désactivé si la table n'existe pas)
-      try {
-        console.log('📝 Recording upgrade attempt...')
-        const { error: attemptError } = await supabase.from('upgrade_attempts').insert({
-          user_id: user.id,
-          item_id: item.item_id,
-          item_value: item.market_value,
-          target_multiplier: selectedMultiplier,
-          success: success,
-          won_value: success ? targetValue : 0
+        setWonReward({
+          item: result.won_item ?? undefined,
+          coins: result.coins_given ?? 0,
+          totalValue: result.target_value ?? 0,
         })
-
-        if (attemptError) {
-          console.warn('⚠️ Could not record upgrade attempt:', attemptError.message)
-          // Ne pas bloquer l'upgrade si l'enregistrement échoue
-        } else {
-          console.log('✅ Upgrade attempt recorded')
-        }
-      } catch (attemptRecordError) {
-        console.warn('⚠️ Upgrade attempt recording failed:', attemptRecordError)
-        // Continue sans bloquer
+        await refreshProfile()
       }
+
+      // Lancer l'animation avec le résultat du serveur
+      setShowAnimation(true)
+      await new Promise(resolve => setTimeout(resolve, 3000))
 
       setUpgradeSuccess(success)
       setShowAnimation(false)
       setShowResult(true)
 
-      console.log('✅ Upgrade completed successfully!')
-
-      // Ne pas appeler onSuccess ici - on le fera quand l'utilisateur clique sur "Fermer"
-      // pour qu'il puisse voir le résultat d'abord
-
     } catch (error: any) {
-      console.error('❌ Upgrade error:', error)
       const errorMessage = error?.message || 'Une erreur est survenue lors de l\'upgrade.'
       setError(errorMessage)
       setShowAnimation(false)
       setShowResult(false)
-
-      // En cas d'erreur, on doit quand même rafraîchir l'inventaire
-      // car l'item a déjà été supprimé
       if (onSuccess) onSuccess()
     } finally {
       setIsUpgrading(false)

@@ -116,10 +116,19 @@ export default function UpgradePage() {
     setIsAnimating(true)
 
     try {
-      const targetValue = selectedItem.items.market_value * selectedMultiplier
-      const willWin = Math.random() * 100 < successRate
+      // Le serveur effectue le RNG et toutes les opérations atomiquement
+      const { data: upgradeResult, error: upgradeError } = await supabase.rpc('execute_upgrade_secure', {
+        p_inventory_id: selectedItem.id,
+        p_multiplier: selectedMultiplier,
+        p_user_id: user.id,
+      })
 
-      // Trouver un segment correspondant
+      if (upgradeError) throw upgradeError
+      if (!upgradeResult?.success) throw new Error(upgradeResult?.error || 'Upgrade échoué')
+
+      const willWin: boolean = upgradeResult.upgrade_success
+
+      // Trouver un segment d'animation correspondant au résultat serveur
       const segmentWidth = 420
       const validSegments: number[] = []
       for (let i = 200; i <= 300; i++) {
@@ -128,7 +137,7 @@ export default function UpgradePage() {
         }
       }
 
-      let targetIndex = validSegments.length > 0 
+      let targetIndex = validSegments.length > 0
         ? validSegments[Math.floor(Math.random() * validSegments.length)]
         : 250
 
@@ -137,34 +146,6 @@ export default function UpgradePage() {
 
       // Attendre l'animation
       await new Promise(resolve => setTimeout(resolve, 20000))
-
-      // Backend
-      const { error: deleteError } = await supabase
-        .from('user_inventory')
-        .delete()
-        .eq('id', selectedItem.id)
-
-      if (deleteError) throw deleteError
-
-      if (willWin) {
-        const newCoins = (profile?.virtual_currency || 0) + targetValue
-        await supabase
-          .from('profiles')
-          .update({ virtual_currency: newCoins })
-          .eq('id', user.id)
-      }
-
-      await supabase.from('user_upgrades').insert({
-        user_id: user.id,
-        inventory_item_id: selectedItem.id,
-        item_id: selectedItem.items.id,
-        item_name: selectedItem.items.name,
-        original_value: selectedItem.items.market_value,
-        multiplier: selectedMultiplier,
-        target_value: targetValue,
-        success: willWin,
-        final_value: willWin ? targetValue : 0
-      })
 
       setUpgradeSuccess(willWin)
       setIsAnimating(false)

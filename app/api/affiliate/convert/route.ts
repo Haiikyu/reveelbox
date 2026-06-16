@@ -15,6 +15,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const supabase = await createClient()
 
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+    if (user.id !== user_id) {
+      return NextResponse.json({ error: 'Accès interdit' }, { status: 403 })
+    }
+
     // Vérifier s'il existe un parrainage en attente pour cet utilisateur
     const { data: referral, error: referralError } = await supabase
       .from('affiliate_referrals')

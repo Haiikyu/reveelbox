@@ -16,8 +16,10 @@ interface WheelProps {
 }
 
 const ITEM_WIDTH = 150
+const CARD_INSET = 7
 const TOTAL_ITEMS = 60
 const WINNING_POSITION = 40
+const NEAR_MISS_POSITION = WINNING_POSITION - 2
 
 // Simule la même courbe quartic ease-out que l'animation visuelle
 // pour calculer exactement quand chaque item franchit le centre
@@ -42,7 +44,7 @@ const playRouletteWheel = (totalDurationMs: number, finalPos: number, vpW: numbe
   // Même formule que dans animate() : ease = 1 - (1 - progress)^4
   const centerWorldOffset = vpW / 2;
   const clickTimes: number[] = [];
-  const STEPS = 5000;
+  const STEPS = 800;  // 5000 → 800 : précision suffisante, 6x moins de calcul
   let lastItemIdx = -1;
 
   for (let s = 0; s <= STEPS; s++) {
@@ -155,6 +157,7 @@ export function Wheel({
   const scrollPosRef = useRef(0)
   const lastCenterIdxRef = useRef(-1)
   const suspensePlayedRef = useRef(false)
+  const spinIdRef = useRef(0)
 
   // Taille adaptative
   const itemHeight = Math.min(height - 30, 220)
@@ -170,6 +173,15 @@ export function Wheel({
     }
     if (targetItem) {
       sequence[WINNING_POSITION] = { ...targetItem, id: `win-${ts}-${targetItem.id}` }
+      // Decoy rare/epic 2 positions avant le gagnant — effet near-miss visuel uniquement
+      const pool = baseItems.filter(i =>
+        ['legendary', 'epic', 'rare'].includes(i.rarity?.toLowerCase()) &&
+        i.id !== targetItem.id
+      )
+      if (pool.length > 0) {
+        const decoy = pool[Math.floor(Math.random() * pool.length)]
+        sequence[NEAR_MISS_POSITION] = { ...decoy, id: `nm-${ts}-${decoy.id}` }
+      }
     }
     return sequence
   }, [])
@@ -181,7 +193,11 @@ export function Wheel({
     const center = vpW / 2
     const children = wheelRef.current.children
 
-    for (let i = 0; i < children.length; i++) {
+    // Seulement les items visibles + 1 de marge de chaque côté
+    const firstVisible = Math.max(0, Math.floor(scrollPos / ITEM_WIDTH) - 1)
+    const lastVisible = Math.min(children.length - 1, Math.ceil((scrollPos + vpW) / ITEM_WIDTH) + 1)
+
+    for (let i = firstVisible; i <= lastVisible; i++) {
       const el = children[i] as HTMLElement
       const itemCenter = i * ITEM_WIDTH + ITEM_WIDTH / 2 - scrollPos
       const dist = (itemCenter - center) / (vpW / 2)
@@ -206,6 +222,7 @@ export function Wheel({
     if (centerIdx < 0 || centerIdx >= sequence.length) return
 
     const centerItem = sequence[centerIdx]
+    if (!centerItem?.rarity) return
     const color = rarityColors[centerItem.rarity.toLowerCase()] || rarityColors.common
 
     // Mettre à jour la ligne indicatrice avec la couleur de rareté
@@ -260,79 +277,135 @@ export function Wheel({
     isAnimatingRef.current = false
 
     if (wheelRef.current) {
-      wheelRef.current.style.transform = 'translateX(0px)'
+      wheelRef.current.style.transform = 'translate3d(0, 0, 0)'
       wheelRef.current.style.transition = 'none'
+      wheelRef.current.style.willChange = 'transform'
     }
     scrollPosRef.current = 0
 
     const newSeq = generateSequence(items, winningItem)
     setWheelSequence(newSeq)
 
-    setTimeout(() => {
+    // ID unique par spin — invalide immédiatement tous les callbacks du spin précédent
+    const spinId = Date.now()
+    spinIdRef.current = spinId
+
+    // 4 patterns visuels choisis aléatoirement — tous fluides, aucune saccade
+    const PATTERNS = [
+      { power: 3.0, durationFactor: 1.00 }, // ralentissement progressif classique
+      { power: 4.0, durationFactor: 1.15 }, // suspense final plus long
+      { power: 2.8, durationFactor: 0.93 }, // départ rapide, freinage doux
+      { power: 3.5, durationFactor: 1.07 }, // intermédiaire équilibré
+    ]
+    const pattern = PATTERNS[Math.floor(Math.random() * PATTERNS.length)]
+
+    let pollTimeoutId: ReturnType<typeof setTimeout>
+    let endTimeoutId: ReturnType<typeof setTimeout>
+    const waitStart = Date.now()
+
+    const startAnimation = () => {
+      if (spinId !== spinIdRef.current) return
       if (!containerRef.current || !wheelRef.current) return
 
+      // Tout est pré-calculé ici, AVANT de lancer l'animation
       const vpW = containerRef.current.offsetWidth
       const centerOffset = vpW / 2
       const winPos = WINNING_POSITION * ITEM_WIDTH
-      const finalPos = winPos - centerOffset + ITEM_WIDTH / 2
-      const duration = fastMode ? 3500 : 7000
+      const isMainWheel = vpW > 700
 
-      playRouletteWheel(duration, finalPos, vpW)
+      // Offset aléatoire dans la carte gagnante (gauche / centre / droite)
+      // marge 22px garantit que la flèche reste bien dans le conteneur
+      const cardInnerHalf = (ITEM_WIDTH - CARD_INSET * 2) / 2
+      const maxOffset = Math.max(0, cardInnerHalf - 22)
+      const cardOffset = (Math.random() - 0.5) * 2 * maxOffset
+      const finalPos = winPos - centerOffset + ITEM_WIDTH / 2 + cardOffset
+
+      // Durée : 4.5-6.5s x1, légèrement plus long en multi (container plus étroit)
+      const baseDuration = fastMode ? 3000 : (isMainWheel ? 6000 : 5500)
+      const duration = baseDuration * pattern.durationFactor
+
+      // Son : différé d'1 frame pour ne pas bloquer l'animation, 1 seul son en multi
+      if (isMainWheel) {
+        setTimeout(() => {
+          if (spinId === spinIdRef.current) playRouletteWheel(duration, finalPos, vpW)
+        }, 0)
+      }
 
       isAnimatingRef.current = true
       const startTime = performance.now()
 
-      const animate = (currentTime: number) => {
-        const elapsed = currentTime - startTime
-        const progress = Math.min(elapsed / duration, 1)
+      const animate = (ts: number) => {
+        if (spinId !== spinIdRef.current || !isAnimatingRef.current) return
 
-        // Courbe unique continue : quartic ease-out
-        // 30% du temps → 76% de la distance (défilement rapide)
-        // 50% du temps → 94% (ralentissement visible)
-        // Derniers 30% → micro-ajustements (suspense max)
-        const ease = 1 - Math.pow(1 - progress, 4)
+        const progress = Math.min((ts - startTime) / duration, 1)
 
-        // Micro-rebond subtil à l'arrivée
-        const bounceOffset = progress > 0.96
-          ? Math.sin(((progress - 0.96) / 0.04) * Math.PI) * 3
-          : 0
-
-        const currentPos = finalPos * ease + bounceOffset
+        // Ease-out pur (power variable par pattern) : départ rapide → décélération fluide
+        // Aucune phase, aucune jointure → mathématiquement impossible d'avoir une saccade
+        const ease = 1 - Math.pow(1 - progress, pattern.power)
+        const currentPos = finalPos * ease
         scrollPosRef.current = currentPos
 
+        // translate3d : GPU, zéro reflow, zéro saccade
         if (wheelRef.current) {
-          wheelRef.current.style.transform = `translateX(-${currentPos}px)`
+          wheelRef.current.style.transform = `translate3d(-${currentPos}px, 0, 0)`
         }
 
         applyPerspective(currentPos)
         updateCenterGlow(currentPos, newSeq)
 
-        // Son de suspense quand on entre dans la phase finale
-        if (progress > 0.7 && !suspensePlayedRef.current) {
-          suspensePlayedRef.current = true
-        }
-
         if (progress < 1) {
           animationFrameRef.current = requestAnimationFrame(animate)
         } else {
+          // PHASE 1 terminée — l'objet gagné est sous la flèche (avec offset)
           isAnimatingRef.current = false
+          if (spinId !== spinIdRef.current) return
 
-          setTimeout(() => {
-            playDropSound()
+          // PHASE 2 — recentrage doux (500ms) : l'objet se centre sous la flèche
+          const centerPos = winPos - centerOffset + ITEM_WIDTH / 2
+          if (wheelRef.current) {
+            wheelRef.current.style.transition = 'transform 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+            wheelRef.current.style.transform = `translate3d(-${centerPos}px, 0, 0)`
+          }
+
+          // PHASE 3 — animation finale existante
+          endTimeoutId = setTimeout(() => {
+            if (spinId !== spinIdRef.current) return
+            if (wheelRef.current) {
+              wheelRef.current.style.transition = 'none'
+              wheelRef.current.style.willChange = 'auto'
+            }
+            if (isMainWheel) playDropSound()
             setShowOnlyWinner(true)
             setTimeout(() => onFinish(), 100)
-          }, 800)
+          }, 1100)
         }
       }
 
       animationFrameRef.current = requestAnimationFrame(animate)
-    }, 150)
+    }
+
+    // Polling DOM : attend que React ait rendu la séquence (max 2s, check toutes les 80ms)
+    // Évite de lancer l'animation sur un DOM incomplet → cause principale des freezes
+    const tryStart = () => {
+      if (spinId !== spinIdRef.current) return
+      const ready = wheelRef.current && wheelRef.current.children.length >= TOTAL_ITEMS * 0.8
+      const timeout = Date.now() - waitStart >= 2000
+      if (ready || timeout) startAnimation()
+      else pollTimeoutId = setTimeout(tryStart, 80)
+    }
+
+    pollTimeoutId = setTimeout(tryStart, 100)
 
     return () => {
+      spinIdRef.current = -1
+      clearTimeout(pollTimeoutId)
+      clearTimeout(endTimeoutId)
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current)
       isAnimatingRef.current = false
+      if (wheelRef.current) wheelRef.current.style.willChange = 'auto'
     }
   }, [isSpinning, winningItem, isReady, items, generateSequence, fastMode, onFinish, applyPerspective, updateCenterGlow])
+
 
   if (!isReady || wheelSequence.length === 0) {
     return (
@@ -483,30 +556,44 @@ function WinnerDisplay({ item, imageSize }: { item: FreedropItem; imageSize: num
 
 // --- Wheel Item ---
 function WheelItem({ item, imageSize }: { item: FreedropItem; imageSize: number }) {
-  const glow = rarityColors[item.rarity.toLowerCase()] || rarityColors.common
-
+  const glow = rarityColors[item.rarity?.toLowerCase()] || rarityColors.common
   return (
     <div
-      className="flex-shrink-0 flex flex-col items-center justify-center relative"
-      style={{
-        width: ITEM_WIDTH,
-        height: '100%',
-        transition: 'none'
-      }}
+      className="flex-shrink-0 flex items-center justify-center"
+      style={{ width: ITEM_WIDTH, height: '100%', padding: `0 ${CARD_INSET}px` }}
     >
-      <img
-        src={item.image_url || 'https://via.placeholder.com/80'}
-        alt={item.name}
-        className="object-contain mb-2"
-        style={{
-          width: imageSize,
-          height: imageSize,
-        }}
-      />
-      <div
-        className="w-1 h-1 rounded-full"
-        style={{ backgroundColor: glow, opacity: 0.7 }}
-      />
+      <div style={{
+        width: '100%', height: '86%', borderRadius: '14px',
+        background: 'linear-gradient(158deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)',
+        border: `1px solid ${glow}42`,
+        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.09), 0 4px 16px rgba(0,0,0,0.45), 0 0 0 1px ${glow}12`,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: '2px',
+          background: `linear-gradient(90deg, transparent 5%, ${glow}cc 40%, ${glow}cc 60%, transparent 95%)`,
+          boxShadow: `0 0 10px ${glow}80`,
+        }} />
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none',
+          background: `radial-gradient(ellipse at 50% 0%, ${glow}16 0%, transparent 60%)`,
+        }} />
+        <img
+          src={item.image_url || 'https://via.placeholder.com/80'}
+          alt={item.name}
+          className="object-contain"
+          style={{
+            width: imageSize * 0.86, height: imageSize * 0.86,
+            position: 'relative', zIndex: 1,
+            filter: `drop-shadow(0 4px 12px ${glow}50)`,
+          }}
+        />
+        <div style={{
+          width: '5px', height: '5px', borderRadius: '50%', marginTop: '5px',
+          backgroundColor: glow, boxShadow: `0 0 6px ${glow}`, zIndex: 1,
+        }} />
+      </div>
     </div>
   )
 }

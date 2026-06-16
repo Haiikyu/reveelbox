@@ -220,7 +220,7 @@ export default function ShopPage() {
   // --- Data loading ---
   const loadPins = useCallback(async () => {
     if (!user) return
-    const { data: shopPins } = await supabase.from('shop_pins').select('*').order('price')
+    const { data: shopPins } = await supabase.from('shop_pins').select('*').order('price').limit(200)
     const { data: userPins } = await supabase.from('user_pins').select('pin_id, is_equipped, slot_number').eq('user_id', user.id)
     const result = (shopPins || []).map(pin => ({
       ...pin,
@@ -234,7 +234,7 @@ export default function ShopPage() {
 
   const loadBanners = useCallback(async () => {
     if (!user) return
-    const { data: shopBanners } = await supabase.from('shop_banners').select('*').order('price')
+    const { data: shopBanners } = await supabase.from('shop_banners').select('*').order('price').limit(200)
     const { data: userBanners } = await supabase.from('user_banners').select('banner_id, is_equipped').eq('user_id', user.id)
     const result = (shopBanners || []).map(banner => ({
       ...banner,
@@ -247,7 +247,7 @@ export default function ShopPage() {
 
   const loadFrames = useCallback(async () => {
     if (!user) return
-    const { data: shopFrames } = await supabase.from('shop_frames').select('*').order('price')
+    const { data: shopFrames } = await supabase.from('shop_frames').select('*').order('price').limit(200)
     const { data: userFrames } = await supabase.from('user_frames').select('frame_id, is_equipped').eq('user_id', user.id)
     const result = (shopFrames || []).map(frame => ({
       ...frame,
@@ -260,7 +260,7 @@ export default function ShopPage() {
 
   const loadNameColors = useCallback(async () => {
     if (!user) return
-    const { data: shopColors } = await supabase.from('shop_name_colors').select('*').order('price')
+    const { data: shopColors } = await supabase.from('shop_name_colors').select('*').order('price').limit(200)
     const { data: userColors } = await supabase.from('user_name_colors').select('color_id, is_equipped').eq('user_id', user.id)
     const result = (shopColors || []).map(color => ({
       ...color,
@@ -273,7 +273,7 @@ export default function ShopPage() {
 
   const loadBackgrounds = useCallback(async () => {
     if (!user) return
-    const { data: shopBgs } = await supabase.from('shop_backgrounds').select('*').order('price')
+    const { data: shopBgs } = await supabase.from('shop_backgrounds').select('*').order('price').limit(200)
     const { data: userBgs } = await supabase.from('user_backgrounds').select('background_id, is_equipped').eq('user_id', user.id)
     const result = (shopBgs || []).map(bg => ({
       ...bg,

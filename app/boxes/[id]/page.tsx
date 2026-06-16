@@ -301,6 +301,581 @@ function MultiWinResult({
   )
 }
 
+// ── Reveal inline après la roulette (single open) ──────────────────────────
+function SingleWinReveal({
+  item,
+  onOpenAgain,
+  isDark,
+  profile,
+}: {
+  item: LootItem
+  onOpenAgain: () => void
+  isDark: boolean
+  profile?: Record<string, any> | null
+}) {
+  const router = useRouter()
+  const glow = rarityColors[item.rarity?.toLowerCase()] || rarityColors.common
+  const COIN_LOGO = 'https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png'
+  const innerBg = isDark ? 'rgba(6,9,18,0.97)' : 'rgba(248,248,252,0.97)'
+  const rarityLabel = item.rarity ? item.rarity.charAt(0).toUpperCase() + item.rarity.slice(1) : 'Common'
+  const dropPct = Math.min(item.probability, 100)
+
+  // ── Niveau — champs enrichis par AuthProvider (lib/xp-system.ts) ─────────
+  const level = profile?.level ?? 1
+  const currentLevelExp = profile?.current_level_exp ?? 0
+  const expToNext = profile?.exp_to_next ?? 100
+  const barPct = profile?.progress_percentage ?? 0
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.88, filter: 'blur(10px)' }}
+      animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+      exit={{ opacity: 0, scale: 0.92, filter: 'blur(4px)' }}
+      transition={{ type: 'spring', stiffness: 240, damping: 26 }}
+      style={{
+        position: 'absolute',
+        left: '10%', right: '10%',
+        top: '68px', height: '280px',
+        borderRadius: '20px',
+        zIndex: 30,
+      }}
+    >
+      {/* ── BORDER STATIQUE 30% ── */}
+      <div style={{
+        position: 'absolute', inset: 0, borderRadius: '20px',
+        border: `1px solid ${glow}4d`, zIndex: 0, pointerEvents: 'none',
+      }} />
+
+      {/* ── SNAKE BORDER ── */}
+      <div style={{ position: 'absolute', inset: 0, borderRadius: '20px', overflow: 'hidden', zIndex: 1 }}>
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
+          style={{
+            position: 'absolute', width: '200%', height: '200%', top: '-50%', left: '-50%',
+            background: `conic-gradient(from 0deg,
+              ${glow}00 0%, ${glow}00 74%, ${glow}30 78%,
+              ${glow}99 84%, ${glow}ff 89%, ${glow}ff 92%,
+              ${glow}66 95%, ${glow}00 98%, ${glow}00 100%)`,
+          }}
+        />
+        <div style={{ position: 'absolute', inset: '2px', borderRadius: '18px', background: innerBg }} />
+      </div>
+
+      {/* ── 3 COUCHES DE LUMIÈRE GLASSMORPHISM ── */}
+      <div style={{ position: 'absolute', inset: '2px', borderRadius: '18px', overflow: 'hidden', zIndex: 2, pointerEvents: 'none' }}>
+        {/* Background glow — ambiance rarity */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: `radial-gradient(ellipse at 28% 55%, ${glow}1a 0%, transparent 58%)`,
+        }} />
+        {/* Middle glow — profondeur */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: `radial-gradient(ellipse at 72% 80%, ${glow}0e 0%, transparent 52%)`,
+        }} />
+        {/* Front glow — reflet verre haut */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: '45%',
+          background: isDark
+            ? 'linear-gradient(180deg, rgba(255,255,255,0.045) 0%, transparent 100%)'
+            : 'linear-gradient(180deg, rgba(255,255,255,0.4) 0%, transparent 100%)',
+        }} />
+      </div>
+
+      {/* ── PARTICULES ── */}
+      {[...Array(8)].map((_, i) => (
+        <motion.div
+          key={i}
+          style={{
+            position: 'absolute',
+            left: `${7 + i * 10}%`,
+            bottom: `${10 + (i % 3) * 8}px`,
+            width: i % 3 === 0 ? '4px' : i % 3 === 1 ? '3px' : '2px',
+            height: i % 3 === 0 ? '4px' : i % 3 === 1 ? '3px' : '2px',
+            borderRadius: '50%',
+            background: glow,
+            boxShadow: `0 0 6px ${glow}, 0 0 12px ${glow}80`,
+            zIndex: 3, pointerEvents: 'none',
+          }}
+          animate={{ y: [0, -(50 + i * 18), -(105 + i * 14)], opacity: [0, 0.9, 0] }}
+          transition={{ duration: 2.2 + i * 0.32, delay: i * 0.38, repeat: Infinity, ease: 'easeOut' }}
+        />
+      ))}
+
+      {/* ── CONTENU ── */}
+      <div style={{
+        position: 'absolute', inset: '2px',
+        display: 'flex', borderRadius: '18px', overflow: 'hidden', zIndex: 4,
+      }}>
+
+        {/* ── LEFT — Item Showcase ── */}
+        <div style={{
+          width: '48%',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          position: 'relative', gap: '6px',
+        }}>
+          {/* Halo pulsant derrière l'image */}
+          <motion.div
+            animate={{ opacity: [0.35, 0.75, 0.35], scale: [0.88, 1.08, 0.88] }}
+            transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+            style={{
+              position: 'absolute',
+              width: '200px', height: '200px', borderRadius: '50%',
+              background: `radial-gradient(circle, ${glow}22 0%, ${glow}08 55%, transparent 75%)`,
+              filter: 'blur(14px)', pointerEvents: 'none',
+            }}
+          />
+
+          {/* Image — star absolue, perspective 3D */}
+          <motion.div
+            animate={{ y: [0, -9, 0] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ perspective: '600px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <motion.img
+              src={item.image_url}
+              alt={item.name}
+              style={{
+                maxWidth: '205px', maxHeight: '195px',
+                objectFit: 'contain',
+                filter: `drop-shadow(0 14px 38px ${glow}70)`,
+                display: 'block',
+              }}
+              initial={{ scale: 0.22, opacity: 0, rotateY: -25 }}
+              animate={{
+                scale: 1, opacity: 1,
+                rotateY: [0, 5, 0, -5, 0],
+                rotate: [0, 1.2, 0, -1.2, 0],
+              }}
+              transition={{
+                scale: { type: 'spring', stiffness: 190, damping: 16, delay: 0.08 },
+                opacity: { duration: 0.2, delay: 0.08 },
+                rotateY: { duration: 6.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 },
+                rotate: { duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 },
+              }}
+              onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
+          </motion.div>
+
+          {/* Ombre au sol */}
+          <motion.div
+            initial={{ opacity: 0, scaleX: 0 }}
+            animate={{ opacity: 1, scaleX: 1 }}
+            transition={{ delay: 0.28, duration: 0.45 }}
+            style={{
+              width: '150px', height: '18px',
+              background: `radial-gradient(ellipse, ${glow}52 0%, transparent 72%)`,
+              filter: 'blur(8px)', flexShrink: 0,
+            }}
+          />
+        </div>
+
+        {/* ── SEPARATEUR ── */}
+        <div style={{
+          width: '1px',
+          background: `linear-gradient(180deg, transparent, ${glow}30 30%, ${glow}30 70%, transparent)`,
+          margin: '20px 0',
+        }} />
+
+        {/* ── RIGHT — Luxury Information Card ── */}
+        <div style={{
+          flex: 1,
+          display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '10px',
+          padding: '16px 20px',
+        }}>
+
+          {/* TOP ROW : Rarity + XP niveau (haut-droite) */}
+          <motion.div
+            initial={{ opacity: 0, x: 22 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.14, type: 'spring', stiffness: 300, damping: 24 }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}
+          >
+            {/* Rarity badge */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              padding: '4px 12px', borderRadius: '999px',
+              background: `${glow}18`, border: `1px solid ${glow}42`,
+              backdropFilter: 'blur(8px)', flexShrink: 0,
+            }}>
+              <motion.div
+                animate={{ boxShadow: [`0 0 4px ${glow}`, `0 0 14px ${glow}`, `0 0 4px ${glow}`] }}
+                transition={{ duration: 1.6, repeat: Infinity }}
+                style={{ width: '7px', height: '7px', borderRadius: '50%', background: glow }}
+              />
+              <span style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase', color: glow }}>
+                {rarityLabel}
+              </span>
+            </div>
+
+            {/* XP / Niveau */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '0.04em', color: isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.5)' }}>
+                  Niveau {level}
+                </span>
+                <span style={{ fontSize: '9px', fontWeight: 600, color: isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.28)' }}>
+                  {currentLevelExp} / {currentLevelExp + expToNext} XP
+                </span>
+              </div>
+              <div style={{ height: '3px', background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)', borderRadius: '99px', overflow: 'hidden' }}>
+                <motion.div
+                  initial={{ width: '0%' }}
+                  animate={{ width: `${barPct}%` }}
+                  transition={{ duration: 0.9, ease: [0.23, 1, 0.32, 1], delay: 0.3 }}
+                  style={{
+                    height: '100%', borderRadius: '99px',
+                    background: `linear-gradient(90deg, ${glow}88, ${glow})`,
+                    boxShadow: `0 0 6px ${glow}`,
+                  }}
+                />
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Nom de l'item */}
+          <motion.div
+            initial={{ opacity: 0, x: 22 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.21, type: 'spring', stiffness: 280, damping: 24 }}
+            style={{
+              fontSize: '13.5px', fontWeight: 700, lineHeight: 1.3,
+              color: isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)',
+              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+            }}
+          >
+            {item.name}
+          </motion.div>
+
+          {/* VALUE — hero number animé */}
+          <motion.div
+            initial={{ opacity: 0, x: 22 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.28, type: 'spring', stiffness: 280, damping: 24 }}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <span style={{ fontSize: '36px', fontWeight: 900, lineHeight: 1, color: glow, letterSpacing: '-0.02em' }}>
+              <CountUp target={item.market_value} duration={1500} />
+            </span>
+            <img src={COIN_LOGO} alt="coins" style={{ width: '26px', height: '26px', flexShrink: 0 }} />
+          </motion.div>
+
+          {/* Drop Chance — barre visuelle */}
+          <motion.div
+            initial={{ opacity: 0, x: 22 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.34 }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.28)' }}>
+                Drop Chance
+              </span>
+              <span style={{ fontSize: '10px', fontWeight: 800, color: glow }}>
+                {item.probability.toFixed(2)}%
+              </span>
+            </div>
+            <div style={{ height: '3px', background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)', borderRadius: '99px', overflow: 'hidden' }}>
+              <motion.div
+                initial={{ width: '0%' }}
+                animate={{ width: `${Math.max(dropPct, 1.5)}%` }}
+                transition={{ delay: 0.52, duration: 1.4, ease: [0.23, 1, 0.32, 1] }}
+                style={{
+                  height: '100%', borderRadius: '99px',
+                  background: `linear-gradient(90deg, ${glow}88, ${glow})`,
+                  boxShadow: `0 0 8px ${glow}`,
+                }}
+              />
+            </div>
+          </motion.div>
+
+          {/* ── BOUTONS PREMIUM ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.42, type: 'spring', stiffness: 300, damping: 26 }}
+            style={{ display: 'flex', gap: '6px', marginTop: '2px' }}
+          >
+            {/* Open Again — dominant, plus large */}
+            <motion.button
+              whileHover={{ scale: 1.05, boxShadow: '0 0 30px rgba(69,120,190,0.62)' }}
+              whileTap={{ scale: 0.94 }}
+              onClick={() => onOpenAgain()}
+              style={{
+                flex: 1.5, padding: '9px 0', borderRadius: '11px', border: 'none', cursor: 'pointer',
+                fontSize: '12px', fontWeight: 800, color: 'white', letterSpacing: '0.02em',
+                background: 'linear-gradient(135deg, #5489cc 0%, #3465a8 100%)',
+                boxShadow: '0 0 20px rgba(69,120,190,0.4), inset 0 1px 0 rgba(255,255,255,0.18)',
+              }}
+            >
+              Open Again
+            </motion.button>
+
+            {/* Upgrade — énergétique */}
+            <motion.button
+              whileHover={{ scale: 1.05, boxShadow: '0 0 24px rgba(139,92,246,0.58)' }}
+              whileTap={{ scale: 0.94 }}
+              onClick={() => router.push('/upgrade')}
+              style={{
+                flex: 1, padding: '9px 0', borderRadius: '11px', border: 'none', cursor: 'pointer',
+                fontSize: '12px', fontWeight: 800, color: 'white',
+                background: 'linear-gradient(135deg, #9366f6 0%, #6d28d9 100%)',
+                boxShadow: '0 0 16px rgba(139,92,246,0.32), inset 0 1px 0 rgba(255,255,255,0.15)',
+              }}
+            >
+              Upgrade
+            </motion.button>
+
+            {/* Inventory — sobre premium */}
+            <motion.button
+              whileHover={{ scale: 1.05, background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}
+              whileTap={{ scale: 0.94 }}
+              onClick={() => router.push('/inventory')}
+              style={{
+                flex: 1, padding: '9px 0', borderRadius: '11px', cursor: 'pointer',
+                fontSize: '12px', fontWeight: 700,
+                color: isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.58)',
+                background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
+              }}
+            >
+              Inventory
+            </motion.button>
+          </motion.div>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// ── CountUp animé ────────────────────────────────────────────────────────────
+function CountUp({ target, decimals = 0, duration = 2000, suffix = '' }: {
+  target: number
+  decimals?: number
+  duration?: number
+  suffix?: string
+}) {
+  const [display, setDisplay] = useState(0)
+  const startTime = useRef<number | null>(null)
+  const rafRef = useRef<number>(0)
+
+  useEffect(() => {
+    startTime.current = null
+    const animate = (now: number) => {
+      if (!startTime.current) startTime.current = now
+      const elapsed = now - startTime.current
+      const progress = Math.min(elapsed / duration, 1)
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3)
+      setDisplay(parseFloat((eased * target).toFixed(decimals)))
+      if (progress < 1) rafRef.current = requestAnimationFrame(animate)
+    }
+    rafRef.current = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [target, decimals, duration])
+
+  return <>{display.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}{suffix}</>
+}
+
+// ── Tiers de rareté ──────────────────────────────────────────────────────────
+const RARITY_TIERS = [
+  { key: 'legendary', label: 'MYTHIC',    cardMin: 210, imgSize: 115 },
+  { key: 'epic',      label: 'LEGENDARY', cardMin: 178, imgSize: 95  },
+  { key: 'rare',      label: 'EPIC',      cardMin: 155, imgSize: 80  },
+  { key: 'uncommon',  label: 'RARE',      cardMin: 140, imgSize: 68  },
+  { key: 'common',    label: 'COMMON',    cardMin: 128, imgSize: 60  },
+] as const
+
+// ── Carte de luxe individuelle ────────────────────────────────────────────────
+function LuxuryCard({ item, imgSize, isDark, onItemClick, delay }: {
+  item: LootItem; imgSize: number; isDark: boolean
+  onItemClick: (item: LootItem) => void; delay: number
+}) {
+  const [hovered, setHovered] = useState(false)
+  const [shimmerKey, setShimmerKey] = useState(-1)
+  const glow = rarityColors[item.rarity?.toLowerCase()] || rarityColors.common
+  const COIN_LOGO = 'https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png'
+  const pct = item.probability < 1 ? item.probability * 100 : item.probability
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 22, scale: 0.93 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay, duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+      whileHover={{ y: -8, scale: 1.03 }}
+      onHoverStart={() => { setHovered(true); setShimmerKey(k => k + 1) }}
+      onHoverEnd={() => setHovered(false)}
+      onClick={() => onItemClick(item)}
+      style={{
+        cursor: 'pointer', borderRadius: '18px',
+        display: 'flex', flexDirection: 'column',
+        position: 'relative', overflow: 'hidden',
+        background: isDark
+          ? 'linear-gradient(158deg, rgba(255,255,255,0.065) 0%, rgba(255,255,255,0.018) 100%)'
+          : 'linear-gradient(158deg, rgba(255,255,255,0.88) 0%, rgba(255,255,255,0.62) 100%)',
+        border: `1px solid ${hovered ? glow + '65' : glow + '28'}`,
+        backdropFilter: 'blur(18px)',
+        boxShadow: hovered
+          ? `0 0 0 1px ${glow}22, 0 20px 50px ${glow}30, 0 6px 20px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12)`
+          : `0 0 0 1px ${glow}08, 0 4px 18px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.06)`,
+        transition: 'border-color 0.25s ease, box-shadow 0.25s ease',
+      }}
+    >
+      {/* Barre rarity en haut */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: '3px',
+        background: `linear-gradient(90deg, transparent 5%, ${glow} 40%, ${glow} 60%, transparent 95%)`,
+        boxShadow: hovered ? `0 0 18px ${glow}` : `0 0 8px ${glow}88`,
+        transition: 'box-shadow 0.25s ease',
+      }} />
+
+      {/* Shimmer holographique au hover */}
+      <AnimatePresence>
+        {shimmerKey >= 0 && (
+          <motion.div
+            key={shimmerKey}
+            initial={{ x: '-130%', opacity: 1 }}
+            animate={{ x: '300%', opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            style={{
+              position: 'absolute', top: 0, bottom: 0, width: '38%',
+              background: 'linear-gradient(105deg, transparent 25%, rgba(255,255,255,0.18) 50%, rgba(255,255,255,0.05) 65%, transparent 82%)',
+              pointerEvents: 'none', zIndex: 10,
+              transform: 'skewX(-14deg)',
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Ambient glow intérieur */}
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        background: `radial-gradient(ellipse at 50% 15%, ${glow}${hovered ? '20' : '0d'} 0%, transparent 68%)`,
+        transition: 'background 0.3s ease',
+      }} />
+
+      {/* Zone image */}
+      <div style={{
+        padding: '18px 14px 10px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        minHeight: `${imgSize + 38}px`, position: 'relative',
+      }}>
+        <motion.img
+          src={item.image_url} alt={item.name}
+          animate={{ scale: hovered ? 1.1 : 1 }}
+          transition={{ type: 'spring', stiffness: 280, damping: 22 }}
+          style={{
+            maxWidth: `${imgSize}px`, maxHeight: `${imgSize}px`, objectFit: 'contain',
+            filter: `drop-shadow(0 6px ${hovered ? 22 : 12}px ${glow}${hovered ? '75' : '50'})`,
+            position: 'relative', zIndex: 1,
+          }}
+          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+        />
+        {/* Ombre au sol */}
+        <div style={{
+          position: 'absolute', bottom: '8px', left: '50%',
+          transform: `translateX(-50%) scaleX(${hovered ? 1.35 : 1})`,
+          width: `${imgSize * 0.65}px`, height: '10px',
+          background: `radial-gradient(ellipse, ${glow}${hovered ? '52' : '32'} 0%, transparent 75%)`,
+          filter: 'blur(5px)', transition: 'transform 0.3s ease, background 0.3s ease',
+        }} />
+      </div>
+
+      {/* Zone info */}
+      <div style={{
+        padding: '10px 14px 14px',
+        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+        borderTop: `1px solid ${glow}${hovered ? '28' : '15'}`,
+        background: isDark ? 'rgba(0,0,0,0.28)' : 'rgba(0,0,0,0.04)',
+        flex: 1, transition: 'border-color 0.25s ease', gap: '8px',
+      }}>
+        <span style={{
+          fontSize: '11.5px', fontWeight: 700, lineHeight: 1.35, textAlign: 'center',
+          color: isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.85)',
+          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+        }}>
+          {item.name}
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ fontSize: '13px', fontWeight: 900, color: glow }}>
+              <CountUp target={item.market_value} duration={1800} />
+            </span>
+            <img src={COIN_LOGO} alt="" style={{ width: '14px', height: '14px' }} />
+          </div>
+          <span style={{ fontSize: '10px', fontWeight: 700, color: glow, opacity: 0.72 }}>
+            <CountUp target={item.probability} decimals={2} duration={2000} suffix="%" />
+          </span>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// ── Luxury Showcase ───────────────────────────────────────────────────────────
+function LuxuryShowcase({ items, onItemClick, isDark }: {
+  items: LootItem[]; onItemClick: (item: LootItem) => void; isDark: boolean
+}) {
+  let cumDelay = 0
+  const tiers = RARITY_TIERS.map(tier => {
+    const tierItems = items.filter(i => i.rarity?.toLowerCase() === tier.key)
+    const startDelay = cumDelay
+    cumDelay += tierItems.length * 0.045
+    return { ...tier, tierItems, startDelay }
+  }).filter(t => t.tierItems.length > 0)
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '44px' }}>
+      {tiers.map(({ key, label, cardMin, imgSize, tierItems, startDelay }) => {
+        const glow = rarityColors[key] || rarityColors.common
+        return (
+          <div key={key}>
+            {/* Séparateur de tier */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
+              <div style={{ flex: 1, height: '1px', background: `linear-gradient(90deg, transparent, ${glow}45)` }} />
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: '9px',
+                padding: '6px 18px', borderRadius: '999px',
+                background: `${glow}14`, border: `1px solid ${glow}38`,
+              }}>
+                <motion.div
+                  animate={{ boxShadow: [`0 0 4px ${glow}`, `0 0 16px ${glow}`, `0 0 4px ${glow}`] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  style={{ width: '7px', height: '7px', borderRadius: '50%', background: glow }}
+                />
+                <span style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', color: glow }}>
+                  {label}
+                </span>
+                <span style={{ fontSize: '10px', fontWeight: 600, color: isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.28)' }}>
+                  {tierItems.length} item{tierItems.length > 1 ? 's' : ''}
+                </span>
+              </div>
+              <div style={{ flex: 1, height: '1px', background: `linear-gradient(90deg, ${glow}45, transparent)` }} />
+            </div>
+
+            {/* Grille adaptive */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(auto-fill, minmax(${cardMin}px, 1fr))`,
+              gap: '14px',
+            }}>
+              {tierItems.map((item, i) => (
+                <LuxuryCard
+                  key={item.id} item={item} imgSize={imgSize}
+                  isDark={isDark} onItemClick={onItemClick}
+                  delay={startDelay + i * 0.045}
+                />
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // Séparateur gradient fin
 function GradientSeparator() {
   const { resolvedTheme } = useTheme()
@@ -722,12 +1297,23 @@ export default function BoxOpeningPage() {
       </AnimatePresence>
 
       {/* ZONE UNIQUE - tout est positionnable librement ici */}
-      <div className="relative w-full" style={{ minHeight: '520px' }}>
+      <div className="relative w-full" style={{ minHeight: '370px' }}>
 
         {/* ROULETTE - fixée en haut */}
-        <div className="absolute left-[10%] right-[10%] rounded-2xl overflow-hidden" style={{ top: '68px', border: '1px solid #4578be40', boxShadow: '0 0 8px #4578be30' }}>
+        <div
+          className="absolute left-[10%] right-[10%]"
+          style={{
+            top: '68px',
+            ...(selectedCount === 1 ? {
+              borderRadius: '16px',
+              overflow: 'hidden',
+              border: '1px solid #4578be40',
+              boxShadow: '0 0 8px #4578be30',
+            } : {})
+          }}
+        >
         {(() => {
-          const rw = (i: number, h: number) => (
+          const rw = (i: number) => (
             <LegendaryWheelWrapper
               key={`${spinKey}-${i}`}
               items={box.items}
@@ -735,113 +1321,230 @@ export default function BoxOpeningPage() {
               fastMode={fastMode}
               onFinish={handleWheelFinish}
               isSpinning={isSpinning}
-              height={h}
+              height={280}
               spinKey={spinKey}
             />
           )
-          const sep = <div className="w-full h-px" style={{ background: 'rgba(69,120,190,0.15)' }} />
-          if (selectedCount === 1) return rw(0, 280)
-          if (selectedCount === 2) return <div className="flex flex-col">{rw(0,150)}{sep}{rw(1,150)}</div>
+          const cell = (i: number) => (
+            <div key={i} className="flex-1 overflow-hidden" style={{
+              borderRadius: '16px',
+              border: '1px solid #4578be40',
+              boxShadow: '0 0 8px #4578be30',
+            }}>
+              {rw(i)}
+            </div>
+          )
+          if (selectedCount === 1) return rw(0)
+          if (selectedCount === 2) return (
+            <div className="flex" style={{ height: '280px', gap: '12px' }}>
+              {cell(0)}{cell(1)}
+            </div>
+          )
           if (selectedCount === 3) return (
-            <div className="flex flex-col">
-              <div className="flex" style={{ borderBottom: '1px solid rgba(69,120,190,0.2)' }}>
-                <div className="flex-1 overflow-hidden" style={{ borderRight: '1px solid rgba(69,120,190,0.2)' }}>{rw(0,140)}</div>
-                <div className="flex-1 overflow-hidden">{rw(1,140)}</div>
-              </div>
-              <div className="overflow-hidden">{rw(2,170)}</div>
+            <div className="flex" style={{ height: '280px', gap: '12px' }}>
+              {cell(0)}{cell(1)}{cell(2)}
             </div>
           )
           if (selectedCount === 4) return (
-            <div className="flex flex-col">
-              <div className="flex" style={{ borderBottom: '1px solid rgba(69,120,190,0.2)' }}>
-                <div className="flex-1 overflow-hidden" style={{ borderRight: '1px solid rgba(69,120,190,0.2)' }}>{rw(0,150)}</div>
-                <div className="flex-1 overflow-hidden">{rw(1,150)}</div>
-              </div>
-              <div className="flex">
-                <div className="flex-1 overflow-hidden" style={{ borderRight: '1px solid rgba(69,120,190,0.2)' }}>{rw(2,150)}</div>
-                <div className="flex-1 overflow-hidden">{rw(3,150)}</div>
-              </div>
+            <div className="flex" style={{ height: '280px', gap: '12px' }}>
+              {cell(0)}{cell(1)}{cell(2)}{cell(3)}
             </div>
           )
         })()}
         </div>
 
-        {/* IMAGE BOX - positionnée librement, déborde sur la roulette */}
-        <img
-          src={box.image_url || ''}
-          alt={box.name}
-          className="absolute object-contain"
-          style={{
-            width: '176px',
-            height: '176px',
-            bottom: '-24px',
-            left: '238px',
-            filter: 'drop-shadow(0 4px 16px rgba(69,120,190,0.5))',
-            zIndex: 10
-          }}
-        />
+        {/* SINGLE WIN REVEAL */}
+        <AnimatePresence>
+          {showResult && selectedCount === 1 && winningItem && (
+            <SingleWinReveal
+              item={winningItem}
+              onOpenAgain={handleMultiOpen}
+              isDark={isDark}
+              profile={profile}
+            />
+          )}
+        </AnimatePresence>
 
-        {/* NOM - collé à droite de la box, aligné en haut */}
-        <div className="absolute" style={{ left: '428px', bottom: '54px' }}>
-          <span className="text-2xl font-black" style={{ color: isDark ? '#F5F0E8' : 'rgba(0,0,0,0.9)', letterSpacing: '-0.02em' }}>
-            {box.name}
-          </span>
-          {/* Trait séparateur */}
-          <div style={{ width: 'fit-content', marginTop: '6px', marginBottom: '6px' }}>
-            <div style={{ height: '2px', background: 'linear-gradient(90deg, #4578be, #4578be60)', borderRadius: '99px', width: '80px' }} />
+        {/* SHOWCASE MOVED BELOW ZONE DIV */}
+      </div>
+
+      {/* ── FLOATING PRODUCT ELEMENTS — aucun container, aucun fond ── */}
+      <div className="w-full" style={{ padding: '14px 10% 28px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '56px' }}>
+
+          {/* CAISSE — point focal, flottante dans l'espace */}
+          <div style={{ position: 'relative', flexShrink: 0, width: '152px' }}>
+            {/* Halo volumétrique — fond de page, pas un conteneur */}
+            <motion.div
+              animate={{ opacity: [0.15, 0.42, 0.15], scale: [0.75, 1.12, 0.75] }}
+              transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
+              style={{
+                position: 'absolute', inset: '-44px', borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(69,120,190,0.22) 0%, transparent 68%)',
+                filter: 'blur(28px)', pointerEvents: 'none',
+              }}
+            />
+            {/* Reflet au sol */}
+            <div style={{
+              position: 'absolute', bottom: '-16px', left: '50%', transform: 'translateX(-50%)',
+              width: '100px', height: '16px',
+              background: 'radial-gradient(ellipse, rgba(69,120,190,0.28) 0%, transparent 72%)',
+              filter: 'blur(8px)', pointerEvents: 'none',
+            }} />
+            <motion.img
+              src={box.image_url || ''} alt={box.name}
+              animate={{ y: [0, -8, 0] }}
+              transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
+              style={{
+                width: '152px', height: '152px', objectFit: 'contain',
+                position: 'relative', zIndex: 1,
+                filter: 'drop-shadow(0 20px 40px rgba(69,120,190,0.48))',
+              }}
+            />
           </div>
-          {/* Prix */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-lg font-black" style={{ color: '#4578be' }}>{box.price_virtual.toLocaleString()}</span>
-            <img src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png" alt="coins" className="w-5 h-5" />
+
+          {/* COLONNE 2 — Texte produit : Mystery Case / Nom / Prix */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0', flexShrink: 0 }}>
+            <span style={{
+              fontSize: '9px', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase',
+              color: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
+              marginBottom: '8px', display: 'block',
+            }}>
+              Mystery Case
+            </span>
+            <span style={{
+              fontSize: '28px', fontWeight: 900, lineHeight: 1, letterSpacing: '-0.03em',
+              color: isDark ? '#EDE8E0' : 'rgba(0,0,0,0.92)',
+              marginBottom: '12px', display: 'block',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '320px',
+            }}>
+              {box.name}
+            </span>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <img src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png" alt="" style={{ width: '14px', height: '14px', opacity: 0.7 }} />
+              <span style={{ fontSize: '17px', fontWeight: 900, color: '#4578be', letterSpacing: '-0.01em' }}>
+                {box.price_virtual.toLocaleString()}
+              </span>
+              <span style={{ fontSize: '11px', fontWeight: 500, color: isDark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.22)', marginLeft: '2px' }}>
+                per open
+              </span>
+            </div>
           </div>
-        </div>
 
-        {/* BARRE DE CONTROLES - fixée en bas */}
-        <div className="absolute bottom-4 left-0 right-0 flex items-center justify-center gap-2 flex-wrap px-4">
+          {/* COLONNE 3 — Contrôles : Qty / Open / Secondary */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px' }}>
+              <span style={{
+                fontSize: '10px', fontWeight: 600, letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                color: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.18)',
+                marginRight: '6px',
+              }}>
+                Qty
+              </span>
+              {[1, 2, 3, 4].map(n => (
+                <motion.button
+                  key={n}
+                  onClick={() => !isSpinning && setSelectedCount(n)}
+                  disabled={isSpinning}
+                  whileTap={!isSpinning ? { scale: 0.88 } : {}}
+                  style={{
+                    width: '34px', height: '34px', borderRadius: '9px',
+                    fontSize: '14px', fontWeight: 800, border: 'none',
+                    cursor: isSpinning ? 'not-allowed' : 'pointer',
+                    background: selectedCount === n
+                      ? isDark ? 'rgba(69,120,190,0.18)' : 'rgba(69,120,190,0.1)'
+                      : 'transparent',
+                    color: selectedCount === n
+                      ? '#4d8fd4'
+                      : isDark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.22)',
+                    transition: 'background 0.15s ease, color 0.15s ease',
+                  }}
+                >
+                  {n}
+                </motion.button>
+              ))}
+            </div>
 
-          {/* Sélecteur */}
-          <div className="flex items-center gap-1 rounded-xl px-1" style={{ height: '40px', background: 'rgba(69,120,190,0.08)', border: '1px solid rgba(69,120,190,0.2)' }}>
-            {[1, 2, 3, 4].map(n => (
-              <motion.button key={n} onClick={() => !isSpinning && setSelectedCount(n)} whileTap={!isSpinning ? { scale: 0.92 } : {}} disabled={isSpinning}
-                className="w-9 h-8 rounded-lg text-sm font-bold transition-all"
-                style={{ background: selectedCount === n ? '#4578be' : 'transparent', color: selectedCount === n ? 'white' : 'rgba(69,120,190,0.7)', boxShadow: selectedCount === n ? '0 0 12px rgba(69,120,190,0.4)' : 'none' }}
-              >{n}</motion.button>
-            ))}
+            {/* OPEN CASE — CTA premium, physique */}
+            <div style={{ display: 'flex', gap: '2px', maxWidth: '360px', marginBottom: '14px' }}>
+              <motion.button
+                whileHover={!isSpinning ? {
+                  y: -2,
+                  boxShadow: '0 0 44px rgba(69,120,190,0.55), 0 5px 0 rgba(16,38,90,0.55), inset 0 1px 0 rgba(255,255,255,0.25)',
+                } : {}}
+                whileTap={!isSpinning ? {
+                  y: 3,
+                  boxShadow: '0 0 18px rgba(69,120,190,0.25), 0 1px 0 rgba(16,38,90,0.5)',
+                } : {}}
+                onClick={() => handleMultiOpen()}
+                disabled={isSpinning}
+                style={{
+                  flex: 1, height: '52px', borderRadius: '13px 4px 4px 13px', border: 'none',
+                  cursor: isSpinning ? 'not-allowed' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '9px',
+                  fontSize: '14px', fontWeight: 800, color: 'white', letterSpacing: '0.01em',
+                  background: isSpinning
+                    ? 'rgba(69,120,190,0.14)'
+                    : 'linear-gradient(160deg, #5e97db 0%, #3d70be 45%, #2d5aa0 100%)',
+                  boxShadow: isSpinning
+                    ? 'none'
+                    : '0 0 26px rgba(69,120,190,0.42), 0 3px 0 rgba(16,38,90,0.52), inset 0 1px 0 rgba(255,255,255,0.2)',
+                  opacity: isSpinning ? 0.32 : 1,
+                  transition: 'opacity 0.2s ease',
+                }}
+              >
+                <img src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png" alt="" style={{ width: '16px', height: '16px', opacity: 0.85 }} />
+                Open Case · {(box.price_virtual * selectedCount).toLocaleString()}
+              </motion.button>
+
+              {/* Fast — option discrète greffée au CTA */}
+              <motion.button
+                whileHover={{ y: -2 }} whileTap={{ y: 3 }}
+                onClick={handleToggleFastMode}
+                style={{
+                  width: '50px', height: '52px', borderRadius: '4px 13px 13px 4px', border: 'none',
+                  cursor: 'pointer', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: fastMode ? 'rgba(139,92,246,0.18)' : isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                  borderLeft: isDark ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.05)',
+                  boxShadow: fastMode ? '0 0 18px rgba(139,92,246,0.35), 0 0 6px rgba(103,183,255,0.25), 0 3px 0 rgba(70,45,0,0.3)' : '0 3px 0 rgba(0,0,0,0.12)',
+                  outline: fastMode ? '1px solid rgba(139,92,246,0.3)' : 'none',
+                }}
+              >
+                <img
+                  src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/profile-images/full%20site/tonnerre.png"
+                  alt="Fast"
+                  style={{ width: '20px', height: '20px', objectFit: 'contain' }}
+                />
+              </motion.button>
+            </div>
+
+            {/* Actions secondaires — texte pur, quasi-invisible */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <motion.button
+                onClick={handleTryFree} disabled={isSpinning}
+                whileHover={!isSpinning ? { opacity: 1 } : {}}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: isSpinning ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: 600, color: isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)', opacity: 0.8 }}
+              >
+                Try Demo
+              </motion.button>
+              <span style={{ color: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', fontSize: '12px' }}>·</span>
+              <ReplayButton onClick={handleReplay} disabled={isSpinning} hasLastOpening={!!lastOpeningItem} />
+              <span style={{ color: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', fontSize: '12px' }}>·</span>
+              <motion.button
+                onClick={() => setShowPfVerifier(true)}
+                whileHover={{ opacity: 1 }}
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(16,185,129,0.55)', opacity: 0.88 }}
+              >
+                <img src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/loot-boxes/bouclier.png" alt="" style={{ width: '11px', height: '11px', objectFit: 'contain' }} />
+                Provably Fair
+              </motion.button>
+            </div>
           </div>
-
-          {/* Open */}
-          <motion.button whileHover={!isSpinning ? { scale: 1.02 } : {}} whileTap={!isSpinning ? { scale: 0.97 } : {}}
-            onClick={() => handleMultiOpen()} disabled={isSpinning}
-            className="flex items-center gap-2 px-5 rounded-xl text-sm font-bold text-white"
-            style={{ height: '40px', background: isSpinning ? 'rgba(69,120,190,0.3)' : 'linear-gradient(135deg, #4578be, #2d5a9e)', boxShadow: isSpinning ? 'none' : '0 0 20px rgba(69,120,190,0.35)', opacity: isSpinning ? 0.6 : 1 }}
-          >
-            <img src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/images/image_2025-09-06_234243634.png" alt="coins" className="w-4 h-4" />
-            Open {selectedCount > 1 ? `×${selectedCount}` : ''} · {(box.price_virtual * selectedCount).toLocaleString()}
-          </motion.button>
-
-          {/* Essai */}
-          <motion.button whileHover={!isSpinning ? { scale: 1.02 } : {}} whileTap={!isSpinning ? { scale: 0.97 } : {}}
-            onClick={handleTryFree} disabled={isSpinning}
-            className="px-4 rounded-xl text-sm font-semibold"
-            style={{ height: '40px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)' }}
-          >Essai</motion.button>
-
-          {/* Fast mode */}
-          <button onClick={handleToggleFastMode} className="flex items-center justify-center rounded-xl"
-            style={{ width: '40px', height: '40px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)' }}>
-            <img src={fastMode ? 'https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/loot-boxes/avance-rapide%20(1).png' : 'https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/loot-boxes/avance-rapide.png'} alt="Fast mode" className="w-6 h-6 object-contain" />
-          </button>
-
-          <ReplayButton onClick={handleReplay} disabled={isSpinning} hasLastOpening={!!lastOpeningItem} />
-
-          {/* PF */}
-          <button onClick={() => setShowPfVerifier(true)}>
-            <img src="https://pkweofbyzygbbkervpbv.supabase.co/storage/v1/object/public/loot-boxes/bouclier.png" alt="Provably Fair" className="w-8 h-8 object-contain" />
-          </button>
-
         </div>
       </div>
+
 
       <GradientSeparator />
 
@@ -876,7 +1579,7 @@ export default function BoxOpeningPage() {
           Contenu de la boîte
         </h2>
 
-        <LootList items={box.items} onItemClick={handleItemPreview} />
+        <LuxuryShowcase items={box.items} onItemClick={handleItemPreview} isDark={isDark} />
       </motion.div>
 
       {/* MODALS - Provably Fair uniquement */}

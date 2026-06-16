@@ -16,7 +16,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     const supabase = await createClient()
-    
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+    if (user.id !== userId) {
+      return NextResponse.json({ error: 'Accès interdit' }, { status: 403 })
+    }
+
     let query = supabase
       .from('affiliate_notifications')
       .select('*')
@@ -60,10 +68,16 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
 
     const supabase = await createClient()
 
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
     const { error } = await supabase
       .from('affiliate_notifications')
       .update({ is_read: mark_as_read !== false })
       .in('id', notification_ids)
+      .eq('user_id', user.id)
 
     if (error) {
       return NextResponse.json(

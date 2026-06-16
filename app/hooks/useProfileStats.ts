@@ -97,8 +97,9 @@ export function useProfileStats(userId: string | null | undefined, profileData?:
         supabase.from('battle_participants')
           .select('id, user_id, is_winner, total_value, joined_at, battles(id, name, entry_cost, status, mode, created_at)')
           .eq('user_id', userId)
-          .order('joined_at', { ascending: false }),
-        supabase.from('transactions').select('amount, type').eq('user_id', userId),
+          .order('joined_at', { ascending: false })
+          .limit(500),
+        supabase.from('transactions').select('amount, type').eq('user_id', userId).limit(2000),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).gt('total_exp', userTotalExp),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).gt('level', userLevel),
         supabase.from('user_inventory')
@@ -192,23 +193,22 @@ export function useProfileStats(userId: string | null | undefined, profileData?:
         ? Object.entries(boxCount).reduce((a, b) => a[1] > b[1] ? a : b)[0]
         : null
 
-      let mostOpenedBox = ''
-      let favoriteBox = ''
-      if (mostOpenedBoxId) {
-        const { data: boxData } = await supabase.from('loot_boxes').select('name').eq('id', mostOpenedBoxId).maybeSingle()
-        if (boxData) { mostOpenedBox = boxData.name; favoriteBox = boxData.name }
-      }
-
-      let luckiestBox = ''
       let maxAvgValue = 0
       let luckiestBoxId: string | null = null
       Object.entries(boxValues).forEach(([boxId, data]) => {
         const avgValue = data.total / data.count
         if (avgValue > maxAvgValue) { maxAvgValue = avgValue; luckiestBoxId = boxId }
       })
-      if (luckiestBoxId) {
-        const { data: luckyBoxData } = await supabase.from('loot_boxes').select('name').eq('id', luckiestBoxId).maybeSingle()
-        if (luckyBoxData) luckiestBox = luckyBoxData.name
+
+      let mostOpenedBox = ''
+      let favoriteBox = ''
+      let luckiestBox = ''
+      const boxIdsToFetch = [mostOpenedBoxId, luckiestBoxId].filter((id): id is string => !!id)
+      if (boxIdsToFetch.length > 0) {
+        const { data: boxesData } = await supabase.from('loot_boxes').select('id, name').in('id', boxIdsToFetch)
+        const boxNameMap = new Map(boxesData?.map(b => [b.id, b.name]) ?? [])
+        if (mostOpenedBoxId) { mostOpenedBox = boxNameMap.get(mostOpenedBoxId) ?? ''; favoriteBox = mostOpenedBox }
+        if (luckiestBoxId) luckiestBox = boxNameMap.get(luckiestBoxId) ?? ''
       }
 
       // Rank = number of profiles with more XP + 1

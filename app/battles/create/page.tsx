@@ -305,10 +305,10 @@ export default function BattleCreateConnected() {
     try {
       const { data: { user: cu } } = await supabase.auth.getUser()
       if (cu) {
-        const { data: p } = await supabase.from('profiles').select('*').eq('id', cu.id).single()
+        const { data: p } = await supabase.from('profiles').select('id, username, virtual_currency, reevs, level').eq('id', cu.id).single()
         setUser(p)
       }
-      const { data: boxes } = await supabase.from('loot_boxes').select('*').eq('is_daily_free', false).order('price_virtual', { ascending: true })
+      const { data: boxes } = await supabase.from('loot_boxes').select('id, name, image_url, price_virtual, price_reevs, currency_type, is_daily_free').eq('is_daily_free', false).order('price_virtual', { ascending: true })
       setLootBoxes(boxes || [])
     } catch (err) { console.error(err) } finally { setLoading(false) }
   }
@@ -569,7 +569,7 @@ export default function BattleCreateConnected() {
         const { error: botErr } = await supabase.from('battle_participants').insert(bots)
         if (botErr) throw botErr
       }
-      const { error: upErr } = await supabase.from('profiles').update({ virtual_currency: (user!.virtual_currency || 0) - totalValue }).eq('id', user!.id)
+      const { error: upErr } = await supabase.rpc('deduct_coins', { p_user_id: user!.id, p_amount: entryCost })
       if (upErr) throw upErr
       await supabase.from('transactions').insert({ user_id: user!.id, type: 'battle_entry', virtual_amount: -entryCost, battle_id: battle.id, description: `Battle entry: ${battle.name}` })
       const histEntry: BattleHistoryEntry = {
@@ -609,7 +609,7 @@ export default function BattleCreateConnected() {
         <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'radial-gradient(rgba(59,130,246,0.9) 1px, transparent 1px)', backgroundSize: '28px 28px', opacity: T.dotOpacity }} />
         <div className="relative flex flex-1 min-h-0">
           {/* Left skeleton */}
-          <div className="hidden md:flex flex-col border-r flex-shrink-0 md:w-[300px] lg:w-[440px] px-6 py-6 gap-3"
+          <div className="hidden md:flex flex-col border-r flex-shrink-0 md:w-[300px] lg:w-[380px] xl:w-[440px] px-6 py-6 gap-3"
             style={{ borderColor: T.panelBorder, background: T.panelBg }}>
             <div className="h-5 w-28 rounded-lg" style={{ background: T.skeletonBg, animation: 'pulse 1.5s ease-in-out infinite' }} />
             {[...Array(5)].map((_, i) => (
@@ -691,12 +691,12 @@ export default function BattleCreateConnected() {
       <div className="relative flex flex-1 min-h-0">
 
         {/* ══════ LEFT PANEL ══════ */}
-        <div className={`${mobileTab === 'config' ? 'flex' : 'hidden'} md:flex flex-col border-r flex-shrink-0 w-full md:w-[300px] lg:w-[440px]`}
+        <div className={`${mobileTab === 'config' ? 'flex' : 'hidden'} md:flex flex-col border-r flex-shrink-0 w-full md:w-[300px] lg:w-[380px] xl:w-[440px]`}
           style={{ borderColor: T.panelBorder, background: T.panelBg, overflowY: 'auto', scrollbarWidth: 'none' }}>
           <style>{`.left-panel::-webkit-scrollbar { display: none; }`}</style>
 
           {/* Header */}
-          <div className="px-4 md:px-7 pt-5 md:pt-7 pb-4 md:pb-5 flex items-center justify-between flex-shrink-0 border-b" style={{ borderColor: T.panelBorderLight }}>
+          <div className="px-4 md:px-5 lg:px-7 pt-5 md:pt-7 pb-4 md:pb-5 flex items-center justify-between flex-shrink-0 border-b" style={{ borderColor: T.panelBorderLight }}>
             <div className="flex items-center gap-4">
               <motion.button onClick={() => { playC5(); window.history.back() }} whileHover={{ x: -3 }} className="flex items-center gap-2 transition-colors" style={{ color: T.textSub }}>
                 <ArrowLeft className="w-4 h-4" />
@@ -731,7 +731,7 @@ export default function BattleCreateConnected() {
           </div>
 
           {/* ── MODES ── */}
-          <div className="flex-1 flex flex-col px-4 md:px-7 pt-4 md:pt-5 border-b min-h-0" style={{ borderColor: T.panelBorderLight }}>
+          <div className="flex-1 flex flex-col px-4 md:px-5 lg:px-7 pt-4 md:pt-5 border-b min-h-0" style={{ borderColor: T.panelBorderLight }}>
             <div className="flex items-center gap-2 mb-3 flex-shrink-0">
               <div className="w-0.5 h-4 rounded-full transition-all duration-500" style={{ background: activeModeColor }} />
               <span className="text-[11px] font-bold tracking-[0.22em] uppercase" style={{ color: T.textSub }}>Mode de jeu</span>
@@ -742,7 +742,7 @@ export default function BattleCreateConnected() {
                 return (
                   <motion.button key={mode.id} onClick={() => { isActive ? playInventoryClose() : playInventoryOpen(); toggleMode(mode.id) }}
                     whileHover={{ x: 4 }} whileTap={{ scale: 0.99 }}
-                    className="relative flex items-center gap-4 px-3.5 py-3.5 rounded-2xl text-left overflow-hidden transition-all"
+                    className="relative flex items-center gap-3 lg:gap-4 px-2.5 lg:px-3.5 py-2.5 lg:py-3.5 rounded-2xl text-left overflow-hidden transition-all"
                     style={{ background: isActive ? cfg.gradient : T.cardBg, border: `1px solid ${isActive ? cfg.color + '35' : T.cardBorder}`, boxShadow: isActive ? `0 0 28px ${cfg.color}16, inset 0 0 28px ${cfg.color}05` : 'none' }}>
                     {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-9 rounded-r-full" style={{ background: cfg.color }} />}
                     <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: isActive ? `${cfg.color}22` : T.inputBg, border: `1px solid ${isActive ? cfg.color + '35' : T.cardBorder}` }}>
@@ -753,7 +753,7 @@ export default function BattleCreateConnected() {
                         <span className="font-bold text-sm" style={{ color: isActive ? '#f1f5f9' : T.filterColor(false) }}>{mode.name}</span>
                         <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: isActive ? `${cfg.color}22` : T.inputBg, color: isActive ? cfg.color : T.filterColor(false), border: `1px solid ${isActive ? cfg.color + '25' : T.cardBorder}` }}>{cfg.label}</span>
                       </div>
-                      <p className="text-[11px] leading-relaxed" style={{ color: isActive ? '#94a3b8' : T.disabledColor }}>{cfg.description}</p>
+                      <p className="text-[11px] leading-relaxed hidden lg:block" style={{ color: isActive ? '#94a3b8' : T.disabledColor }}>{cfg.description}</p>
                     </div>
                     {isActive && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: cfg.color, boxShadow: `0 0 7px ${cfg.color}` }} />}
                   </motion.button>
@@ -785,7 +785,7 @@ export default function BattleCreateConnected() {
           </div>
 
           {/* ── TEAM CONFIG ── */}
-          <div className="flex-shrink-0 px-4 md:px-7 py-4 md:py-5" style={{ borderColor: `${activeModeColor}10` }}>
+          <div className="flex-shrink-0 px-4 md:px-5 lg:px-7 py-4 md:py-5" style={{ borderColor: `${activeModeColor}10` }}>
             <div className="flex items-center gap-2 mb-4">
               <div className="w-0.5 h-4 rounded-full transition-all duration-500" style={{ background: activeModeColor }} />
               <span className="text-[11px] font-bold tracking-[0.22em] uppercase" style={{ color: T.textSub }}>Configuration</span>
@@ -1114,7 +1114,7 @@ export default function BattleCreateConnected() {
       </div>
 
       {/* ══════ BOTTOM ACTION BAR ══════ */}
-      <div className="fixed bottom-0 z-40 left-0 md:left-[300px] lg:left-[440px] right-0"
+      <div className="fixed bottom-0 z-40 left-0 md:left-[300px] lg:left-[380px] xl:left-[440px] right-0"
         style={{ background: T.bottomBarBg, borderTop: `1px solid ${T.panelBorder}`, backdropFilter: 'blur(20px)' }}>
         <div className="flex items-center gap-3 md:gap-5 px-4 md:px-6 py-3">
 
