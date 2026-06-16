@@ -538,16 +538,16 @@ export default function ReveelBoxNavbar() {
 
   const isAdmin = (profile as any)?.is_admin === true
 
-  // Mémoiser les items de menu (constants - ne changent jamais)
+  // Mémoiser les items de menu (filtrés selon l'état de connexion)
   const navItems = useMemo(() => [
     { href: '/boxes', label: 'Unboxing', icon: Package },
     { href: '/battles', label: 'Battles', icon: Sword },
     { href: '/games', label: 'Games', icon: Gamepad2, hasDropdown: true },
-    { href: '/affiliates', label: 'Affiliés', icon: Users },
+    ...(user ? [{ href: '/affiliates', label: 'Affiliés', icon: Users }] : []),
     { href: '/freedrop', label: 'Free Drop', icon: Gift },
     { href: '/shop', label: 'Shop', icon: ShoppingCart, gradient: 'from-purple-500 to-pink-500' },
     { href: '/leaderboard', label: 'Leaderboard', icon: Crown, gradient: 'from-yellow-500 to-orange-500' },
-  ], [])
+  ], [user])
 
   const gamesDropdownItems = useMemo(() => [
     { href: '/games/crash', label: 'Crash', icon: TrendingUp, gradient: 'from-red-500 to-orange-500' },
