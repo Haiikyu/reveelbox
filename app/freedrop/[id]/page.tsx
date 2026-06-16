@@ -3,7 +3,6 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/app/components/AuthProvider'
-import { useAuthModal } from '@/app/components/AuthModalProvider'
 import { useRouter, useParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, AlertCircle, Loader2 } from 'lucide-react'
@@ -39,7 +38,6 @@ const centerVariants = {
 
 export default function FreedropOpeningPage() {
   const { user, profile, loading: authLoading, isAuthenticated, refreshProfile } = useAuth()
-  const { openLoginModal } = useAuthModal()
   const router = useRouter()
   const params = useParams()
 
@@ -80,11 +78,6 @@ export default function FreedropOpeningPage() {
   const prevBox = allBoxes[prevBoxIndex]
   const nextBox = allBoxes[nextBoxIndex]
 
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      openLoginModal()
-    }
-  }, [authLoading, isAuthenticated, openLoginModal])
 
   useEffect(() => {
     const loadAllBoxes = async () => {

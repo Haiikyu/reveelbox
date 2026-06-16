@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/app/components/AuthProvider'
-import { useAuthModal } from '@/app/components/AuthModalProvider'
 import { useTheme } from '@/app/components/ThemeProvider'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -26,7 +25,6 @@ function GradientSeparator({ isDark }: { isDark?: boolean }) {
 
 export default function FreedropPage() {
   const { user, profile, loading: authLoading, isAuthenticated } = useAuth()
-  const { openLoginModal } = useAuthModal()
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
   const [boxes, setBoxes] = useState<DailyBox[]>([])
@@ -71,12 +69,6 @@ export default function FreedropPage() {
     return () => clearInterval(timer)
   }, [])
 
-  // Protection de route
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      openLoginModal()
-    }
-  }, [authLoading, isAuthenticated, openLoginModal])
 
   // Validation sécurisée des données
   const validateLootBoxItem = (item: any): boolean => {
