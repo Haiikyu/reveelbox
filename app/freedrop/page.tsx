@@ -123,52 +123,49 @@ export default function FreedropPage() {
   // Charger les données avec timeout et fallback
   useEffect(() => {
     const fetchData = async () => {
-      if (!user?.id) return
-
       try {
         setLoading(true)
         setError('')
 
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Timeout')), 10000)
-        )
-
-        const dataPromise = (async () => {
-          const { data: boxesData, error: boxesError } = await supabase
-            .from('loot_boxes')
-            .select(`
-              id,
-              name,
-              description,
-              required_level,
-              image_url,
-              loot_box_items (
-                probability,
-                display_order,
-                items (
-                  id,
-                  name,
-                  rarity,
-                  image_url,
-                  market_value,
-                  description,
-                  category
-                )
+        const { data: boxesData, error: boxesError } = await supabase
+          .from('loot_boxes')
+          .select(`
+            id,
+            name,
+            description,
+            required_level,
+            image_url,
+            loot_box_items (
+              probability,
+              display_order,
+              items (
+                id,
+                name,
+                rarity,
+                image_url,
+                market_value,
+                description,
+                category
               )
-            `)
-            .eq('is_daily_free', true)
-            .eq('is_active', true)
-            .order('required_level', { ascending: true })
+            )
+          `)
+          .eq('is_daily_free', true)
+          .eq('is_active', true)
+          .order('required_level', { ascending: true })
 
-          if (boxesError) {
-            console.warn('Erreur DB:', boxesError)
-            return { boxes: [], claims: [], stats: null }
-          }
+        if (boxesError) {
+          console.warn('Erreur DB:', boxesError)
+          setBoxes([])
+          return
+        }
 
-          const mappedBoxes: DailyBox[] = (boxesData || [])
-            .map(transformSupabaseBox)
-            .filter((box): box is DailyBox => box !== null)
+        const mappedBoxes: DailyBox[] = (boxesData || [])
+          .map(transformSupabaseBox)
+          .filter((box): box is DailyBox => box !== null)
 
+        setBoxes(mappedBoxes)
+
+        if (user?.id) {
           const today = new Date().toISOString().split('T')[0]
           const { data: claimsData } = await supabase
             .from('daily_box_claims')
@@ -176,55 +173,33 @@ export default function FreedropPage() {
             .eq('user_id', user.id)
             .eq('claimed_date', today)
 
-          // Utiliser le vrai système XP pour calculer la progression
           const totalExp = profile?.total_exp || 0
           const levelInfo = getUserLevelInfo(totalExp)
 
-          const stats: UserStats = {
+          setTodayClaims(claimsData || [])
+          setUserStats({
             level: levelInfo.level,
             current_exp: levelInfo.currentLevelExp,
             exp_to_next: levelInfo.expToNextLevel || 1,
             current_streak: 0,
             longest_streak: 0,
             total_daily_claims: claimsData?.length || 0
-          }
-
-          return {
-            boxes: mappedBoxes,
-            claims: claimsData || [],
-            stats
-          }
-        })()
-
-        const result = await Promise.race([dataPromise, timeoutPromise])
-
-        setBoxes(result.boxes)
-        setTodayClaims(result.claims)
-        setUserStats(result.stats)
+          })
+        }
 
       } catch (err) {
-        console.error('Erreur ou timeout:', err)
+        console.error('Erreur chargement freedrops:', err)
         showMessage('Chargement des freedrops indisponible pour le moment', 'error')
-
-        const fallbackInfo = getUserLevelInfo(profile?.total_exp || 0)
-        setUserStats({
-          level: fallbackInfo.level,
-          current_exp: fallbackInfo.currentLevelExp,
-          exp_to_next: fallbackInfo.expToNextLevel || 1,
-          current_streak: 0,
-          longest_streak: 0,
-          total_daily_claims: 0
-        })
       } finally {
         setLoading(false)
       }
     }
 
-    if (!authLoading && isAuthenticated && user?.id) {
+    if (!authLoading) {
       fetchData()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, isAuthenticated, user?.id, profile])
+  }, [authLoading, user?.id, profile])
 
   const calculateBoxRarity = (requiredLevel: number): 'common' | 'rare' | 'epic' | 'legendary' => {
     if (requiredLevel >= 50) return 'legendary'
@@ -260,10 +235,6 @@ export default function FreedropPage() {
         <LoadingState size="lg" text="Chargement des freedrops..." />
       </div>
     )
-  }
-
-  if (!isAuthenticated) {
-    return null
   }
 
   const claimedCount = todayClaims.length

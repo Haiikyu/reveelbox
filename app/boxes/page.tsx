@@ -82,9 +82,9 @@ export default function BoxesPage() {
 
 
   useEffect(() => {
-    if (!authLoading && isAuthenticated) fetchData()
+    if (!authLoading) fetchData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, isAuthenticated])
+  }, [authLoading])
 
   useEffect(() => {
     if (!showFilters) return
@@ -187,8 +187,6 @@ export default function BoxesPage() {
       </div>
     )
   }
-
-  if (!isAuthenticated) return null
 
   // ── Text / border helpers (dark/light) ───────────────────────────────────
   const T1  = isDark ? WARM.text1 : 'rgba(0,0,0,0.88)'
