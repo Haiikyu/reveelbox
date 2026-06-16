@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/app/components/AuthProvider'
+import { useAuthModal } from '@/app/components/AuthModalProvider'
 import { createClient } from '@/utils/supabase/client'
 import { useTheme } from '@/app/components/ThemeProvider'
 import Link from 'next/link'
@@ -23,6 +24,7 @@ import type { AffiliateProfile, ReferralData, AffiliateTier } from '@/app/compon
 
 export default function AffiliatePage(): JSX.Element | null {
   const { user, profile, loading: authLoading, isAuthenticated } = useAuth()
+  const { openLoginModal } = useAuthModal()
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
 
@@ -239,10 +241,10 @@ export default function AffiliatePage(): JSX.Element | null {
           <p className="text-sm mb-8" style={{ color: isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.4)' }}>
             Acc\u00e9dez \u00e0 votre espace affili\u00e9
           </p>
-          <Link href="/login" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-all hover:opacity-90"
+          <button onClick={() => openLoginModal()} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-all hover:opacity-90"
             style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}>
             Se connecter <ArrowRight size={14} />
-          </Link>
+          </button>
         </motion.div>
       </div>
     )

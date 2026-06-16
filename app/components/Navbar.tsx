@@ -18,8 +18,7 @@ import { sanitizeSvg } from '@/utils/sanitizeSvg'
 import { useAuth } from './AuthProvider'
 import { useTheme } from './ThemeProvider'
 import { useLanguage, LANGUAGES, type Locale } from './LanguageProvider'
-import LoginModal from './LoginModal'
-import SignupModal from './SignupModal'
+import { useAuthModal } from './AuthModalProvider'
 import { getUsernameStyle } from '@/utils/usernameStyle'
 import { useNotifications } from '@/app/hooks/useNotifications'
 
@@ -290,8 +289,7 @@ export default function ReveelBoxNavbar() {
   const [leaderboardRank, setLeaderboardRank] = useState<number | null>(null)
   const [nameColorValue, setNameColorValue] = useState<string | null>(null)
   const [nameColorIsGradient, setNameColorIsGradient] = useState<boolean | null>(null)
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
-  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false)
+  const { openLoginModal, openSignupModal } = useAuthModal()
   const [balanceAnimation, setBalanceAnimation] = useState<'up' | 'down' | null>(null)
   const supabase = createClient()
 
@@ -1423,7 +1421,7 @@ export default function ReveelBoxNavbar() {
                 <div className="flex items-center gap-2">
                   <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
                     <button
-                      onClick={() => setIsLoginModalOpen(true)}
+                      onClick={() => openLoginModal()}
                       className="px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white rounded-xl hover:bg-gradient-to-br hover:from-gray-100/80 hover:to-gray-50 dark:hover:from-gray-800/60 dark:hover:to-gray-800/40 transition-all duration-300 hover:shadow-md"
                     >
                       Connexion
@@ -1434,7 +1432,7 @@ export default function ReveelBoxNavbar() {
                     whileTap={{ scale: 0.95 }}
                   >
                     <button
-                      onClick={() => setIsSignupModalOpen(true)}
+                      onClick={() => openSignupModal()}
                       className="relative px-4 py-1.5 text-white rounded-xl text-sm font-bold shadow-lg bg-gradient-to-br from-[#4578be] to-[#5989d8] hover:shadow-xl transition-all duration-300 overflow-hidden group"
                       style={{
                         boxShadow: '0 4px 16px rgba(69, 120, 190, 0.4), 0 0 24px rgba(69, 120, 190, 0.15)'
@@ -1959,24 +1957,6 @@ export default function ReveelBoxNavbar() {
         buttonRef={paymentButtonRef}
       />
 
-      {/* Modals Login/Signup */}
-      <LoginModal
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-        onSwitchToSignup={() => {
-          setIsLoginModalOpen(false)
-          setIsSignupModalOpen(true)
-        }}
-      />
-
-      <SignupModal
-        isOpen={isSignupModalOpen}
-        onClose={() => setIsSignupModalOpen(false)}
-        onSwitchToLogin={() => {
-          setIsSignupModalOpen(false)
-          setIsLoginModalOpen(true)
-        }}
-      />
     </>
   )
 }

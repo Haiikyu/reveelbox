@@ -8,6 +8,7 @@ import {
   ChevronDown, TrendingUp, Users, Zap, Trophy, SlidersHorizontal
 } from 'lucide-react'
 import { useAuth } from '@/app/components/AuthProvider'
+import { useAuthModal } from '@/app/components/AuthModalProvider'
 import { useTheme } from '@/app/components/ThemeProvider'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
@@ -61,6 +62,7 @@ function WarmSeparator() {
 
 export default function BoxesPage() {
   const { user, profile, loading: authLoading, isAuthenticated } = useAuth()
+  const { openLoginModal } = useAuthModal()
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
   const router = useRouter()
@@ -81,8 +83,8 @@ export default function BoxesPage() {
   const pageBg = isDark ? WARM.bg : '#f8f7f5'
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) router.push('/login')
-  }, [authLoading, isAuthenticated, router])
+    if (!authLoading && !isAuthenticated) openLoginModal()
+  }, [authLoading, isAuthenticated, openLoginModal])
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) fetchData()

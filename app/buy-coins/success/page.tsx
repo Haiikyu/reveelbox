@@ -75,7 +75,7 @@ function SuccessPageContent() {
         
         if (userError || !currentUser) {
           console.error('Erreur auth:', userError)
-          router.push('/login')
+          router.push('/')
           return
         }
         

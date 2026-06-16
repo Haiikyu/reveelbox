@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/app/components/AuthProvider'
+import { useAuthModal } from '@/app/components/AuthModalProvider'
 import { useTheme } from '@/app/components/ThemeProvider'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter, useParams } from 'next/navigation'
@@ -891,6 +892,7 @@ function GradientSeparator() {
 
 export default function BoxOpeningPage() {
   const { user, profile, loading: authLoading, isAuthenticated, refreshProfile } = useAuth()
+  const { openLoginModal } = useAuthModal()
   const { resolvedTheme } = useTheme()
   const router = useRouter()
   const params = useParams()
@@ -947,9 +949,9 @@ export default function BoxOpeningPage() {
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push('/login')
+      openLoginModal()
     }
-  }, [authLoading, isAuthenticated, router])
+  }, [authLoading, isAuthenticated, openLoginModal])
 
   useEffect(() => {
     if (!isAuthenticated || !boxId) return

@@ -12,7 +12,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   const pathname = usePathname()
 
   // Pages où on ne veut pas afficher la navbar et le chat
-  const hideNavAndChat = pathname === '/login' || pathname === '/signup'
+  const hideNavAndChat = pathname === '/signup'
 
   // Pages fullscreen sans navbar (garde le chat)
   const isFullscreen = pathname === '/battles/create' || pathname === '/battles/demo'

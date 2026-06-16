@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/app/components/AuthProvider'
+import { useAuthModal } from '@/app/components/AuthModalProvider'
 import { createClient } from '@/utils/supabase/client'
 import { useProfileData } from '@/app/hooks/useProfileData'
 import { useProfileStats } from '@/app/hooks/useProfileStats'
@@ -27,6 +28,7 @@ import type { ProfileTab } from '@/app/types/profile'
 
 export default function ProfilePage() {
   const { user, profile: authProfile, loading: authLoading, isAuthenticated } = useAuth()
+  const { openLoginModal } = useAuthModal()
   const router = useRouter()
 
   const [activeTab, setActiveTab] = useState<ProfileTab>('overview')
@@ -67,7 +69,7 @@ export default function ProfilePage() {
     )
   }
 
-  if (!isAuthenticated) { router.push('/login'); return null }
+  if (!isAuthenticated) { openLoginModal(); return null }
   if (!profile) return null
 
   const hasCustomBackground = !!cosmetics.backgroundContent

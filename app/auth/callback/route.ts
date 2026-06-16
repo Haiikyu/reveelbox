@@ -48,6 +48,6 @@ export async function GET(request: Request) {
     }
   }
 
-  // En cas d'erreur, rediriger vers la page de login
-  return NextResponse.redirect(`${origin}/login`)
+  // En cas d'erreur, rediriger vers l'accueil
+  return NextResponse.redirect(`${origin}/`)
 }

@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useAuthModal } from '@/app/components/AuthModalProvider'
 import { motion } from 'framer-motion'
 import { 
   Eye, 
@@ -46,6 +47,7 @@ export default function SignUpWithAffiliate(): JSX.Element {
   const router = useRouter()
   const searchParams = useSearchParams()
   const affiliateCode = searchParams.get('ref')
+  const { openLoginModal } = useAuthModal()
   
   // États du formulaire
   const [formData, setFormData] = useState<SignUpFormData>({
@@ -553,12 +555,13 @@ export default function SignUpWithAffiliate(): JSX.Element {
           <div className="text-center mt-6">
             <p className="text-gray-600">
               Déjà un compte ?{' '}
-              <a 
-                href="/login" 
+              <button
+                type="button"
+                onClick={() => openLoginModal()}
                 className="text-green-600 hover:text-green-700 font-medium hover:underline"
               >
                 Se connecter
-              </a>
+              </button>
             </p>
           </div>
         </div>

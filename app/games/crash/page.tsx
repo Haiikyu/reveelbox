@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { TrendingUp, Coins, Timer, AlertCircle, Users, History, Zap, ArrowUp, User, DollarSign, Star, Flame, Trophy, Moon, Sun } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/app/components/AuthProvider';
+import { useAuthModal } from '@/app/components/AuthModalProvider';
 import { useTheme } from '@/app/components/ThemeProvider';
 import { createClient } from '@/utils/supabase/client';
 
@@ -37,6 +38,7 @@ interface CrashBet {
 
 const CrashGameMultiplayer: React.FC = () => {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { openLoginModal } = useAuthModal();
   const { theme, setTheme, resolvedTheme } = useTheme();
   const supabase = createClient();
   
@@ -481,12 +483,13 @@ const CrashGameMultiplayer: React.FC = () => {
           <p className="text-[rgb(var(--text-secondary))] mb-6">
             Connectez-vous pour participer au Crash Game multijoueur
           </p>
-          <a
-            href="/login"
+          <button
+            type="button"
+            onClick={() => openLoginModal()}
             className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-8 py-3 rounded-xl font-bold hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg"
           >
             Se connecter
-          </a>
+          </button>
         </div>
       </div>
     );

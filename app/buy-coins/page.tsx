@@ -10,6 +10,7 @@ import { Card } from '../components/ui/Card'
 import { LoadingState } from '../components/ui/LoadingState'
 import { Modal } from '../components/ui/Modal'
 import { useAuth } from '../components/AuthProvider'
+import { useAuthModal } from '../components/AuthModalProvider'
 import { useRouter } from 'next/navigation'
 
 // Interfaces
@@ -36,9 +37,8 @@ export default function BuyCoinsPage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null)
   const [hoveredPackage, setHoveredPackage] = useState<string | null>(null)
-  const [showLoginPrompt, setShowLoginPrompt] = useState(false)
-  
   const router = useRouter()
+  const { openLoginModal } = useAuthModal()
 
   // Afficher une notification
   const showNotification = (message: string, type: 'success' | 'error') => {
@@ -49,9 +49,9 @@ export default function BuyCoinsPage() {
   // Protection de route
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      setShowLoginPrompt(true)
+      openLoginModal()
     }
-  }, [authLoading, isAuthenticated])
+  }, [authLoading, isAuthenticated, openLoginModal])
 
   // Packages de coins ultra-attractifs
   const coinPackages: CoinPackage[] = [
@@ -135,9 +135,8 @@ export default function BuyCoinsPage() {
 
   // Gérer l'achat de coins
   const handlePurchase = async (packageData: CoinPackage) => {
-    // Si pas connecté, afficher prompt de connexion
     if (!user) {
-      setShowLoginPrompt(true)
+      openLoginModal()
       return
     }
 
@@ -187,10 +186,8 @@ export default function BuyCoinsPage() {
     return Math.round(((originalPrice - price) / originalPrice) * 100)
   }
 
-  // Rediriger vers login en sauvegardant l'intention
   const redirectToLogin = () => {
-    localStorage.setItem('redirectAfterLogin', '/buy-coins')
-    router.push('/login')
+    openLoginModal()
   }
 
   if (authLoading || loading) {
@@ -698,51 +695,6 @@ export default function BuyCoinsPage() {
           </Card>
         </motion.div>
       </div>
-
-      {/* Modal de prompt de connexion */}
-      <Modal 
-        isOpen={showLoginPrompt} 
-        onClose={() => setShowLoginPrompt(false)}
-        title="Connexion requise"
-        size="md"
-      >
-        <div className="text-center py-4">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Users className="w-8 h-8 text-white" />
-          </div>
-          
-          <h3 className="text-xl font-bold text-gray-900 mb-2">
-            Connexion Nécessaire
-          </h3>
-          
-          <p className="text-gray-600 mb-6">
-            Vous devez être connecté pour acheter des coins. 
-            Connectez-vous ou créez un compte pour continuer.
-          </p>
-          
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              fullWidth
-              onClick={() => setShowLoginPrompt(false)}
-            >
-              Annuler
-            </Button>
-            <Button
-              fullWidth
-              onClick={redirectToLogin}
-            >
-              Se connecter
-            </Button>
-          </div>
-
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <p className="text-sm text-gray-500">
-              Nouveau ? <span className="text-green-600 font-semibold">Créez un compte</span> et recevez 100 coins gratuits !
-            </p>
-          </div>
-        </div>
-      </Modal>
 
       {/* Modal de confirmation */}
       <Modal 

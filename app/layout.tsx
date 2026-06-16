@@ -4,6 +4,7 @@ import './globals.css'
 import './styles/design-tokens.css'
 import './styles/hybrid-design-system.css'
 import { AuthProvider } from './components/AuthProvider'
+import { AuthModalProvider } from './components/AuthModalProvider'
 import { ThemeProvider } from './components/ThemeProvider'
 import { LanguageProvider } from './components/LanguageProvider'
 import { Providers } from './providers'
@@ -38,9 +39,11 @@ export default function RootLayout({
           <LanguageProvider>
             <Providers>
               <AuthProvider>
-                <NotificationProvider>
-                  <LayoutContent>{children}</LayoutContent>
-                </NotificationProvider>
+                <AuthModalProvider>
+                  <NotificationProvider>
+                    <LayoutContent>{children}</LayoutContent>
+                  </NotificationProvider>
+                </AuthModalProvider>
               </AuthProvider>
             </Providers>
           </LanguageProvider>

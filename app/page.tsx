@@ -5,6 +5,7 @@ import { useRef, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/client'
 import { useAuth } from '@/app/components/AuthProvider'
+import { useAuthModal } from '@/app/components/AuthModalProvider'
 import HeroSection from '@/app/components/hero/HeroSection'
 
 // ─── Platform coin asset ──────────────────────────────────────────────────────
@@ -200,6 +201,7 @@ const MODES = [
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const { user, profile } = useAuth()
+  const { openLoginModal } = useAuthModal()
   const [boxes, setBoxes]   = useState<Box[]>([])
   const [drops, setDrops]   = useState<Drop[]>([])
   const [counts, setCounts] = useState({ opens: 0, members: 0 })
@@ -548,13 +550,22 @@ export default function HomePage() {
                 </div>
               </div>
             ))}
-            <Link href={user ? '/profile' : '/login'} className="inline-block mt-6">
+            {user ? (
+              <Link href="/profile" className="inline-block mt-6">
+                <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                  className="px-8 py-4 rounded-2xl font-bold text-white"
+                  style={{ background: 'linear-gradient(135deg,#a855f7,#7c3aed)' }}>
+                  Mon Profil →
+                </motion.button>
+              </Link>
+            ) : (
               <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                className="px-8 py-4 rounded-2xl font-bold text-white"
+                onClick={() => openLoginModal()}
+                className="inline-block mt-6 px-8 py-4 rounded-2xl font-bold text-white"
                 style={{ background: 'linear-gradient(135deg,#a855f7,#7c3aed)' }}>
-                {user ? 'Mon Profil →' : 'Créer un Compte →'}
+                Créer un Compte →
               </motion.button>
-            </Link>
+            )}
           </motion.div>
 
           {/* Profile card — using real profile data if logged in */}
@@ -652,17 +663,17 @@ export default function HomePage() {
                 </motion.button>
               </Link>
               {!user && (
-                <Link href="/login">
-                  <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                    className="px-12 py-5 rounded-2xl font-bold text-lg"
-                    style={{
-                      background: 'rgb(var(--surface-elevated))',
-                      border: '1px solid rgb(var(--border))',
-                      color: 'rgb(var(--text-primary))',
-                    }}>
-                    Se Connecter
-                  </motion.button>
-                </Link>
+                <motion.button
+                  onClick={() => openLoginModal()}
+                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                  className="px-12 py-5 rounded-2xl font-bold text-lg"
+                  style={{
+                    background: 'rgb(var(--surface-elevated))',
+                    border: '1px solid rgb(var(--border))',
+                    color: 'rgb(var(--text-primary))',
+                  }}>
+                  Se Connecter
+                </motion.button>
               )}
             </div>
           </motion.div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/app/components/AuthProvider'
+import { useAuthModal } from '@/app/components/AuthModalProvider'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -20,6 +21,7 @@ interface InventoryItem {
 
 export default function UpgradePage() {
   const { user, loading: authLoading, isAuthenticated, profile, refreshProfile } = useAuth()
+  const { openLoginModal } = useAuthModal()
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null)
@@ -64,11 +66,11 @@ export default function UpgradePage() {
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push('/login')
+      openLoginModal()
     } else if (isAuthenticated && user) {
       loadInventory()
     }
-  }, [authLoading, isAuthenticated, user])
+  }, [authLoading, isAuthenticated, user, openLoginModal])
 
   const loadInventory = async () => {
     try {

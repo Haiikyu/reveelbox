@@ -10,6 +10,7 @@ import {
   SlidersHorizontal, TrendingUp, Gem, Zap
 } from 'lucide-react'
 import { useAuth } from '../components/AuthProvider'
+import { useAuthModal } from '../components/AuthModalProvider'
 import { createClient } from '@/utils/supabase/client'
 
 // ── OPEN ─────────────────────────────────────────────────────────────────────
@@ -189,6 +190,7 @@ function ToastZone({ toasts, dismiss }: { toasts: Toast[]; dismiss: (id: string)
 
 export default function InventoryPage() {
   const { user, loading, isAuthenticated, refreshProfile } = useAuth()
+  const { openLoginModal } = useAuthModal()
   const router = useRouter()
   const supabase = createClient()
   const { resolvedTheme } = useTheme()
@@ -216,8 +218,8 @@ export default function InventoryPage() {
   const dismissToast = useCallback((id: string) => setToasts(p => p.filter(t => t.id !== id)), [])
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) router.push('/login')
-  }, [loading, isAuthenticated, router])
+    if (!loading && !isAuthenticated) openLoginModal()
+  }, [loading, isAuthenticated, openLoginModal])
 
   useEffect(() => {
     if (isAuthenticated && user?.id) loadInventory()
