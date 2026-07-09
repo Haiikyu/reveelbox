@@ -11,7 +11,22 @@ import type {
 } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 
-export function useMinesGame() {
+interface UseMinesGameReturn {
+  user: any
+  balance: number
+  currentGame: MinesGameState | null
+  gameHistory: MinesGameState[]
+  loading: boolean
+  gameState: 'idle' | 'playing'
+  startGame: (betAmount: number, bombCount: number) => Promise<boolean>
+  revealBox: (boxIndex: number) => Promise<RevealBoxResponse | null>
+  cashOut: () => Promise<CashOutResponse | null>
+  resetGame: () => void
+  refreshBalance: () => Promise<void>
+  calculateMultiplier: (revealed: number, bombs: number) => number
+}
+
+export function useMinesGame(): UseMinesGameReturn {
   const [user, setUser] = useState<any>(null)
   const [balance, setBalance] = useState<number>(0)
   const [currentGame, setCurrentGame] = useState<MinesGameState | null>(null)
